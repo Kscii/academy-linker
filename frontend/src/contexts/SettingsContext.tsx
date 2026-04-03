@@ -56,7 +56,9 @@ function loadSettings(): Settings {
 
 function applyTheme(theme: ThemeMode) {
   const root = document.documentElement
-  root.classList.toggle("dark", theme === "dark")
+  const night = theme === "dark"
+  root.classList.toggle("dark", night)
+  root.setAttribute("data-theme", night ? "night" : "day")
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {

@@ -23,16 +23,25 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl p-6">
-        <AppHeader />
-      </div>
-      <div className="flex min-h-[80svh] flex-col items-center justify-center gap-6 p-6">
+      <div className="relative min-h-[100svh] bg-[var(--bg)]">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-80"
+          style={{
+            backgroundImage: `radial-gradient(circle, var(--dot) 1px, transparent 1px)`,
+            backgroundSize: "28px 28px",
+          }}
+        />
+        <div className="citypop-login-overlay absolute inset-0 opacity-55" aria-hidden />
+        <div className="relative mx-auto max-w-6xl p-4 md:p-6">
+          <AppHeader />
+        </div>
+        <div className="relative flex min-h-[calc(100svh-120px)] flex-col items-center justify-center gap-6 px-6 pb-16">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Academy Linker
+          <h1 className="font-display text-4xl font-medium tracking-wide text-[var(--tx)] md:text-5xl">
+            ParentLink
           </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Parent portal frontend mock：只实现页面样式与交互逻辑（无后端接口）。
+          <p className="mt-3 max-w-md text-sm font-medium text-[var(--tx2)]">
+            City Pop Sydney 风格家长门户（前端 mock）：页面样式与交互，无后端接口。
           </p>
         </div>
 
@@ -43,8 +52,9 @@ export default function HomePage() {
           </Button>
         </div>
 
-        <div className="mt-6 w-full max-w-xl text-left text-sm text-muted-foreground">
+        <div className="mt-6 w-full max-w-xl text-left text-sm text-[var(--tx2)]">
           Tip：你可以直接访问任意受保护页面（例如 `/parent/...`），未登录时会自动回到首页并弹出登录框。
+        </div>
         </div>
       </div>
 
