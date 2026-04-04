@@ -1,23 +1,18 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Generator
-
-from dotenv import load_dotenv
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from ac_link.config.config import settings
 from ac_link.db.orm.base import Base
 from ac_link.db import orm  # ensure models are imported before create_all
 
 
-load_dotenv()
-DATABASE_URL = os.environ["DATABASE_URL"]
-
 engine = create_engine(
-    DATABASE_URL,
-    echo=False,
+    settings.database_url,
+    echo=settings.debug,
     pool_pre_ping=True,
 )
 
