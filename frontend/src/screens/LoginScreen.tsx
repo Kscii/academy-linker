@@ -1,0 +1,237 @@
+// ============================================================
+// LoginScreen — Role selection, email/password, language pills
+// Parent = li.wei@email.com | Teacher = thompson@westside.edu.au
+// ============================================================
+
+import { useState } from 'react';
+import { useApp } from '@/contexts/AppContext';
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'zh', label: '中文' },
+  { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'ar', label: 'العربية' },
+];
+
+const ROLE_EMAILS = {
+  parent:  'li.wei@email.com',
+  teacher: 'thompson@westside.edu.au',
+};
+
+// ── Decorative background SVG ─────────────────────────────────
+
+function LoginDecor() {
+  return (
+    <svg
+      viewBox="0 0 800 300"
+      fill="none"
+      style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        width: '100%', height: 300, pointerEvents: 'none', opacity: 0.18,
+      }}
+    >
+      <circle cx="100" cy="200" r="120" stroke="var(--a1)" strokeWidth="1.5" />
+      <circle cx="300" cy="280" r="80"  stroke="var(--a2)" strokeWidth="1.5" />
+      <circle cx="500" cy="180" r="100" stroke="var(--a3)" strokeWidth="1.5" />
+      <circle cx="700" cy="260" r="90"  stroke="var(--a4)" strokeWidth="1.5" />
+      <circle cx="650" cy="100" r="60"  stroke="var(--a1)" strokeWidth="1"   />
+      <line x1="200" y1="200" x2="300" y2="250" stroke="var(--tx3)" strokeWidth="1" />
+      <line x1="380" y1="200" x2="500" y2="180" stroke="var(--tx3)" strokeWidth="1" />
+      <line x1="580" y1="200" x2="650" y2="130" stroke="var(--tx3)" strokeWidth="1" />
+    </svg>
+  );
+}
+
+export function LoginScreen() {
+  const { login, toggleTheme, theme, language, setLanguage } = useApp();
+
+  const [role, setRole] = useState<'parent' | 'teacher'>('parent');
+  const [email, setEmail] = useState(ROLE_EMAILS.parent);
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const selectRole = (r: 'parent' | 'teacher') => {
+    setRole(r);
+    setEmail(ROLE_EMAILS[r]);
+    setError('');
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      await login(email, password, rememberMe, role);
+    } catch {
+      setError('Invalid credentials. Try any password to continue.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-screen">
+      <LoginDecor />
+
+      {/* Top-right theme toggle */}
+      <button
+        onClick={toggleTheme}
+        style={{
+          position: 'absolute', top: 20, right: 20,
+          background: 'var(--card)', border: '1px solid var(--bd)',
+          borderRadius: 8, padding: '8px 14px', cursor: 'pointer',
+          fontSize: 13, color: 'var(--tx2)', fontWeight: 700,
+          fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 6,
+        }}
+      >
+        {theme === 'day' ? '🌙' : '☀️'} {theme === 'day' ? 'Night' : 'Day'}
+      </button>
+
+      <div className="login-card">
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: 14,
+            background: 'linear-gradient(135deg, var(--a1), var(--a3))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 26, margin: '0 auto 14px',
+          }}>
+            🎓
+          </div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>
+            Academy Linker
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--tx2)' }}>
+            Parent–Teacher Communication Portal
+          </div>
+        </div>
+
+        {/* Language pills */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
+          {LANGUAGES.map(l => (
+            <button
+              key={l.code}
+              className={`lang-pill ${language === l.code ? 'active' : ''}`}
+              onClick={() => setLanguage(l.code)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Role selection */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Sign in as
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div
+              className={`role-select-card ${role === 'parent' ? 'selected' : ''}`}
+              onClick={() => selectRole('parent')}
+            >
+              <div
+                className="role-icon"
+                style={{ background: role === 'parent' ? 'rgba(232,97,78,0.12)' : 'var(--bg2)' }}
+              >
+                👨‍👩‍👧
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>Parent</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Family portal</div>
+              </div>
+            </div>
+            <div
+              className={`role-select-card ${role === 'teacher' ? 'selected' : ''}`}
+              onClick={() => selectRole('teacher')}
+            >
+              <div
+                className="role-icon"
+                style={{ background: role === 'teacher' ? 'rgba(74,144,217,0.12)' : 'var(--bg2)' }}
+              >
+                👩‍🏫
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>Teacher</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Staff portal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Email */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', display: 'block', marginBottom: 6 }}>
+            Email address
+          </label>
+          <input
+            className="input-field"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="your@email.com"
+          />
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', display: 'block', marginBottom: 6 }}>
+            Password
+          </label>
+          <input
+            className="input-field"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Enter any password"
+            onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }}
+          />
+        </div>
+
+        {/* Remember me */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <input
+            type="checkbox"
+            id="remember"
+            checked={rememberMe}
+            onChange={e => setRememberMe(e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: 'var(--a1)', cursor: 'pointer' }}
+          />
+          <label htmlFor="remember" style={{ fontSize: 13, color: 'var(--tx2)', cursor: 'pointer' }}>
+            Remember me
+          </label>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.3)',
+            borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+            fontSize: 13, color: 'var(--warn)',
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Sign in button */}
+        <button
+          className="btn-primary"
+          onClick={handleLogin}
+          disabled={loading}
+          style={{ opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? 'Signing in…' : 'Sign In'}
+        </button>
+
+        {/* Demo hint */}
+        <div style={{ marginTop: 16, textAlign: 'center', fontSize: 12, color: 'var(--tx3)' }}>
+          Demo: use any password to sign in
+        </div>
+      </div>
+    </div>
+  );
+}
