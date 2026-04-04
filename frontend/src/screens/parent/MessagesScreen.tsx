@@ -22,7 +22,12 @@ function initials(name: string): string {
 }
 
 export function MessagesScreen() {
-  const { navigate } = useApp();
+  const { navigate, markThreadRead, readThreadIds: readThreads } = useApp();
+
+  const handleOpen = (teacherUuid: string, subjectUuid: string) => {
+    markThreadRead(teacherUuid);
+    navigate('subject-detail', { subjectUuid });
+  };
 
   return (
     <div>
@@ -41,7 +46,7 @@ export function MessagesScreen() {
             key={item.teacher.uuid}
             className="card-sm"
             style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onClick={() => navigate('subject-detail', { subjectUuid: item.subject.uuid })}
+            onClick={() => handleOpen(item.teacher.uuid, item.subject.uuid)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               {/* Avatar */}
@@ -83,8 +88,8 @@ export function MessagesScreen() {
                 </div>
               </div>
 
-              {/* Unread badge */}
-              {item.unread_count > 0 && (
+              {/* Unread badge — disappears once thread is opened */}
+              {item.unread_count > 0 && !readThreads.has(item.teacher.uuid) && (
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%',
                   background: 'var(--a1)', color: '#fff',
