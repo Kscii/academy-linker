@@ -25,6 +25,15 @@ interface TooltipState {
   label: string;
 }
 
+// Resolve CSS variables like "var(--a1)" to actual color values for canvas use
+function resolveColor(color: string): string {
+  if (color.startsWith('var(')) {
+    const name = color.slice(4, -1).trim();
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888888';
+  }
+  return color;
+}
+
 export function LineChart({
   data,
   avgData,
@@ -155,14 +164,18 @@ export function LineChart({
       ctx.setLineDash([]);
     };
 
+    // Resolve CSS variables to actual hex/rgb values for canvas
+    const resolvedColor = resolveColor(color);
+    const resolvedAvgColor = resolveColor(avgColor);
+
     // Main data line
     const mainPoints = data.map((d, i) => [toX(i), toY(d.value)]);
-    drawLine(mainPoints, color);
+    drawLine(mainPoints, resolvedColor);
 
     // Class average overlay
     if (showAvg && avgData && avgData.length > 0) {
       const avgPoints = avgData.map((d, i) => [toX(i), toY(d.value)]);
-      drawLine(avgPoints, avgColor, true);
+      drawLine(avgPoints, resolvedAvgColor, true);
     }
 
     // Dots on main line
@@ -173,7 +186,7 @@ export function LineChart({
       ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fillStyle = '#fff';
       ctx.fill();
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = resolvedColor;
       ctx.lineWidth = 2;
       ctx.stroke();
     });
@@ -263,9 +276,9 @@ export function LineChart({
           }}
         >
           <div style={{ color: 'var(--tx3)', fontSize: 10, fontWeight: 700 }}>{tooltip.label}</div>
-          <div style={{ color: color, fontSize: 14, fontWeight: 700 }}>{tooltip.value}%</div>
+          <div style={{ color: resolveColor(color), fontSize: 14, fontWeight: 700 }}>{tooltip.value}%</div>
           {showAvg && tooltip.avg !== undefined && (
-            <div style={{ color: avgColor, fontSize: 11 }}>Class avg: {tooltip.avg}%</div>
+            <div style={{ color: resolveColor(avgColor), fontSize: 11 }}>Class avg: {tooltip.avg}%</div>
           )}
         </div>
       )}
