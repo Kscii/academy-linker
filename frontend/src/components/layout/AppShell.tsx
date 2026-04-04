@@ -119,9 +119,13 @@ function UserProfile() {
 // ── AppShell ──────────────────────────────────────────────────
 
 export function AppShell({ children }: AppShellProps) {
-  const { role, setRole, currentScreen, navigate, toggleTheme, theme, language, setLanguage } = useApp();
+  const { role, setRole, currentScreen, navigate, toggleTheme, theme, language, setLanguage, unreadMessageCount, readThreadIds, markThreadRead } = useApp();
 
   const navItems = role === 'parent' ? PARENT_NAV : TEACHER_NAV;
+
+  // Silence unused variable warning — these are consumed via context only
+  void readThreadIds;
+  void markThreadRead;
 
   return (
     <div className="app-shell">
@@ -171,6 +175,13 @@ export function AppShell({ children }: AppShellProps) {
             >
               <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
               {item.label}
+              {item.id === 'messages' && unreadMessageCount > 0 && (
+                <span style={{
+                  marginLeft: 'auto',
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--a1)', flexShrink: 0,
+                }} />
+              )}
             </div>
           ))}
         </nav>

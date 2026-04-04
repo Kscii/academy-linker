@@ -146,3 +146,8 @@ vite.config.ts.timestamp-*
 .mcp.json
 .claude/
 
+# Mock backend — dev only, not for production
+mock_server.py
+__pycache__/
+*.pyc
+

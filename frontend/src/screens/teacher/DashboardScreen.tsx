@@ -48,17 +48,30 @@ export function TeacherDashboardScreen() {
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
-        {dashboard.summary_cards.map((card, i) => (
-          <div key={i} className="stat-box">
-            <div className="stat-label">{card.label}</div>
-            <div className="stat-value" style={{ color: ACCENT_COLORS[card.color ?? 'a1'] }}>
-              {card.value}
+        {dashboard.summary_cards.map((card, i) => {
+          const isMessages = card.label === 'Unread Msgs';
+          return (
+            <div
+              key={i}
+              className="stat-box"
+              onClick={isMessages ? () => navigate('messages') : undefined}
+              style={{ cursor: isMessages ? 'pointer' : 'default' }}
+            >
+              <div className="stat-label">{card.label}</div>
+              <div className="stat-value" style={{ color: ACCENT_COLORS[card.color ?? 'a1'] }}>
+                {card.value}
+              </div>
+              {card.sub && (
+                <div className="stat-sub">{card.sub}</div>
+              )}
+              {isMessages && (
+                <div style={{ fontSize: 10, color: 'var(--a4)', marginTop: 4, fontWeight: 700 }}>
+                  View all →
+                </div>
+              )}
             </div>
-            {card.sub && (
-              <div className="stat-sub">{card.sub}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Class cards grid */}

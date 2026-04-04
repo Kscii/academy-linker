@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState } from 'react';
+import { useApp } from '@/contexts/AppContext';
 import { mockTeacherStudents, mockTeacherThread, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 import type { ThreadPost } from '@/types/api';
@@ -85,6 +86,7 @@ function StudentChartModal({
 }
 
 export function TeacherMessagesScreen() {
+  const { markThreadRead, readThreadIds } = useApp();
   const [activeStudentUuid, setActiveStudentUuid] = useState(mockTeacherStudents[0].student.uuid);
   const [messages, setMessages] = useState<ThreadPost[]>(mockTeacherThread);
   const [reply, setReply] = useState('');
@@ -127,7 +129,7 @@ export function TeacherMessagesScreen() {
             <div
               key={item.student.uuid}
               className={`convo-item ${activeStudentUuid === item.student.uuid ? 'active' : ''}`}
-              onClick={() => setActiveStudentUuid(item.student.uuid)}
+              onClick={() => { setActiveStudentUuid(item.student.uuid); markThreadRead(item.student.uuid); }}
             >
               {/* Clickable avatar → opens modal */}
               <div
@@ -153,7 +155,7 @@ export function TeacherMessagesScreen() {
                   Parent: Li Wei
                 </div>
               </div>
-              {item.unread_messages > 0 && (
+              {item.unread_messages > 0 && !readThreadIds.has(item.student.uuid) && (
                 <div style={{
                   width: 18, height: 18, borderRadius: '50%', background: 'var(--a1)',
                   color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',

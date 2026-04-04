@@ -12,7 +12,14 @@ import {
   type ReactNode,
 } from 'react';
 import type { UserSummary } from '@/types/api';
-import { mockParentUser, mockTeacherUser } from '@/lib/mock-data';
+import { auth } from '@/lib/api';
+import { mockParentUser, mockTeacherUser, mockDiscussionTeachers, mockTeacherStudents } from '@/lib/mock-data';
+
+// Hardcoded demo credentials for fallback when backend is offline
+const DEMO_CREDENTIALS: Record<string, { password: string; role: 'parent' | 'teacher' }> = {
+  'li.wei@email.com':          { password: 'password123', role: 'parent' },
+  'thompson@westside.edu.au':  { password: 'password123', role: 'teacher' },
+};
 
 // ── Screen names ─────────────────────────────────────────────
 
@@ -74,6 +81,11 @@ interface AppContextValue {
 
   /* Navigation params stack */
   navParams: NavigationParams;
+
+  /* Unread messages */
+  readThreadIds: Set<string>;
+  markThreadRead: (id: string) => void;
+  unreadMessageCount: number;
 }
 
 export interface NavigationParams {
@@ -98,6 +110,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentStudentDetailUuid, setCurrentStudentDetailUuid] = useState<string | null>(null);
   const [language, setLanguage] = useState('en');
   const [navParams, setNavParams] = useState<NavigationParams>({});
+  const [readThreadIds, setReadThreadIds] = useState<Set<string>>(new Set());
+
+  const markThreadRead = useCallback((id: string) => {
+    setReadThreadIds(prev => new Set([...prev, id]));
+  }, []);
+
+  // Total unread = sum of per-thread counts, minus those already read
+  const unreadMessageCount =
+    role === 'parent'
+      ? mockDiscussionTeachers
+          .filter(t => !readThreadIds.has(t.teacher.uuid) && t.unread_count > 0)
+          .reduce((sum, t) => sum + t.unread_count, 0)
+      : mockTeacherStudents
+          .filter(s => !readThreadIds.has(s.student.uuid) && s.unread_messages > 0)
+          .reduce((sum, s) => sum + s.unread_messages, 0);
 
   // Apply theme class to <html>
   useEffect(() => {
@@ -119,13 +146,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (
-    _email: string,
-    _password: string,
-    _rememberMe: boolean,
+    email: string,
+    password: string,
+    rememberMe: boolean,
     loginRole: 'parent' | 'teacher'
   ) => {
-    // Mock login — use mock user data since backend isn't ready
-    await new Promise(resolve => setTimeout(resolve, 600));
+    // Try real backend first
+    try {
+      const res = await auth.login({ email, password, remember_me: rememberMe });
+      setUser(res.data.user);
+      setRoleState(res.data.user.role as 'parent' | 'teacher');
+      setCurrentScreen('dashboard');
+      return;
+    } catch {
+      // Backend offline — fall back to demo credential check
+    }
+
+    // Offline fallback: validate against hardcoded demo credentials
+    const cred = DEMO_CREDENTIALS[email.toLowerCase()];
+    if (!cred || cred.password !== password) {
+      throw new Error('invalid_credentials');
+    }
     const mockUser = loginRole === 'parent' ? mockParentUser : mockTeacherUser;
     setUser(mockUser);
     setRoleState(loginRole);
@@ -167,6 +208,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     language,
     setLanguage,
     navParams,
+    readThreadIds,
+    markThreadRead,
+    unreadMessageCount,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
