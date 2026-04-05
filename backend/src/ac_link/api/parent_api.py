@@ -487,10 +487,10 @@ def _build_report_summary(report: Report | None) -> ReportSummary | None:
     return ReportSummary(
         report_uuid=report.uuid,
         report_title=report.title,
-        display_text=report.content_markdown,
+        display_text=_display_content(report),
         original_text=report.original_content_markdown,
         translated_text=report.translated_content_markdown,
-        display_language=report.original_language,
+        display_language=_display_language(report),
         original_language=report.original_language,
         translated_language=report.translated_language,
         translation_status=str(report.translation_status),

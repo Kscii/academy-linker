@@ -292,7 +292,7 @@ def create_binding(
     if student is None:
         raise Errors.not_found("学生不存在")
 
-    if body.is_primary and admin_crud.has_active_binding_for_student(db, student.id):
+    if admin_crud.has_active_binding_for_student(db, student.id):
         raise Errors.conflict("该学生已存在一条 is_active=true 的绑定")
 
     try:

@@ -1398,7 +1398,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ## 10. 老师端接口
 
-### 10.1 获取老师负责的学生列表
+### 10.1 获取老师负责的学生列表（已完成）
 
 **GET** `/api/teachers/me/students`
 
@@ -1407,12 +1407,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
 | `page` | int | 否 | 默认 1 |
-| `page_size` | int | 否 | 默认 20 |
+| `page_size` | int | 否 | 默认 20，最大 100 |
 | `class_name` | string | 否 | 班级精确匹配 |
 | `grade_level` | string | 否 | 年级精确匹配 |
 | `subject_uuid` | string | 否 | 学科过滤 |
 | `keyword` | string | 否 | `sid` / 姓名模糊匹配 |
 | `sort` | enum | 否 | `full_name_asc`, `full_name_desc`, `sid_asc`, `sid_desc`, `score_desc`, `score_asc`, `last_activity_at_desc` |
+
+> **注：** `score_desc` / `score_asc` 因 `student_metrics` 表尚未建立，`score` 字段始终返回 `null`，排序回退到 `full_name_asc`。`last_activity_at_desc` 按该教师与该学生最近一条未删除 post 的时间排序，无帖子时排最后。
 
 #### Success 200
 
@@ -1423,9 +1425,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "sid": "string | null",
       "full_name": "string",
+      "preferred_name": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
-      "overall_performance_index": 85.5,
+      "avatar_url": "string | null",
+      "score": null,
       "last_activity_at": "string | null"
     }
   ],
@@ -1438,34 +1442,70 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+#### Error
+
+- `400 invalid_sort`
+- `401 unauthenticated`
+- `403 role_not_allowed`
+
 ---
 
-### 10.2 获取老师视角学生 Dashboard
+### 10.2 获取老师视角学生 Dashboard（已完成）
 
 **GET** `/api/teachers/me/students/{student_uuid}/dashboard`
 
 #### Query
 
-同家长 dashboard。
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `range` | enum | 否 | `7d`, `30d`, `90d`, `all_time` |
 
 #### Success 200
 
 ```json
 {
   "data": {
-    "student": {},
-    "dashboard_context": {},
-    "summary_cards": {},
-    "charts": {},
-    "important_post_banners": [],
-    "teacher_actions": {
-      "can_create_report": true,
-      "can_publish_announcement": true,
-      "can_manage_tags": true
+    "student": {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string",
+      "preferred_name": "string | null",
+      "class_name": "string | null",
+      "grade_level": "string | null",
+      "avatar_url": "string | null"
+    },
+    "unread_post_count": 2,
+    "summary_cards": {
+      "overall_performance_index": null,
+      "assignment_completion_rate": null,
+      "attendance_rate": null,
+      "summary": {
+        "report_uuid": "string",
+        "report_title": "string",
+        "display_text": "string",
+        "original_text": "string",
+        "translated_text": "string | null",
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "completed",
+        "translated_at": "string | null"
+      }
     }
   }
 }
 ```
+
+> **注：**
+> - `unread_post_count` = 当前教师在该学生所有 thread 中的未读帖子缓存总数。
+> - `summary` 取该学生**所有来源**的最近一条 `is_published=true` 报告，若无报告则为 `null`。
+> - 聚合指标（`overall_performance_index` 等）待 `student_metrics` 表建好后填充，当前始终为 `null`。
+
+#### Error
+
+- `401 unauthenticated`
+- `403 role_not_allowed`
+- `404 not_found`
 
 ---
 
@@ -1755,7 +1795,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 10.12 老师创建报告
+### 10.12 老师创建报告（已完成）
 
 **POST** `/api/teachers/me/students/{student_uuid}/reports`
 
@@ -1768,20 +1808,69 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "subject_uuid": "string | null",
   "content_markdown": "string",
   "original_language": "string",
+  "translation_status": "not_required | pending | completed | failed | stale",
   "translated_content_markdown": "string | null",
   "translated_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale",
   "translated_at": "string | null"
 }
 ```
 
+#### 规则
+
+- `source_type` 固定为 `teacher`，不可由客户端传入
+- 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
+- 创建后立即发布（`is_published=true`，`published_at=now()`）
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string",
+    "report_type": "weekly | monthly | custom",
+    "source_type": "teacher",
+    "subject": {
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
+    },
+    "author": {
+      "uuid": "string",
+      "display_name": "string",
+      "role": "teacher"
+    },
+    "created_at": "string",
+    "published_at": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "not_required",
+    "translated_at": "string | null"
+  }
+}
+```
+
+#### Error
+
+- `401 unauthenticated`
+- `403 role_not_allowed`
+- `403 forbidden`（subject 未分配给该教师）
+- `404 not_found`（学生或学科不存在）
+- `422 validation_error`
+
 ---
 
-### 10.13 老师更新报告
+### 10.13 老师更新报告（已完成）
 
 **PATCH** `/api/reports/{report_uuid}`
 
 #### Body
+
+所有字段均为可选。缺失字段不更新；支持 null 的字段若显式传 `null` 则置为 null。
 
 ```json
 {
@@ -1790,21 +1879,35 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "subject_uuid": "string | null",
   "content_markdown": "string | null",
   "original_language": "string | null",
+  "translation_status": "not_required | pending | completed | failed | stale | null",
   "translated_content_markdown": "string | null",
   "translated_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale | null",
   "translated_at": "string | null"
 }
 ```
 
 #### 规则
 
-- 仅创建者老师或 admin 可更新
-- 不更新家长个人 read/archive 状态
+- 仅报告创建者（teacher）或 admin 可更新
+- **禁止修改** `student`（由创建时的路径决定）和 `source_type`
+- 若更新了 `content_markdown` 且当前 `translation_status == completed`，后端自动将 `translation_status` 置为 `stale`
+- 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联；admin 跳过此验证
+- 不影响家长个人 `is_read` / `is_archived` 状态
+
+#### Success 200
+
+返回更新后的完整报告，结构与 §10.12 Success 201 一致。
+
+#### Error
+
+- `401 unauthenticated`
+- `403 forbidden`
+- `404 not_found`
+- `422 validation_error`
 
 ---
 
-### 10.14 老师创建公告/任务
+### 10.14 老师创建公告/任务（已完成）
 
 **POST** `/api/teachers/me/students/{student_uuid}/announcements`
 
@@ -1814,11 +1917,12 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "category": "announcement | task",
   "title": "string",
+  "subject_uuid": "string | null",
   "content_markdown": "string",
   "original_language": "string",
+  "translation_status": "not_required | pending | completed | failed | stale",
   "translated_content_markdown": "string | null",
   "translated_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale",
   "translated_at": "string | null",
   "published_at": "string | null",
   "due_at": "string | null",
@@ -1828,18 +1932,97 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- `published_at` 为空时默认服务端当前时间
+- `published_at` 为空时默认服务端当前时间（UTC）
+- 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联
 - `is_important` 允许老师设置
+- 创建后立即发布（`is_published=true`）
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "category": "announcement | task",
+    "title": "string",
+    "subject": {
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
+    },
+    "is_important": false,
+    "author": {
+      "uuid": "string",
+      "display_name": "string",
+      "role": "teacher"
+    },
+    "published_at": "string",
+    "due_at": "string | null",
+    "created_at": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "not_required",
+    "translated_at": "string | null"
+  }
+}
+```
+
+#### Error
+
+- `401 unauthenticated`
+- `403 role_not_allowed`
+- `403 forbidden`（subject 未分配）
+- `404 not_found`
+- `422 validation_error`
 
 ---
 
-### 10.15 老师更新公告/任务
+### 10.15 老师更新公告/任务（已完成）
 
 **PATCH** `/api/announcements/{announcement_uuid}`
 
 #### Body
 
-同创建字段，全部 nullable patch。
+所有字段均为可选。缺失字段不更新；支持 null 的字段若显式传 `null` 则置为 null。
+
+```json
+{
+  "category": "announcement | task | null",
+  "title": "string | null",
+  "subject_uuid": "string | null",
+  "content_markdown": "string | null",
+  "original_language": "string | null",
+  "translation_status": "not_required | pending | completed | failed | stale | null",
+  "translated_content_markdown": "string | null",
+  "translated_language": "string | null",
+  "translated_at": "string | null",
+  "published_at": "string | null",
+  "due_at": "string | null",
+  "is_important": "boolean | null"
+}
+```
+
+#### 规则
+
+- 仅公告创建者（teacher）或 admin 可更新
+- **禁止修改** `student` 和 `author`
+- 若更新了 `content_markdown` 且当前 `translation_status == completed`，后端自动将 `translation_status` 置为 `stale`
+- 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联；admin 跳过此验证
+
+#### Success 200
+
+返回更新后的完整公告，结构与 §10.14 Success 201 一致。
+
+#### Error
+
+- `401 unauthenticated`
+- `403 forbidden`
+- `404 not_found`
+- `422 validation_error`
 
 ---
 
