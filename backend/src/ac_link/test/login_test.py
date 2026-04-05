@@ -10,7 +10,7 @@ from ac_link.services.auth_service import hash_password
 TEST_EMAIL = "kscii@gmail.com"
 TEST_PASSWORD = "114514"
 TEST_DISPLAY_NAME = "kscii"
-TEST_ROLE = UserRole.PARENT
+TEST_ROLE = UserRole.ADMIN
 
 BASE_URL = "http://localhost:8000"
 
