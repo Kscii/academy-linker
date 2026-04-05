@@ -27,7 +27,8 @@ import type {
 
 // ── Config ───────────────────────────────────────────────────
 
-const API_BASE = 'http://localhost:8000/api';
+// 改为允许使用Vite环境变量来配置后端api地址
+const API_BASE = (import.meta.env.VITE_API_BASE as string) ?? 'http://localhost:8000/api';
 
 
 let isRefreshing = false;
