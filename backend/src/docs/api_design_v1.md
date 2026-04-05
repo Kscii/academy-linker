@@ -79,7 +79,10 @@
 - 不开放创建 thread 的接口
 - 页面上的帖子在该 thread 下按筛选、排序、分页平铺展示
 - `tag` 只作用于 `post`
-- `important` 等系统 tag 可参与业务逻辑
+- tag 分两种：
+  - **系统 tag**：按初始化数据预置，只有 admin 可修改，**所有用户（parent / teacher）均可使用**
+  - **老师私有 tag**：每个老师自行创建，可被**该老师本人**及**与该老师有关的家长**（即处于同一 thread 的家长）使用
+- `important` 为系统 tag，所有用户均可打，参与 dashboard 展示逻辑
 - 家长不能创建 tag
 - 老师可创建自己的私有 tag
 
@@ -1179,7 +1182,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.13 获取学生讨论教师列表
+### 9.13 获取学生讨论教师列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/discussions/teachers`
 
@@ -1195,25 +1198,29 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "data": [
     {
-      "teacher": {
-        "uuid": "string",
-        "display_name": "string",
-        "email": "string",
-        "avatar_url": "string | null"
-      },
-      "thread": {
-        "uuid": "string",
-        "last_post_at": "string | null",
-        "unread_post_count": 2
-      }
+      "uuid": "string",
+      "display_name": "string",
+      "avatar_url": "string | null",
+      "subjects": [
+        {
+          "uuid": "string",
+          "name": "string",
+          "code": "string | null"
+        }
+      ],
+      "thread_uuid": "string | null",
+      "last_post_at": "string | null",
+      "unread_post_count": 2
     }
   ]
 }
 ```
 
+> 注：`thread_uuid` 在家长还没有打开过讨论页时为 `null`（懒创建）。`subjects` 为该教师教这个学生的学科列表。
+
 ---
 
-### 9.14 获取与某老师的讨论页聚合数据
+### 9.14 获取与某老师的讨论页聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}`
 
@@ -1232,6 +1239,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
+    "thread_uuid": "string",
     "student": {
       "uuid": "string",
       "sid": "string | null",
@@ -1240,34 +1248,27 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "teacher": {
       "uuid": "string",
       "display_name": "string",
-      "email": "string",
-      "avatar_url": "string | null"
+      "avatar_url": "string | null",
+      "subjects": [
+        {
+          "uuid": "string",
+          "name": "string",
+          "code": "string | null"
+        }
+      ]
     },
-    "thread": {
-      "uuid": "string",
-      "last_post_at": "string | null"
-    },
-    "available_tags": [
-      {
-        "uuid": "string",
-        "name": "important",
-        "scope": "system | teacher_private",
-        "is_selectable_by_parent": false,
-        "is_selectable_by_teacher": true
-      }
-    ],
     "posts": [
       {
         "uuid": "string",
-        "title": "string | null",
-        "content_markdown": "string",
-        "created_at": "string",
-        "updated_at": "string | null",
         "author": {
           "uuid": "string",
           "display_name": "string",
           "role": "parent | teacher"
         },
+        "title": "string | null",
+        "content_markdown": "string",
+        "is_deleted": false,
+        "reply_to_post_uuid": "string | null",
         "tags": [
           {
             "uuid": "string",
@@ -1275,22 +1276,27 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
             "scope": "system | teacher_private"
           }
         ],
-        "reply_to_post_uuid": "string | null"
+        "created_at": "string",
+        "updated_at": "string | null"
       }
-    ]
-  },
-  "meta": {
-    "page": 1,
-    "page_size": 20,
-    "total": 10,
-    "total_pages": 1
+    ],
+    "meta": {
+      "page": 1,
+      "page_size": 20,
+      "total": 10,
+      "total_pages": 1
+    }
   }
 }
 ```
 
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。
+>
+> **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
+
 ---
 
-### 9.15 家长创建帖子
+### 9.15 家长创建帖子（已完成）
 
 **POST** `/api/threads/{thread_uuid}/posts`
 
@@ -1307,8 +1313,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- 家长只能选择 `is_selectable_by_parent = true` 的 tag
-- 家长不能打 `important`
+- 家长可使用所有系统 tag
+- 家长可使用当前讨论教师的私有 tag
+- 不属于当前讨论教师的私有 tag 返回 403
 
 #### Success 201
 
@@ -1316,15 +1323,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "data": {
     "uuid": "string",
-    "title": "string | null",
-    "content_markdown": "string",
-    "created_at": "string",
-    "updated_at": null,
     "author": {
       "uuid": "string",
       "display_name": "string",
       "role": "parent"
     },
+    "title": "string | null",
+    "content_markdown": "string",
+    "is_deleted": false,
+    "reply_to_post_uuid": "string | null",
     "tags": [
       {
         "uuid": "string",
@@ -1332,14 +1339,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
         "scope": "system"
       }
     ],
-    "reply_to_post_uuid": "string | null"
+    "created_at": "string",
+    "updated_at": null
   }
 }
 ```
 
 ---
 
-### 9.16 家长编辑自己发的帖子
+### 9.16 家长编辑自己发的帖子（已完成）
 
 **PATCH** `/api/posts/{post_uuid}`
 
@@ -1349,19 +1357,25 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "title": "string | null",
   "content_markdown": "string | null",
-  "tag_uuids": ["string"]
+  "tag_uuids": ["string"] 
 }
 ```
+
+> 注：`tag_uuids` 若提供则整体替换现有标签；若不提供（字段缺失）则保持不变。
 
 #### 规则
 
 - 仅作者可编辑
-- 家长不能修改老师专属 tag
+- 家长只能使用系统 tag 或当前讨论教师的私有 tag
 - 不支持编辑作者角色和 thread 归属
+
+#### Success 200
+
+返回更新后的完整帖子，结构与创建帖子的响应一致（见 §9.15 Success 201）。
 
 ---
 
-### 9.17 家长删除自己发的帖子
+### 9.17 家长删除自己发的帖子（已完成）
 
 **DELETE** `/api/posts/{post_uuid}`
 
@@ -1455,9 +1469,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 10.3 获取老师视角学生讨论家长列表
+### 10.3 获取老师视角学生讨论家长列表（已完成）
 
 **GET** `/api/teachers/me/students/{student_uuid}/discussions/parents`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `sort` | enum | 否 | `last_post_at_desc`, `display_name_asc` |
 
 #### Success 200
 
@@ -1465,45 +1485,89 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "data": [
     {
-      "parent": {
-        "uuid": "string",
-        "display_name": "string",
-        "email": "string",
-        "avatar_url": "string | null"
-      },
-      "thread": {
-        "uuid": "string",
-        "last_post_at": "string | null",
-        "unread_post_count": 2
-      }
+      "uuid": "string",
+      "display_name": "string",
+      "avatar_url": "string | null",
+      "thread_uuid": "string | null",
+      "last_post_at": "string | null",
+      "unread_post_count": 2
     }
   ]
 }
 ```
 
+> 注：`thread_uuid` 在教师还没有打开过讨论页时为 `null`（懒创建）。
+
 ---
 
-### 10.4 获取老师与某家长讨论页
+### 10.4 获取老师与某家长讨论页（已完成）
 
 **GET** `/api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}`
 
 #### Query
 
-与家长讨论页一致：
-
-- `page`
-- `page_size`
-- `sort`
-- `tag`
-- `keyword`
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `sort` | enum | 否 | `created_at_desc`, `created_at_asc` |
+| `tag` | string | 否 | tag 名称过滤 |
+| `keyword` | string | 否 | 标题/正文模糊搜索 |
 
 #### Success 200
 
-结构与家长讨论页一致。
+```json
+{
+  "data": {
+    "thread_uuid": "string",
+    "student": {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string"
+    },
+    "parent": {
+      "uuid": "string",
+      "display_name": "string",
+      "avatar_url": "string | null"
+    },
+    "posts": [
+      {
+        "uuid": "string",
+        "author": {
+          "uuid": "string",
+          "display_name": "string",
+          "role": "parent | teacher"
+        },
+        "title": "string | null",
+        "content_markdown": "string",
+        "is_deleted": false,
+        "reply_to_post_uuid": "string | null",
+        "tags": [
+          {
+            "uuid": "string",
+            "name": "important",
+            "scope": "system | teacher_private"
+          }
+        ],
+        "created_at": "string",
+        "updated_at": "string | null"
+      }
+    ],
+    "meta": {
+      "page": 1,
+      "page_size": 20,
+      "total": 10,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。
 
 ---
 
-### 10.5 老师创建帖子
+### 10.5 老师创建帖子（已完成）
 
 **POST** `/api/threads/{thread_uuid}/posts`
 
@@ -1520,25 +1584,52 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- 老师可使用系统 tag
-- 老师可使用自己私有 tag
-- `important` 仅老师可打
+- 老师可使用所有系统 tag
+- 老师可使用自己的私有 tag（非自己的 private tag 返回 403）
+- `important` 为系统 tag，老师和家长均可使用
+
+#### Success 201
+
+返回创建的帖子，结构与 §9.15 Success 201 一致。
 
 ---
 
-### 10.6 老师编辑自己发的帖子
+### 10.6 老师编辑自己发的帖子（已完成）
 
 **PATCH** `/api/posts/{post_uuid}`
 
-规则同作者本人可编辑。
+#### Body
+
+同 §9.16，`tag_uuids` 若提供则整体替换现有标签。
+
+#### 规则
+
+- 仅作者可编辑
+- private tag 必须是自己创建的
+
+#### Success 200
+
+返回更新后的完整帖子，结构与 §9.15 Success 201 一致。
 
 ---
 
-### 10.7 老师删除自己发的帖子
+### 10.7 老师删除自己发的帖子（已完成）
 
 **DELETE** `/api/posts/{post_uuid}`
 
-规则同作者本人可删除。
+#### 规则
+
+- 仅作者可删除
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
 
 ---
 
@@ -1562,7 +1653,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "name": "important",
       "scope": "system | teacher_private",
       "owner_teacher_uuid": "string | null",
-      "is_selectable_by_parent": false,
       "is_selectable_by_teacher": true,
       "affects_business_logic": true
     }
@@ -1580,15 +1670,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ```json
 {
-  "name": "string",
-  "is_selectable_by_parent": false
+  "name": "string"
 }
 ```
 
 #### 规则
 
 - 仅创建 `teacher_private` tag
-- `is_selectable_by_parent` 默认且建议固定为 false
+- 家长可使用与该老师有关的家长（即相同 thread 下的家长）自动可访，无需额外配置
 
 #### Success 201
 
@@ -1599,7 +1688,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "name": "string",
     "scope": "teacher_private",
     "owner_teacher_uuid": "string",
-    "is_selectable_by_parent": false,
     "is_selectable_by_teacher": true,
     "affects_business_logic": false
   }

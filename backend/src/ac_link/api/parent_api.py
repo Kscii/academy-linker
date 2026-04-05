@@ -2,13 +2,15 @@
 家长端接口：/api/parents/me/*
 
 包含：
-  GET /api/parents/me/students                                        §9.1
-  GET /api/parents/me/students/{student_uuid}/dashboard               §9.2
-  GET /api/parents/me/students/{student_uuid}/subjects                §9.3
-  GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid} §9.4
-  GET /api/parents/me/students/{student_uuid}/reports                 §9.5
-  GET /api/parents/me/students/{student_uuid}/reports/{report_uuid}   §9.6
-  GET /api/parents/me/students/{student_uuid}/announcements           §9.10
+  GET /api/parents/me/students                                                              §9.1
+  GET /api/parents/me/students/{student_uuid}/dashboard                                     §9.2
+  GET /api/parents/me/students/{student_uuid}/subjects                                      §9.3
+  GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid}                       §9.4
+  GET /api/parents/me/students/{student_uuid}/reports                                       §9.5
+  GET /api/parents/me/students/{student_uuid}/reports/{report_uuid}                         §9.6
+  GET /api/parents/me/students/{student_uuid}/announcements                                 §9.10
+  GET /api/parents/me/students/{student_uuid}/discussions/teachers                          §9.13
+  GET /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}           §9.14
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from ac_link.common.deps import require_parent
 from ac_link.common.exceptions import AppError, Errors
+from ac_link.crud import discussion as discussion_crud
 from ac_link.crud import parent as parent_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
@@ -28,6 +31,12 @@ from ac_link.db.orm.enums import TranslationStatus
 from ac_link.db.orm.user import User
 from ac_link.dto.auth import ApiResponse
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
+from ac_link.dto.discussion import (
+    DiscussionTeacherInfo,
+    DiscussionTeacherListItem,
+    ParentDiscussionPageData,
+    build_post_item,
+)
 from ac_link.dto.parent import (
     AnnouncementDetail,
     AnnouncementListItem,
@@ -341,6 +350,133 @@ def list_student_announcements(
             total_pages=math.ceil(total / page_size) if total > 0 else 1,
         ),
     )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/discussions/teachers ─────────
+
+@router.get(
+    "/students/{student_uuid}/discussions/teachers",
+    response_model=ApiResponse[list[DiscussionTeacherListItem]],
+)
+def list_discussion_teachers(
+    student_uuid: UUID,
+    sort: str = "last_post_at_desc",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[DiscussionTeacherListItem]]:
+    """列出与指定学生相关的所有教师，附带 thread 信息和当前家长的未读数（§9.13）。"""
+    if sort not in ("last_post_at_desc", "display_name_asc"):
+        raise AppError(400, "invalid_sort", "sort 参数非法，可选：last_post_at_desc, display_name_asc")
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    rows = discussion_crud.list_teachers_for_parent_student(
+        db, current_user.id, student.id, sort=sort
+    )
+
+    data = [
+        DiscussionTeacherListItem(
+            uuid=row["teacher_user"].uuid,
+            display_name=row["teacher_user"].display_name,
+            avatar_url=row["teacher_user"].avatar_url,
+            subjects=[
+                SubjectBrief(uuid=s.uuid, name=s.name, code=s.code)
+                for s in row["subjects"]
+            ],
+            thread_uuid=row["thread"].uuid if row["thread"] else None,
+            last_post_at=row["thread"].last_post_at if row["thread"] else None,
+            unread_post_count=row["unread_count"],
+        )
+        for row in rows
+    ]
+    return ApiResponse(data=data)
+
+
+# ── GET /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid} ──
+
+@router.get(
+    "/students/{student_uuid}/discussions/teachers/{teacher_uuid}",
+    response_model=ApiResponse[ParentDiscussionPageData],
+)
+def get_discussion_with_teacher(
+    student_uuid: UUID,
+    teacher_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    sort: str = "created_at_desc",
+    tag: str | None = None,
+    keyword: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ParentDiscussionPageData]:
+    """
+    家长视角：获取与某教师讨论页聚合数据（§9.14）。
+    - 懒创建 thread
+    - 顺带将当前家长的 unread_post_count 归零
+    """
+    if sort not in ("created_at_desc", "created_at_asc"):
+        raise AppError(400, "invalid_sort", "sort 参数非法，可选：created_at_desc, created_at_asc")
+
+    page_size = min(page_size, 100)
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    teacher_user = discussion_crud.get_teacher_for_student(db, student.id, teacher_uuid)
+    if teacher_user is None:
+        raise Errors.not_found("教师不存在或未教该学生")
+
+    thread = discussion_crud.get_or_create_thread(
+        db, student.id, current_user.id, teacher_user.id
+    )
+
+    # 顺带标记已读
+    discussion_crud.mark_thread_read(db, thread.id, current_user.id)
+    db.commit()
+
+    # 帖子列表
+    posts, total = discussion_crud.list_posts_in_thread(
+        db, thread.id,
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        tag_name=tag,
+        keyword=keyword,
+    )
+
+    # 教师教的学科列表
+    subject_pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
+    teacher_subjects = [
+        SubjectBrief(uuid=subj.uuid, name=subj.name, code=subj.code)
+        for subj, teachers in subject_pairs
+        if any(t.id == teacher_user.id for t in teachers)
+    ]
+
+    data = ParentDiscussionPageData(
+        thread_uuid=thread.uuid,
+        student=StudentBrief(
+            uuid=student.uuid,
+            sid=student.sid,
+            full_name=student.full_name,
+        ),
+        teacher=DiscussionTeacherInfo(
+            uuid=teacher_user.uuid,
+            display_name=teacher_user.display_name,
+            avatar_url=teacher_user.avatar_url,
+            subjects=teacher_subjects,
+        ),
+        posts=[build_post_item(p) for p in posts],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+    return ApiResponse(data=data)
 
 
 # ── 内部辅助 ──────────────────────────────────────────────────────────────────
