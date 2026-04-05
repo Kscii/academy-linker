@@ -131,7 +131,7 @@ function UserProfile() {
 // ── AppShell ──────────────────────────────────────────────────
 
 export function AppShell() {
-  const { role, setRole, toggleTheme, theme, language, setLanguage, unreadMessageCount } = useApp();
+  const { role, toggleTheme, theme, language, setLanguage, unreadMessageCount } = useApp();
   const { t } = useTranslation(['common', 'nav']);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -144,12 +144,6 @@ export function AppShell() {
     typeof item.path === 'function' ? item.path(sid) : item.path;
 
   const isActive = (item: NavItem) => pathname === getPath(item) || pathname.startsWith(getPath(item) + '/');
-
-  const switchRole = (r: 'parent' | 'teacher') => {
-    setRole(r);
-    if (r === 'parent') navigate(`/parent/students/${sid}/dashboard`);
-    else navigate('/teacher/dashboard');
-  };
 
   return (
     <div className="app-shell">
@@ -170,16 +164,6 @@ export function AppShell() {
               <div className="font-serif" style={{ fontSize: 15, color: 'var(--tx)', fontWeight: 400, lineHeight: 1 }}>Academy</div>
               <div style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Linker</div>
             </div>
-          </div>
-        </div>
-
-        {/* Role tabs */}
-        <div className="role-tabs">
-          <div className={`role-tab ${role === 'parent' ? 'active' : ''}`} onClick={() => switchRole('parent')}>
-            {t('common:parent')}
-          </div>
-          <div className={`role-tab ${role === 'teacher' ? 'active' : ''}`} onClick={() => switchRole('teacher')}>
-            {t('common:teacher')}
           </div>
         </div>
 

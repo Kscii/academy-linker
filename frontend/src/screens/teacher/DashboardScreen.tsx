@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
 import { mockTeacherDashboard, mockTeacherClasses, SUBJECT_COLORS } from '@/lib/mock-data';
 import { BarChart } from '@/components/charts/BarChart';
@@ -32,16 +33,17 @@ function MiniBarChart({ scores, color }: { scores: number[]; color: string }) {
 export function TeacherDashboardScreen() {
   const navigate = useNavigate();
   const { user } = useApp();
+  const { t } = useTranslation('dashboard');
   const dashboard = mockTeacherDashboard;
 
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 28, color: 'var(--tx)', marginBottom: 4 }}>
-          Welcome, {user?.display_name?.split(' ')[1] ?? user?.display_name ?? 'Teacher'} 👋
+          {t('welcome', { name: user?.display_name?.split(' ')[1] ?? user?.display_name ?? 'Teacher' })}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Here's your class overview for <strong>Week 8, Term 2</strong>
+          {t('classOverview')} <strong>Week 8, Term 2</strong>
         </div>
       </div>
 
@@ -72,7 +74,7 @@ export function TeacherDashboardScreen() {
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-          Your Classes
+          {t('yourClasses')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           {dashboard.classes.map(cls => {
@@ -89,7 +91,7 @@ export function TeacherDashboardScreen() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{cls.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>{cls.student_count} students</div>
+                    <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>{cls.student_count} {t('students')}</div>
                   </div>
                   <span className="subject-chip" style={{ background: subjectColor + '18', color: subjectColor }}>
                     {cls.subject.code.toUpperCase()}
@@ -98,13 +100,13 @@ export function TeacherDashboardScreen() {
                 <MiniBarChart scores={cls.scores} color={subjectColor} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
                   <div>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Avg score</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('avgScore')}</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: subjectColor, fontFamily: 'var(--font-serif)' }}>
                       {cls.avg_score}%
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>At risk</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('atRisk')}</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: cls.at_risk_count > 3 ? 'var(--warn)' : 'var(--tx2)', fontFamily: 'var(--font-serif)' }}>
                       {cls.at_risk_count}
                     </div>
@@ -118,7 +120,7 @@ export function TeacherDashboardScreen() {
 
       <div className="card">
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-          Class Average Scores Comparison
+          {t('avgScoreComparison')}
         </div>
         <BarChart
           data={mockTeacherClasses.map(c => ({ label: c.name.split(' ')[1] ?? c.name, value: c.avg_score }))}
