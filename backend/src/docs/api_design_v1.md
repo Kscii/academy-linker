@@ -334,7 +334,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ## 7. 认证与账户接口
 
-### 7.1 登录
+### 7.1 登录（已完成）
 
 **POST** `/api/auth/login`
 
@@ -381,7 +381,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.2 刷新 Access Token
+### 7.2 刷新 Access Token（已完成）
 
 **POST** `/api/auth/refresh`
 
@@ -419,7 +419,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.3 登出当前设备
+### 7.3 登出当前设备（已完成）
 
 **POST** `/api/auth/logout`
 
@@ -452,7 +452,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.4 登出所有设备
+### 7.4 登出所有设备（已完成）
 
 **POST** `/api/auth/logout_all`
 
@@ -485,7 +485,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.5 获取当前用户信息
+### 7.5 获取当前用户信息（已完成）
 
 **GET** `/api/me`
 
@@ -513,7 +513,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.6 更新当前用户资料
+### 7.6 更新当前用户资料（已完成）
 
 **PATCH** `/api/me`
 
@@ -552,7 +552,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.7 修改密码
+### 7.7 修改密码（已完成）
 
 **POST** `/api/me/change_password`
 
@@ -583,7 +583,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.8 获取当前登录会话列表
+### 7.8 获取当前登录会话列表（已完成）
 
 **GET** `/api/me/sessions`
 
@@ -611,7 +611,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.9 删除指定会话
+### 7.9 删除指定会话（已完成）
 
 **DELETE** `/api/me/sessions/{session_uuid}`
 
@@ -1704,6 +1704,10 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ## 11. Admin 接口
 
+> **权限要求：本节所有接口仅允许 `admin` 角色访问。非 admin 角色一律返回 `403 role_not_allowed`。**
+
+---
+
 ### 11.1 获取用户列表
 
 **GET** `/api/admin/users`
@@ -1752,6 +1756,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+#### 密码强度规则
+
+- 最少 **8** 个字符
+- 至少包含 **1** 个大写字母
+- 至少包含 **1** 个小写字母
+- 至少包含 **1** 个数字
+
+不满足时返回 `422 validation_error`，`details` 中说明具体失败项。
+
 ---
 
 ### 11.3 更新用户
@@ -1771,7 +1784,44 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.4 创建学生
+### 11.4 获取学生列表
+
+**GET** `/api/admin/students`
+
+#### Query
+
+- `page`
+- `page_size`
+- `keyword`（模糊匹配 `full_name`、`preferred_name`、`sid`）
+- `class_name`
+- `grade_level`
+- `is_active`
+- `sort=created_at_desc|created_at_asc|full_name_asc`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string",
+      "preferred_name": "string | null",
+      "class_name": "string | null",
+      "grade_level": "string | null",
+      "avatar_url": "string | null",
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.5 创建学生
 
 **POST** `/api/admin/students`
 
@@ -1790,7 +1840,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.5 更新学生
+### 11.6 更新学生
 
 **PATCH** `/api/admin/students/{student_uuid}`
 
@@ -1803,13 +1853,47 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "preferred_name": "string | null",
   "class_name": "string | null",
   "grade_level": "string | null",
-  "avatar_url": "string | null"
+  "avatar_url": "string | null",
+  "is_active": "boolean | null"
 }
 ```
 
 ---
 
-### 11.6 创建 Parent-Student 绑定
+### 11.7 获取 Parent-Student 绑定列表
+
+**GET** `/api/admin/bindings/parent_student`
+
+#### Query
+
+- `page`
+- `page_size`
+- `parent_uuid`
+- `student_uuid`
+- `is_active`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "parent_uuid": "string",
+      "student_uuid": "string",
+      "relationship_label": "string | null",
+      "is_primary": true,
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.8 创建 Parent-Student 绑定
 
 **POST** `/api/admin/bindings/parent_student`
 
@@ -1819,10 +1903,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "parent_uuid": "string",
   "student_uuid": "string",
-  "relationship_type": "father | mother | guardian | other",
-  "is_primary_contact": true
+  "relationship_label": "string | null",
+  "is_primary": true
 }
 ```
+
+#### 规则
+
+- `parent_uuid` 指向的用户 role 必须是 `parent`，否则返回 `400 bad_request`
+- 同一 `student_uuid` 最多有一条 `is_active=true` 的绑定，否则返回 `409 conflict`
 
 #### Success 201
 
@@ -1832,8 +1921,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "uuid": "string",
     "parent_uuid": "string",
     "student_uuid": "string",
-    "relationship_type": "father | mother | guardian | other",
-    "is_primary_contact": true,
+    "relationship_label": "string | null",
+    "is_primary": true,
+    "is_active": true,
     "created_at": "string"
   }
 }
@@ -1841,7 +1931,61 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.7 创建 Teacher-Student-Subject 分配
+### 11.9 更新 Parent-Student 绑定
+
+**PATCH** `/api/admin/bindings/parent_student/{binding_uuid}`
+
+#### Body
+
+```json
+{
+  "relationship_label": "string | null",
+  "is_primary": "boolean | null",
+  "is_active": "boolean | null"
+}
+```
+
+#### 规则
+
+- 停用绑定（`is_active=false`）不自动级联处理 discussion thread
+
+---
+
+### 11.10 获取 Teaching Assignment 列表
+
+**GET** `/api/admin/assignments/teaching`
+
+#### Query
+
+- `page`
+- `page_size`
+- `teacher_uuid`
+- `student_uuid`
+- `subject_uuid`
+- `is_active`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "teacher_uuid": "string",
+      "student_uuid": "string",
+      "subject_uuid": "string",
+      "is_homeroom": false,
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.11 创建 Teaching Assignment
 
 **POST** `/api/admin/assignments/teaching`
 
@@ -1852,9 +1996,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "teacher_uuid": "string",
   "student_uuid": "string",
   "subject_uuid": "string",
-  "role": "subject_teacher | homeroom_teacher"
+  "is_homeroom": false
 }
 ```
+
+#### 规则
+
+- `teacher_uuid` 指向的用户 role 必须是 `teacher`，否则返回 `400 bad_request`
+- `(teacher_uuid, student_uuid, subject_uuid)` 三元组唯一，重复创建返回 `409 conflict`
 
 #### Success 201
 
@@ -1865,7 +2014,8 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "teacher_uuid": "string",
     "student_uuid": "string",
     "subject_uuid": "string",
-    "role": "subject_teacher | homeroom_teacher",
+    "is_homeroom": false,
+    "is_active": true,
     "created_at": "string"
   }
 }
@@ -1873,13 +2023,28 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.8 获取系统 Tag 列表
+### 11.12 更新 Teaching Assignment
+
+**PATCH** `/api/admin/assignments/teaching/{assignment_uuid}`
+
+#### Body
+
+```json
+{
+  "is_homeroom": "boolean | null",
+  "is_active": "boolean | null"
+}
+```
+
+---
+
+### 11.13 获取系统 Tag 列表
 
 **GET** `/api/admin/tags/system`
 
 ---
 
-### 11.9 创建系统 Tag
+### 11.14 创建系统 Tag
 
 **POST** `/api/admin/tags/system`
 
@@ -1900,7 +2065,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.10 更新系统 Tag
+### 11.15 更新系统 Tag
 
 **PATCH** `/api/admin/tags/system/{tag_uuid}`
 

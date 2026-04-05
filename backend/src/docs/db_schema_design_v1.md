@@ -535,6 +535,7 @@ tags(
   owner_teacher_user_id NULL FK -> users.id,
   is_selectable_by_parent,
   is_selectable_by_teacher,
+  affects_business_logic,
   is_active,
   created_at,
   updated_at
@@ -895,7 +896,7 @@ discussion_threads(id PK, uuid UNIQUE, student_id FK -> students.id,
 
 tags(id PK, uuid UNIQUE, scope, name, color NULL, description NULL,
      owner_teacher_user_id NULL FK -> users.id, is_selectable_by_parent,
-     is_selectable_by_teacher, is_active, created_at, updated_at)
+     is_selectable_by_teacher, affects_business_logic, is_active, created_at, updated_at)
 
 posts(id PK, uuid UNIQUE, thread_id FK -> discussion_threads.id,
       author_user_id FK -> users.id, reply_to_post_id NULL FK -> posts.id,

@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
+from ac_link.api.admin_api import router as admin_router
 from ac_link.api.auth_api import router as auth_router
 from ac_link.api.me_api import router as me_router
 from ac_link.common.exceptions import AppError
@@ -137,11 +138,10 @@ async def validation_error_handler(
 
 app.include_router(auth_router)
 app.include_router(me_router)
+app.include_router(admin_router)
 
 # 后续各模块 router 按阶段在此注册：
 # from ac_link.api.parents_api import router as parents_router
 # app.include_router(parents_router)
 # from ac_link.api.teachers_api import router as teachers_router
 # app.include_router(teachers_router)
-# from ac_link.api.admin_api import router as admin_router
-# app.include_router(admin_router)

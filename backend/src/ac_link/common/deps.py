@@ -69,3 +69,15 @@ def get_current_user(
         raise Errors.unauthenticated("账户已被禁用")
 
     return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """
+    在 get_current_user 基础上额外校验角色为 admin。
+    非 admin 用户一律返回 403 role_not_allowed。
+    用法：current_user: User = Depends(require_admin)
+    """
+    from ac_link.db.orm.enums import UserRole
+    if current_user.role != UserRole.ADMIN:
+        raise AppError(403, "role_not_allowed", "仅 admin 角色可访问此接口")
+    return current_user
