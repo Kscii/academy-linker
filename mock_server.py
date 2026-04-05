@@ -1327,16 +1327,56 @@ LANG_NAMES = {
     "hi": "Hindi", "th": "Thai", "ms": "Malay", "id": "Indonesian", "tl": "Filipino (Tagalog)",
 }
 
+# 聊天记录存储: {user_uuid: [{"role":..., "content":..., "ts":...}, ...]}
+CHAT_HISTORY: dict[str, list[dict]] = {}
+
+# 内容翻译缓存: {(text_hash, lang): translated_text}
+TRANSLATION_CACHE: dict[tuple, str] = {}
+
+
+def build_student_context(student_uuid: str) -> str:
+    """把学生的真实数据组装成 AI 系统提示词片段。"""
+    student = STUDENTS.get(student_uuid)
+    if not student:
+        return ""
+
+    stats = SUBJECT_STATS.get(student_uuid, {})
+    lines = [
+        f"\n\n## Student Data for {student['full_name']} (Grade: {student['grade_level']}, Class: {student['class_name']})",
+    ]
+    for subj_uuid, s in stats.items():
+        subj = SUBJECTS.get(subj_uuid, {})
+        teacher = USERS.get(subj.get("teacher_uuid", ""), {})
+        lines.append(
+            f"- {subj.get('name', subj_uuid)}: score {s['score']}/100, "
+            f"attendance {int(s['attendance_rate']*100)}%, "
+            f"assignment completion {int(s['assignment_completion_rate']*100)}%, "
+            f"teacher: {teacher.get('display_name', 'N/A')}"
+        )
+
+    # 最近报告摘要
+    recent_reports = sorted(
+        [r for r in REPORTS.values() if r["student_uuid"] == student_uuid],
+        key=lambda r: r["created_at"], reverse=True
+    )[:2]
+    if recent_reports:
+        lines.append("\n## Recent Reports")
+        for r in recent_reports:
+            lines.append(f"- [{r['created_at'][:10]}] {r['title']}")
+
+    return "\n".join(lines)
+
 
 @app.post("/api/ai/chat")
 @require_auth
 def ai_chat(user):
-    """通用 AI 助手对话。
+    """通用 AI 助手对话，支持学生数据上下文和聊天记录持久化。
     Body: {
         "messages": [{"role": "user"|"assistant", "content": "..."}],
-        "context": {                      // 可选：注入上下文
-            "report_uuid": "r-001",      // 自动把简报正文加入系统提示词
-            "student_uuid": "s-aiden-01" // 可选，用于限定权限
+        "context": {
+            "student_uuid": "s-aiden-01",   // 注入学生真实数据
+            "report_uuid": "r-001",          // 注入简报内容
+            "ui_language": "zh"              // AI 默认回复语言
         }
     }
     """
@@ -1348,10 +1388,21 @@ def ai_chat(user):
         return err("validation_error", "messages 不能为空", 422)
 
     context = body.get("context") or {}
+    ui_lang = context.get("ui_language", "en")
+    lang_name = LANG_NAMES.get(ui_lang, "English")
+
     system_parts: list[str] = [
-        "You are a helpful school-home communication assistant for Academy Linker. "
-        "Be concise, warm, and supportive. Respond in the same language the user writes in."
+        f"You are a helpful school-home communication assistant for Academy Linker. "
+        f"Be concise, warm, and supportive. Always respond in {lang_name} unless the user explicitly writes in another language. "
+        f"You have access to real student data provided below — use it to give specific, accurate answers."
     ]
+
+    # 注入学生真实数据
+    student_uuid = context.get("student_uuid")
+    if student_uuid:
+        student_ctx = build_student_context(student_uuid)
+        if student_ctx:
+            system_parts.append(student_ctx)
 
     # 注入简报上下文
     report_uuid = context.get("report_uuid")
@@ -1360,8 +1411,7 @@ def ai_chat(user):
         if report:
             content = report.get("translated_content_markdown") or report.get("content_markdown", "")
             system_parts.append(
-                f"\n\nThe following is the student progress report you are helping with:\n\n"
-                f"Title: {report['title']}\n\n{content}"
+                f"\n\n## Current Report: {report['title']}\n\n{content}"
             )
 
     system_msg = {"role": "system", "content": "\n".join(system_parts)}
@@ -1372,7 +1422,66 @@ def ai_chat(user):
     except Exception as exc:
         return err("ai_error", f"AI 服务异常: {exc}", 502)
 
+    # 保存聊天记录
+    hist = CHAT_HISTORY.setdefault(user["uuid"], [])
+    for m in messages[-2:]:  # 只存最新的用户消息
+        if m.get("role") == "user":
+            hist.append({"role": "user", "content": m["content"], "ts": now_iso()})
+    hist.append({"role": "assistant", "content": reply, "ts": now_iso()})
+    # 只保留最近 100 条
+    CHAT_HISTORY[user["uuid"]] = hist[-100:]
+
     return ok({"reply": reply, "role": "assistant"})
+
+
+@app.get("/api/ai/chat/history")
+@require_auth
+def ai_chat_history(user):
+    """返回当前用户的 AI 聊天记录（最近 50 条）。"""
+    hist = CHAT_HISTORY.get(user["uuid"], [])
+    return ok(hist[-50:])
+
+
+@app.post("/api/content/translate")
+@require_auth
+def translate_content(user):
+    """翻译任意文本内容（带缓存）。
+    Body: { "text": "...", "target_language": "zh", "source_language": "en" }
+    """
+    if e := check_origin():
+        return e
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    target_lang = (body.get("target_language") or "zh").lower()
+    source_lang = (body.get("source_language") or "en").lower()
+
+    if not text:
+        return err("validation_error", "text 不能为空", 422)
+    if target_lang == source_lang:
+        return ok({"translated_text": text, "cached": True})
+
+    cache_key = (hash(text), target_lang)
+    if cache_key in TRANSLATION_CACHE:
+        return ok({"translated_text": TRANSLATION_CACHE[cache_key], "cached": True})
+
+    lang_name = LANG_NAMES.get(target_lang, target_lang)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                f"Translate the following text into {lang_name}. "
+                f"Preserve Markdown formatting if present. Output ONLY the translated text."
+            ),
+        },
+        {"role": "user", "content": text},
+    ]
+    try:
+        translated = deepseek_chat(messages, temperature=0.2, max_tokens=2048)
+    except Exception as exc:
+        return err("ai_error", f"翻译失败: {exc}", 502)
+
+    TRANSLATION_CACHE[cache_key] = translated
+    return ok({"translated_text": translated, "cached": False})
 
 
 @app.post("/api/reports/<report_uuid>/translate")

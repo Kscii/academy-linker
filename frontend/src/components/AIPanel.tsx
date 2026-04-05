@@ -12,7 +12,9 @@ interface Message {
 }
 
 interface AIPanelProps {
-  reportUuid?: string; // 当前简报页时传入，自动注入上下文
+  studentUuid?: string;  // 注入学生真实数据
+  reportUuid?: string;   // 当前简报页时注入简报内容
+  uiLanguage?: string;   // AI 默认回复语言
 }
 
 let msgIdCounter = 0;
@@ -20,7 +22,7 @@ const genId = () => `msg-${++msgIdCounter}`;
 
 async function callAIChat(
   messages: { role: 'user' | 'assistant'; content: string }[],
-  reportUuid?: string,
+  opts: { studentUuid?: string; reportUuid?: string; uiLanguage?: string } = {},
 ): Promise<string> {
   const res = await fetch('/api/ai/chat', {
     method: 'POST',
@@ -28,7 +30,11 @@ async function callAIChat(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages,
-      context: reportUuid ? { report_uuid: reportUuid } : undefined,
+      context: {
+        student_uuid: opts.studentUuid || undefined,
+        report_uuid: opts.reportUuid || undefined,
+        ui_language: opts.uiLanguage || 'en',
+      },
     }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -36,7 +42,22 @@ async function callAIChat(
   return data.data.reply as string;
 }
 
-export function AIPanel({ reportUuid }: AIPanelProps) {
+async function loadChatHistory(): Promise<Message[]> {
+  try {
+    const res = await fetch('/api/ai/chat/history', { credentials: 'include' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.data as { role: string; content: string }[]).map(m => ({
+      id: genId(),
+      role: m.role === 'user' ? 'user' : 'assistant',
+      text: m.content,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -51,6 +72,13 @@ export function AIPanel({ reportUuid }: AIPanelProps) {
   const [thinking, setThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 加载历史记录
+  useEffect(() => {
+    loadChatHistory().then(hist => {
+      if (hist.length > 0) setMessages(prev => [...prev, ...hist]);
+    });
+  }, []);
+
   useEffect(() => {
     if (open && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -64,14 +92,13 @@ export function AIPanel({ reportUuid }: AIPanelProps) {
     setInput('');
     setThinking(true);
 
-    // 构建历史消息（排除初始欢迎语）
     const history = [...messages.slice(1), userMsg].map(m => ({
       role: m.role,
       content: m.text,
     }));
 
     try {
-      const reply = await callAIChat(history, reportUuid);
+      const reply = await callAIChat(history, { studentUuid, reportUuid, uiLanguage });
       setMessages(prev => [...prev, { id: genId(), role: 'assistant', text: reply }]);
     } catch {
       setMessages(prev => [

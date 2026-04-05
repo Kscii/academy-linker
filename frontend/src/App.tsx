@@ -57,7 +57,7 @@ function RootRedirect() {
 // Syncs role from URL path so sidebar shows correct nav items.
 
 function AppLayout() {
-  const { setRole } = useApp();
+  const { setRole, language } = useApp();
   const { pathname } = useLocation();
 
   useEffect(() => {
@@ -65,10 +65,22 @@ function AppLayout() {
     else if (pathname.startsWith('/teacher')) setRole('teacher');
   }, [pathname, setRole]);
 
+  // Extract student UUID from URL: /parent/students/:sid/...
+  const sidMatch = pathname.match(/\/students\/([^/]+)/);
+  const studentUuid = sidMatch?.[1] ?? '';
+
+  // Extract report UUID from URL: .../reports/:rid
+  const reportMatch = pathname.match(/\/reports\/([^/]+)/);
+  const reportUuid = reportMatch?.[1] ?? '';
+
   return (
     <>
       <AppShell />
-      <AIPanel />
+      <AIPanel
+        studentUuid={studentUuid}
+        reportUuid={reportUuid || undefined}
+        uiLanguage={language}
+      />
     </>
   );
 }
