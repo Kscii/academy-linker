@@ -14,7 +14,7 @@ import {
 } from 'react';
 import i18n from '@/i18n';
 import type { UserSummary } from '@/types/api';
-import { auth } from '@/lib/api';
+import { auth, parent as parentApi } from '@/lib/api';
 import { mockParentUser, mockTeacherUser, mockDiscussionTeachers, mockTeacherStudents } from '@/lib/mock-data';
 
 // Hardcoded demo credentials for fallback when backend is offline
@@ -64,7 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<'day' | 'night'>('day');
   const [role, setRoleState] = useState<'parent' | 'teacher'>('parent');
   const [user, setUser] = useState<UserSummary | null>(null);
-  const [firstStudentUuid, setFirstStudentUuid] = useState('student-001');
+  const [firstStudentUuid, setFirstStudentUuid] = useState('');
   const [language, setLanguageState] = useState(i18n.language?.slice(0, 2) || 'en');
   const [readThreadIds, setReadThreadIds] = useState<Set<string>>(new Set());
 
@@ -117,7 +117,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUser(userFromApi);
       const apiRole = userFromApi.role as 'parent' | 'teacher';
       setRoleState(apiRole);
-      const sid = 'student-001'; // TODO: fetch from /parents/me/students
+      let sid = '';
+      if (apiRole === 'parent') {
+        const studentsRes = await parentApi.getStudents();
+        sid = studentsRes.data[0]?.uuid ?? '';
+      }
       setFirstStudentUuid(sid);
       return { role: apiRole, firstStudentUuid: sid };
     } catch {
@@ -132,8 +136,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const mockUser = cred.role === 'parent' ? mockParentUser : mockTeacherUser;
     setUser(mockUser);
     setRoleState(cred.role);
-    setFirstStudentUuid('student-001');
-    return { role: cred.role, firstStudentUuid: 'student-001' };
+    const mockSid = cred.role === 'parent' ? 's-aiden-01' : '';
+    setFirstStudentUuid(mockSid);
+    return { role: cred.role, firstStudentUuid: mockSid };
   }, []);
 
   const logout = useCallback(() => {
