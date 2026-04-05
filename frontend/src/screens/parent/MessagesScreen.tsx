@@ -2,9 +2,11 @@
 // Parent MessagesScreen — list of teacher conversations
 // ============================================================
 
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { mockDiscussionTeachers } from '@/lib/mock-data';
+import { translateBatch } from '@/lib/translate';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -24,7 +26,24 @@ function initials(name: string): string {
 export function MessagesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { markThreadRead, readThreadIds: readThreads } = useApp();
+  const { markThreadRead, readThreadIds: readThreads, language } = useApp();
+  const [txItems, setTxItems] = useState(mockDiscussionTeachers);
+
+  useEffect(() => {
+    setTxItems(mockDiscussionTeachers);
+    if (language === 'en') return;
+    const texts = mockDiscussionTeachers.flatMap(i => [
+      i.subject.name,
+      i.latest_message_preview ?? '',
+    ]);
+    translateBatch(texts, language).then(results => {
+      setTxItems(mockDiscussionTeachers.map((item, i) => ({
+        ...item,
+        subject: { ...item.subject, name: results[i * 2] || item.subject.name },
+        latest_message_preview: results[i * 2 + 1] || item.latest_message_preview,
+      })));
+    });
+  }, [language]);
 
   const handleOpen = (teacherUuid: string, subjectUuid: string) => {
     markThreadRead(teacherUuid);
@@ -43,7 +62,7 @@ export function MessagesScreen() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {mockDiscussionTeachers.map(item => (
+        {txItems.map(item => (
           <div
             key={item.teacher.uuid}
             className="card-sm"

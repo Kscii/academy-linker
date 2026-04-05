@@ -1,10 +1,12 @@
 // ============================================================
 // ReportScreen — Weekly report display with subject sections,
-// translate button, email button
+// translate button (real AI), email button
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useApp } from '@/contexts/AppContext';
 import { mockReports, mockReportDetail } from '@/lib/mock-data';
+import { translateBatch } from '@/lib/translate';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-AU', {
@@ -13,13 +15,32 @@ function formatDate(dateStr: string): string {
 }
 
 export function ReportScreen() {
+  const { language } = useApp();
   const [selectedReportUuid, setSelectedReportUuid] = useState(mockReports[0].uuid);
-  const [translated, setTranslated] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [translating, setTranslating] = useState(false);
 
   const selectedReport = selectedReportUuid === mockReportDetail.uuid
     ? mockReportDetail
-    : { ...mockReports.find(r => r.uuid === selectedReportUuid)!, content_markdown: '', student: { uuid: 'student-001', display_name: 'Emily Wei' } };
+    : { ...mockReports.find(r => r.uuid === selectedReportUuid)!, content_markdown: '', student: { uuid: 's-aiden-01', display_name: 'Aiden Wei' } };
+
+  // Translated subject data
+  const [txSubjects, setTxSubjects] = useState(selectedReport.subjects);
+
+  useEffect(() => {
+    setTxSubjects(selectedReport.subjects);
+    if (language === 'en' || !selectedReport.subjects?.length) return;
+
+    setTranslating(true);
+    const texts = selectedReport.subjects.flatMap(s => [s.subject_name, s.summary]);
+    translateBatch(texts, language).then(results => {
+      setTxSubjects(selectedReport.subjects.map((s, i) => ({
+        ...s,
+        subject_name: results[i * 2] || s.subject_name,
+        summary: results[i * 2 + 1] || s.summary,
+      })));
+    }).finally(() => setTranslating(false));
+  }, [selectedReportUuid, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEmail = () => {
     setEmailSent(true);
@@ -34,7 +55,7 @@ export function ReportScreen() {
           Progress Reports
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Weekly updates on Emily's academic progress
+          Weekly updates on {selectedReport.student?.display_name}'s academic progress
         </div>
       </div>
 
@@ -59,17 +80,10 @@ export function ReportScreen() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{report.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
-                      Term {report.term}
-                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>Term {report.term}</div>
                   </div>
                   {!report.is_read && (
-                    <span
-                      className="badge"
-                      style={{ background: 'var(--a1)', color: '#fff', fontSize: 10 }}
-                    >
-                      New
-                    </span>
+                    <span className="badge" style={{ background: 'var(--a1)', color: '#fff', fontSize: 10 }}>New</span>
                   )}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>
@@ -93,62 +107,33 @@ export function ReportScreen() {
                   {formatDate(selectedReport.created_at)}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setTranslated(t => !t)}
-                >
-                  {translated ? '🌐 Original' : '🌐 Translate'}
-                </button>
-                <button
-                  className="btn-secondary"
-                  onClick={handleEmail}
-                  style={{ color: emailSent ? 'var(--a2)' : undefined }}
-                >
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {translating && (
+                  <span style={{ fontSize: 12, color: 'var(--tx3)' }}>Translating…</span>
+                )}
+                <button className="btn-secondary" onClick={handleEmail}
+                  style={{ color: emailSent ? 'var(--a2)' : undefined }}>
                   {emailSent ? '✓ Sent!' : '✉ Email to me'}
                 </button>
               </div>
             </div>
 
-            {translated && (
-              <div style={{
-                background: 'rgba(61,182,168,0.08)', border: '1px solid rgba(61,182,168,0.2)',
-                borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--a2)',
-              }}>
-                Translation active (Chinese · 中文). In production this would call a translation API.
-              </div>
-            )}
-
             {/* Subject sections */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {selectedReport.subjects.map(sub => (
+              {txSubjects.map(sub => (
                 <div
                   key={sub.subject_uuid}
-                  style={{
-                    borderLeft: `4px solid ${sub.subject_color}`,
-                    paddingLeft: 16, paddingTop: 2, paddingBottom: 2,
-                  }}
+                  style={{ borderLeft: `4px solid ${sub.subject_color}`, paddingLeft: 16, paddingTop: 2, paddingBottom: 2 }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
-                      {sub.subject_name}
-                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{sub.subject_name}</div>
                     {sub.score !== undefined && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: sub.subject_color + '18',
-                          color: sub.subject_color,
-                          fontSize: 12, fontWeight: 700,
-                        }}
-                      >
+                      <span className="badge" style={{ background: sub.subject_color + '18', color: sub.subject_color, fontSize: 12, fontWeight: 700 }}>
                         {sub.score}%
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6 }}>
-                    {sub.summary}
-                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6 }}>{sub.summary}</div>
                 </div>
               ))}
             </div>

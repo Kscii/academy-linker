@@ -2,8 +2,10 @@
 // AnnouncementsScreen — list of school announcements
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useApp } from '@/contexts/AppContext';
 import { mockAnnouncements } from '@/lib/mock-data';
+import { translateBatch } from '@/lib/translate';
 import type { Announcement } from '@/types/api';
 
 function formatDate(dateStr: string): string {
@@ -20,10 +22,25 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export function AnnouncementsScreen() {
+  const { language } = useApp();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [readSet, setReadSet] = useState<Set<string>>(
     new Set(mockAnnouncements.filter(a => a.is_read).map(a => a.uuid))
   );
+  const [txAnn, setTxAnn] = useState(mockAnnouncements);
+
+  useEffect(() => {
+    setTxAnn(mockAnnouncements);
+    if (language === 'en') return;
+    const texts = mockAnnouncements.flatMap(a => [a.title, a.body_preview]);
+    translateBatch(texts, language).then(results => {
+      setTxAnn(mockAnnouncements.map((a, i) => ({
+        ...a,
+        title: results[i * 2] || a.title,
+        body_preview: results[i * 2 + 1] || a.body_preview,
+      })));
+    });
+  }, [language]);
 
   const toggleRead = (uuid: string) => {
     setReadSet(prev => {
@@ -62,7 +79,7 @@ export function AnnouncementsScreen() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {mockAnnouncements.map(ann => {
+        {txAnn.map(ann => {
           const isRead = readSet.has(ann.uuid);
           const catColor = CATEGORY_COLORS[ann.category ?? 'Default'] ?? CATEGORY_COLORS.Default;
           const isOpen = expanded === ann.uuid;
