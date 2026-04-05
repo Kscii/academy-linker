@@ -3,10 +3,12 @@
 // post board with reply functionality (1 reply per post per parent)
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { mockSubjectDetails } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
+import { useApp } from '@/contexts/AppContext';
+import { translateBatch } from '@/lib/translate';
 import type { ThreadPost } from '@/types/api';
 
 // ── Post board ────────────────────────────────────────────────
@@ -155,6 +157,7 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 export function SubjectDetailScreen() {
   const navigate = useNavigate();
   const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
+  const { language } = useApp();
   const [showAvg, setShowAvg] = useState(false);
   const [period, setPeriod] = useState<'term' | 'year'>('term');
 
@@ -162,6 +165,55 @@ export function SubjectDetailScreen() {
   const detail = mockSubjectDetails[subjectUuid] ?? mockSubjectDetails['sub-math'];
   const subject = detail.subject;
   const subjectColor = subject.color ?? 'var(--a1)';
+
+  // ── Translated content state ──────────────────────────────────
+  const [txPosts, setTxPosts] = useState(detail.posts);
+  const [txSubjectName, setTxSubjectName] = useState(subject.name);
+  const [txAiSummary, setTxAiSummary] = useState(detail.ai_summary?.summary ?? '');
+  const [txSuggestions, setTxSuggestions] = useState(detail.ai_summary?.suggestions ?? []);
+  const [txTimeline, setTxTimeline] = useState(detail.timeline);
+
+  useEffect(() => {
+    setTxPosts(detail.posts);
+    setTxSubjectName(subject.name);
+    setTxAiSummary(detail.ai_summary?.summary ?? '');
+    setTxSuggestions(detail.ai_summary?.suggestions ?? []);
+    setTxTimeline(detail.timeline);
+
+    if (language === 'en') return;
+
+    const postTexts = detail.posts.flatMap(p => [p.title ?? '', p.content_markdown]);
+    const metaTexts = [
+      subject.name,
+      detail.ai_summary?.summary ?? '',
+      ...(detail.ai_summary?.suggestions ?? []),
+      ...detail.timeline.map(n => n.title),
+    ];
+
+    translateBatch([...postTexts, ...metaTexts], language).then(results => {
+      const postCount = postTexts.length;
+      const postResults = results.slice(0, postCount);
+      const metaResults = results.slice(postCount);
+
+      setTxPosts(detail.posts.map((p, i) => ({
+        ...p,
+        title: postResults[i * 2] || p.title,
+        content_markdown: postResults[i * 2 + 1] || p.content_markdown,
+      })));
+
+      let m = 0;
+      setTxSubjectName(metaResults[m++] || subject.name);
+      setTxAiSummary(metaResults[m++] || (detail.ai_summary?.summary ?? ''));
+      const suggCount = detail.ai_summary?.suggestions?.length ?? 0;
+      setTxSuggestions(
+        (detail.ai_summary?.suggestions ?? []).map((s, i) => metaResults[m + i] || s)
+      );
+      m += suggCount;
+      setTxTimeline(
+        detail.timeline.map((n, i) => ({ ...n, title: metaResults[m + i] || n.title }))
+      );
+    });
+  }, [language, subjectUuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
@@ -189,7 +241,7 @@ export function SubjectDetailScreen() {
            subject.code === 'pe' ? '⚽' : '🎨'}
         </div>
         <div>
-          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{subject.name}</div>
+          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{txSubjectName}</div>
           <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teacher?.display_name}</div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -273,7 +325,7 @@ export function SubjectDetailScreen() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Learning Pathway</div>
           <div className="timeline">
-            {detail.timeline.map(node => (
+            {txTimeline.map(node => (
               <div key={node.uuid} className="timeline-node">
                 <div className={`timeline-dot ${node.status}`} />
                 <div>
@@ -300,10 +352,10 @@ export function SubjectDetailScreen() {
                 <span>✦</span> AI Insight
               </div>
               <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 10 }}>
-                {detail.ai_summary.summary}
+                {txAiSummary}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {detail.ai_summary.suggestions.map((s, i) => (
+                {txSuggestions.map((s, i) => (
                   <div key={i} style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 6 }}>
                     <span style={{ color: subjectColor }}>→</span>
                     {s}
@@ -315,7 +367,7 @@ export function SubjectDetailScreen() {
         </div>
 
         <div className="card" style={{ overflowY: 'auto', maxHeight: 600 }}>
-          <PostBoard posts={detail.posts} subjectColor={subjectColor} />
+          <PostBoard posts={txPosts} subjectColor={subjectColor} />
         </div>
       </div>
     </div>
