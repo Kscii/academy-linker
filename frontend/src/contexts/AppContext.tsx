@@ -82,6 +82,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .filter(s => !readThreadIds.has(s.student.uuid) && s.unread_messages > 0)
           .reduce((sum, s) => sum + s.unread_messages, 0);
 
+  // Restore session from HttpOnly cookie on page load
+  useEffect(() => {
+    auth.getMe().then(async (res) => {
+      const u = res.data.user;
+      setUser(u);
+      setRoleState(u.role as 'parent' | 'teacher');
+      if (u.role === 'parent') {
+        const studentsRes = await parentApi.getStudents();
+        setFirstStudentUuid(studentsRes.data[0]?.uuid ?? '');
+      }
+    }).catch(() => {
+      // Not logged in — stay on login page
+    });
+  }, []);
+
   // Apply theme class to <html>
   useEffect(() => {
     const html = document.documentElement;
