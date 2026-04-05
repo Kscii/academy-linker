@@ -68,5 +68,13 @@ class Errors:
         return AppError(409, "conflict", message)
 
     @staticmethod
+    def already_read() -> AppError:
+        return AppError(409, "already_read", "该内容已标记为已读")
+
+    @staticmethod
+    def already_archived() -> AppError:
+        return AppError(409, "already_archived", "该内容已归档")
+
+    @staticmethod
     def internal_error(message: str = "服务端内部错误") -> AppError:
         return AppError(500, "internal_error", message)

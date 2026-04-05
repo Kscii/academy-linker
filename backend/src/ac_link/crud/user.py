@@ -15,7 +15,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from ac_link.db.orm.user import User
+from ac_link.db.orm.user import User, UserSettings
 
 
 def get_by_email(db: Session, email: str) -> User | None:
@@ -47,3 +47,21 @@ def update(db: Session, user: User, **fields: object) -> User:
         setattr(user, key, value)
     db.flush()  # 写入到事务但不提交，由调用方 commit
     return user
+
+
+def get_or_create_settings(db: Session, user_id: int) -> UserSettings:
+    """获取用户设置记录，不存在时用默认值懒创建。"""
+    settings = db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+    if settings is None:
+        settings = UserSettings(user_id=user_id)
+        db.add(settings)
+        db.flush()
+    return settings
+
+
+def update_settings(db: Session, settings: UserSettings, **fields: object) -> UserSettings:
+    """更新设置字段，只更新传入的字段。"""
+    for key, value in fields.items():
+        setattr(settings, key, value)
+    db.flush()
+    return settings

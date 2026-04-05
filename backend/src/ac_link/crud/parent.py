@@ -7,14 +7,15 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import and_, func, nullslast, or_
 from sqlalchemy.orm import Session, joinedload
 
 from ac_link.db.orm.academic import ParentStudentBinding, Student, Subject, TeachingAssignment
 from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, PostTagBinding, Tag
-from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report
+from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 from ac_link.db.orm.user import User
 
 
@@ -194,3 +195,280 @@ def get_important_post_banners(
         .limit(limit)
         .all()
     )
+
+
+# ── 报告 CRUD ──────────────────────────────────────────────────────────────────
+
+def list_reports_for_student(
+    db: Session,
+    student_id: int,
+    user_id: int,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    status: str = "active",
+    read_state: str = "all",
+    sort: str = "created_at_desc",
+) -> tuple[list[tuple[Report, ReportUserState | None]], int]:
+    """
+    左连接 report_user_states，返回 (report, state_or_none) 列表及总数。
+    status: active=未归档, archived=已归档, all=全部
+    read_state: unread=未读, read=已读, all=全部
+    sort: created_at_desc / created_at_asc
+    """
+    base_filters = [
+        Report.student_id == student_id,
+        Report.is_published == True,  # noqa: E712
+    ]
+
+    if status == "active":
+        base_filters.append(
+            or_(ReportUserState.is_archived == False, ReportUserState.id.is_(None))  # noqa: E712
+        )
+    elif status == "archived":
+        base_filters.append(ReportUserState.is_archived == True)  # noqa: E712
+
+    if read_state == "unread":
+        base_filters.append(
+            or_(ReportUserState.is_read == False, ReportUserState.id.is_(None))  # noqa: E712
+        )
+    elif read_state == "read":
+        base_filters.append(ReportUserState.is_read == True)  # noqa: E712
+
+    join_cond = and_(
+        ReportUserState.report_id == Report.id,
+        ReportUserState.user_id == user_id,
+    )
+
+    total = (
+        db.query(func.count(Report.id))
+        .outerjoin(ReportUserState, join_cond)
+        .filter(*base_filters)
+        .scalar()
+    ) or 0
+
+    order = Report.created_at.asc() if sort == "created_at_asc" else Report.created_at.desc()
+    rows = (
+        db.query(Report, ReportUserState)
+        .options(joinedload(Report.subject))
+        .outerjoin(ReportUserState, join_cond)
+        .filter(*base_filters)
+        .order_by(order)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return rows, total  # type: ignore[return-value]  # SQLAlchemy Row is unpackable as tuple
+
+
+def get_report_for_student(
+    db: Session,
+    student_id: int,
+    user_id: int,
+    report_uuid: UUID,
+) -> tuple[Report, ReportUserState | None] | None:
+    """
+    获取已验证归属该学生的报告（含用户状态）。
+    用于详情接口（path 中已含 student_uuid，binding 权限在上层已确认）。
+    """
+    return (
+        db.query(Report, ReportUserState)
+        .outerjoin(
+            ReportUserState,
+            and_(
+                ReportUserState.report_id == Report.id,
+                ReportUserState.user_id == user_id,
+            ),
+        )
+        .filter(
+            Report.uuid == report_uuid,
+            Report.student_id == student_id,
+            Report.is_published == True,  # noqa: E712
+        )
+        .first()  # type: ignore[return-value]
+    )
+
+
+def get_report_for_parent(
+    db: Session,
+    parent_user_id: int,
+    report_uuid: UUID,
+) -> tuple[Report, ReportUserState | None] | None:
+    """
+    通过 binding 验证家长权限后获取报告（含用户状态）。
+    用于 read / archive / unarchive 接口（path 中只有 report_uuid）。
+    """
+    return (
+        db.query(Report, ReportUserState)
+        .outerjoin(
+            ReportUserState,
+            and_(
+                ReportUserState.report_id == Report.id,
+                ReportUserState.user_id == parent_user_id,
+            ),
+        )
+        .join(Student, Student.id == Report.student_id)
+        .join(
+            ParentStudentBinding,
+            and_(
+                ParentStudentBinding.student_id == Student.id,
+                ParentStudentBinding.parent_user_id == parent_user_id,
+                ParentStudentBinding.is_active == True,  # noqa: E712
+            ),
+        )
+        .filter(
+            Report.uuid == report_uuid,
+            Report.is_published == True,  # noqa: E712
+            Student.is_active == True,  # noqa: E712
+        )
+        .first()  # type: ignore[return-value]
+    )
+
+
+def upsert_report_state(
+    db: Session,
+    report_id: int,
+    user_id: int,
+    **fields: object,
+) -> ReportUserState:
+    """插入或更新报告用户状态。"""
+    state = (
+        db.query(ReportUserState)
+        .filter(ReportUserState.report_id == report_id, ReportUserState.user_id == user_id)
+        .first()
+    )
+    if state is None:
+        state = ReportUserState(report_id=report_id, user_id=user_id)
+        db.add(state)
+    for key, value in fields.items():
+        setattr(state, key, value)
+    db.flush()
+    return state
+
+
+# ── 公告 CRUD ──────────────────────────────────────────────────────────────────
+
+def list_announcements_for_student(
+    db: Session,
+    student_id: int,
+    user_id: int,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    category: str = "all",
+    active_only: bool = True,
+    sort: str = "published_at_desc",
+) -> tuple[list[tuple[Announcement, AnnouncementUserState | None]], int]:
+    """
+    左连接 announcement_user_states，返回 (announcement, state_or_none) 列表及总数。
+    active_only=True: is_published=True 且 (due_at IS NULL 或 due_at > now)
+    sort: published_at_desc / published_at_asc / due_at_asc（null 排最后）
+    """
+    base_filters = [
+        Announcement.student_id == student_id,
+        Announcement.is_published == True,  # noqa: E712
+    ]
+
+    if active_only:
+        now = datetime.now(timezone.utc)
+        base_filters.append(
+            or_(Announcement.due_at.is_(None), Announcement.due_at > now)
+        )
+
+    if category != "all":
+        base_filters.append(Announcement.category == category)
+
+    join_cond = and_(
+        AnnouncementUserState.announcement_id == Announcement.id,
+        AnnouncementUserState.user_id == user_id,
+    )
+
+    total = (
+        db.query(func.count(Announcement.id))
+        .outerjoin(AnnouncementUserState, join_cond)
+        .filter(*base_filters)
+        .scalar()
+    ) or 0
+
+    if sort == "published_at_asc":
+        order = Announcement.published_at.asc()
+    elif sort == "due_at_asc":
+        order = nullslast(Announcement.due_at.asc())
+    else:
+        order = Announcement.published_at.desc()
+
+    rows = (
+        db.query(Announcement, AnnouncementUserState)
+        .options(joinedload(Announcement.subject))
+        .outerjoin(AnnouncementUserState, join_cond)
+        .filter(*base_filters)
+        .order_by(order)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return rows, total  # type: ignore[return-value]
+
+
+def get_announcement_for_parent(
+    db: Session,
+    parent_user_id: int,
+    announcement_uuid: UUID,
+) -> tuple[Announcement, AnnouncementUserState | None] | None:
+    """
+    通过 binding 验证家长权限后获取公告（含用户状态）。
+    用于公告详情与 read 接口。
+    """
+    return (
+        db.query(Announcement, AnnouncementUserState)
+        .options(
+            joinedload(Announcement.subject),
+            joinedload(Announcement.author_user),
+        )
+        .outerjoin(
+            AnnouncementUserState,
+            and_(
+                AnnouncementUserState.announcement_id == Announcement.id,
+                AnnouncementUserState.user_id == parent_user_id,
+            ),
+        )
+        .join(Student, Student.id == Announcement.student_id)
+        .join(
+            ParentStudentBinding,
+            and_(
+                ParentStudentBinding.student_id == Student.id,
+                ParentStudentBinding.parent_user_id == parent_user_id,
+                ParentStudentBinding.is_active == True,  # noqa: E712
+            ),
+        )
+        .filter(
+            Announcement.uuid == announcement_uuid,
+            Announcement.is_published == True,  # noqa: E712
+            Student.is_active == True,  # noqa: E712
+        )
+        .first()  # type: ignore[return-value]
+    )
+
+
+def upsert_announcement_state(
+    db: Session,
+    announcement_id: int,
+    user_id: int,
+    **fields: object,
+) -> AnnouncementUserState:
+    """插入或更新公告用户状态。"""
+    state = (
+        db.query(AnnouncementUserState)
+        .filter(
+            AnnouncementUserState.announcement_id == announcement_id,
+            AnnouncementUserState.user_id == user_id,
+        )
+        .first()
+    )
+    if state is None:
+        state = AnnouncementUserState(announcement_id=announcement_id, user_id=user_id)
+        db.add(state)
+    for key, value in fields.items():
+        setattr(state, key, value)
+    db.flush()
+    return state

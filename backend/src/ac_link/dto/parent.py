@@ -171,3 +171,120 @@ class DashboardData(BaseModel):
     subject_statistics: list[SubjectStat]
     charts: Charts
     important_post_banners: list[ImportantPostBanner]
+
+
+# ── 通用翻译块（复用于 report / announcement 列表项）────────────────────────────
+
+class TranslationBlock(BaseModel):
+    display_language: str
+    original_language: str
+    translated_language: str | None = None
+    translation_status: str
+    translated_at: datetime | None = None
+
+
+# ── 学科简要（列表项用）──────────────────────────────────────────────────────────
+
+class SubjectBrief(BaseModel):
+    uuid: UUID
+    name: str
+    code: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── §9.5 报告列表 ─────────────────────────────────────────────────────────────
+
+class ReportListItem(BaseModel):
+    uuid: UUID
+    title: str
+    report_type: str
+    source_type: str
+    subject: SubjectBrief | None = None
+    is_read: bool
+    read_at: datetime | None = None
+    is_archived: bool
+    archived_at: datetime | None = None
+    created_at: datetime
+    published_at: datetime | None = None
+    translation: TranslationBlock
+
+
+# ── §9.6 报告详情 ────────────────────────────────────────────────────────────
+
+class ReportDetail(BaseModel):
+    """
+    报告完整详情（元信息 + 正文）。
+    display_content_markdown 由后端根据翻译状态选择 original / translated 版本。
+    """
+    uuid: UUID
+    title: str
+    report_type: str
+    source_type: str
+    subject: SubjectBrief | None = None
+    is_read: bool
+    read_at: datetime | None = None
+    is_archived: bool
+    archived_at: datetime | None = None
+    created_at: datetime
+    published_at: datetime | None = None
+    display_content_markdown: str
+    original_content_markdown: str
+    translated_content_markdown: str | None = None
+    display_language: str
+    original_language: str
+    translated_language: str | None = None
+    translation_status: str
+    translated_at: datetime | None = None
+
+
+# ── §9.10 公告/任务列表 ───────────────────────────────────────────────────────
+
+class AnnouncementListItem(BaseModel):
+    uuid: UUID
+    category: str
+    title: str
+    subject: SubjectBrief | None = None
+    is_important: bool
+    is_read: bool
+    read_at: datetime | None = None
+    published_at: datetime
+    due_at: datetime | None = None
+    translation: TranslationBlock
+
+
+# ── §9.11 公告/任务详情 ──────────────────────────────────────────────────────
+
+class AuthorBrief(BaseModel):
+    uuid: UUID
+    display_name: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+
+class AnnouncementDetail(BaseModel):
+    """
+    公告完整详情（元信息 + 正文）。
+    display_content_markdown 由后端根据翻译状态计算。
+    """
+    uuid: UUID
+    category: str
+    title: str
+    subject: SubjectBrief | None = None
+    is_important: bool
+    is_read: bool
+    read_at: datetime | None = None
+    published_at: datetime
+    due_at: datetime | None = None
+    author: AuthorBrief
+    display_content_markdown: str
+    original_content_markdown: str
+    translated_content_markdown: str | None = None
+    display_language: str
+    original_language: str
+    translated_language: str | None = None
+    translation_status: str
+    translated_at: datetime | None = None

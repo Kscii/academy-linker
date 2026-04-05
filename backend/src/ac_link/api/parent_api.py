@@ -6,6 +6,9 @@
   GET /api/parents/me/students/{student_uuid}/dashboard               §9.2
   GET /api/parents/me/students/{student_uuid}/subjects                §9.3
   GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid} §9.4
+  GET /api/parents/me/students/{student_uuid}/reports                 §9.5
+  GET /api/parents/me/students/{student_uuid}/reports/{report_uuid}   §9.6
+  GET /api/parents/me/students/{student_uuid}/announcements           §9.10
 """
 
 from __future__ import annotations
@@ -17,23 +20,28 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ac_link.common.deps import require_parent
-from ac_link.common.exceptions import Errors
+from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import parent as parent_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.content import Report
+from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
+from ac_link.db.orm.enums import TranslationStatus
 from ac_link.db.orm.user import User
 from ac_link.dto.auth import ApiResponse
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
 from ac_link.dto.parent import (
+    AnnouncementDetail,
+    AnnouncementListItem,
     ChartPoint,
     Charts,
     DashboardContext,
     DashboardData,
     ImportantPostBanner,
     LearningProgressPoint,
-    ReportSummary,
+    ReportDetail,
+    ReportListItem,
     StudentBrief,
     StudentOut,
+    SubjectBrief,
     SubjectDetailData,
     SubjectListItem,
     SubjectListResponse,
@@ -43,6 +51,8 @@ from ac_link.dto.parent import (
     SummaryCards,
     TeacherBrief,
     TeacherDetail,
+    TranslationBlock,
+    ReportSummary,
 )
 
 router = APIRouter(prefix="/api/parents/me", tags=["parents"])
@@ -208,6 +218,131 @@ def get_student_dashboard(
     ))
 
 
+# ── GET /api/parents/me/students/{student_uuid}/reports ──────────────────────
+
+_VALID_REPORT_STATUSES = frozenset({"active", "archived", "all"})
+_VALID_READ_STATES = frozenset({"unread", "read", "all"})
+_VALID_REPORT_SORTS = frozenset({"created_at_desc", "created_at_asc"})
+
+
+@router.get(
+    "/students/{student_uuid}/reports",
+    response_model=PaginatedResponse[ReportListItem],
+)
+def list_student_reports(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    status: str = "active",
+    read_state: str = "all",
+    sort: str = "created_at_desc",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ReportListItem]:
+    """获取指定学生的报告列表（仅元信息，不含正文内容）。"""
+    if status not in _VALID_REPORT_STATUSES:
+        raise AppError(400, "invalid_filter", f"status 参数非法，可选值：{_VALID_REPORT_STATUSES}")
+    if read_state not in _VALID_READ_STATES:
+        raise AppError(400, "invalid_filter", f"read_state 参数非法，可选值：{_VALID_READ_STATES}")
+    if sort not in _VALID_REPORT_SORTS:
+        raise AppError(400, "invalid_sort", f"sort 参数非法，可选值：{_VALID_REPORT_SORTS}")
+
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    rows, total = parent_crud.list_reports_for_student(
+        db, student.id, current_user.id,
+        page=page, page_size=page_size,
+        status=status, read_state=read_state, sort=sort,
+    )
+    return PaginatedResponse(
+        data=[_build_report_list_item(report, state) for report, state in rows],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/reports/{report_uuid} ────────
+
+@router.get(
+    "/students/{student_uuid}/reports/{report_uuid}",
+    response_model=ApiResponse[ReportDetail],
+)
+def get_student_report(
+    student_uuid: UUID,
+    report_uuid: UUID,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ReportDetail]:
+    """获取指定报告的正文详情。"""
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    result = parent_crud.get_report_for_student(db, student.id, current_user.id, report_uuid)
+    if not result:
+        raise Errors.not_found("报告不存在或无权访问")
+
+    report, _ = result
+    return ApiResponse(data=_build_report_detail(report, _))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/announcements ─────────────────
+
+_VALID_ANNOUNCEMENT_SORTS = frozenset({"published_at_desc", "published_at_asc", "due_at_asc"})
+_VALID_ANNOUNCEMENT_CATEGORIES = frozenset({"announcement", "task", "all"})
+
+
+@router.get(
+    "/students/{student_uuid}/announcements",
+    response_model=PaginatedResponse[AnnouncementListItem],
+)
+def list_student_announcements(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    category: str = "all",
+    active_only: bool = True,
+    sort: str = "published_at_desc",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[AnnouncementListItem]:
+    """
+    获取指定学生的公告/任务列表。
+    active_only=True 时过滤掉 due_at 已过期的条目（due_at IS NULL 或 due_at > now）。
+    """
+    if category not in _VALID_ANNOUNCEMENT_CATEGORIES:
+        raise AppError(400, "invalid_filter", f"category 参数非法，可选值：{_VALID_ANNOUNCEMENT_CATEGORIES}")
+    if sort not in _VALID_ANNOUNCEMENT_SORTS:
+        raise AppError(400, "invalid_sort", f"sort 参数非法，可选值：{_VALID_ANNOUNCEMENT_SORTS}")
+
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    rows, total = parent_crud.list_announcements_for_student(
+        db, student.id, current_user.id,
+        page=page, page_size=page_size,
+        category=category, active_only=active_only, sort=sort,
+    )
+    return PaginatedResponse(
+        data=[_build_announcement_list_item(ann, state) for ann, state in rows],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
 # ── 内部辅助 ──────────────────────────────────────────────────────────────────
 
 def _build_report_summary(report: Report | None) -> ReportSummary | None:
@@ -224,4 +359,86 @@ def _build_report_summary(report: Report | None) -> ReportSummary | None:
         translated_language=report.translated_language,
         translation_status=str(report.translation_status),
         translated_at=report.translated_at,
+    )
+
+
+def _display_language(obj: Report | Announcement) -> str:
+    if obj.translation_status == TranslationStatus.COMPLETED and obj.translated_language:
+        return obj.translated_language
+    return obj.original_language
+
+
+def _display_content(obj: Report | Announcement) -> str:
+    if obj.translation_status == TranslationStatus.COMPLETED and obj.translated_content_markdown:
+        return obj.translated_content_markdown
+    return obj.original_content_markdown
+
+
+def _translation_block(obj: Report | Announcement) -> TranslationBlock:
+    return TranslationBlock(
+        display_language=_display_language(obj),
+        original_language=obj.original_language,
+        translated_language=obj.translated_language,
+        translation_status=str(obj.translation_status),
+        translated_at=obj.translated_at,
+    )
+
+
+def _build_report_list_item(
+    report: Report, state: ReportUserState | None
+) -> ReportListItem:
+    return ReportListItem(
+        uuid=report.uuid,
+        title=report.title,
+        report_type=str(report.report_type),
+        source_type=str(report.source_type),
+        subject=SubjectBrief.model_validate(report.subject) if report.subject else None,
+        is_read=state.is_read if state else False,
+        read_at=state.read_at if state else None,
+        is_archived=state.is_archived if state else False,
+        archived_at=state.archived_at if state else None,
+        created_at=report.created_at,
+        published_at=report.published_at,
+        translation=_translation_block(report),
+    )
+
+
+def _build_report_detail(report: Report, state: ReportUserState | None) -> ReportDetail:
+    return ReportDetail(
+        uuid=report.uuid,
+        title=report.title,
+        report_type=str(report.report_type),
+        source_type=str(report.source_type),
+        subject=SubjectBrief.model_validate(report.subject) if report.subject else None,
+        is_read=state.is_read if state else False,
+        read_at=state.read_at if state else None,
+        is_archived=state.is_archived if state else False,
+        archived_at=state.archived_at if state else None,
+        created_at=report.created_at,
+        published_at=report.published_at,
+        display_content_markdown=_display_content(report),
+        original_content_markdown=report.original_content_markdown,
+        translated_content_markdown=report.translated_content_markdown,
+        display_language=_display_language(report),
+        original_language=report.original_language,
+        translated_language=report.translated_language,
+        translation_status=str(report.translation_status),
+        translated_at=report.translated_at,
+    )
+
+
+def _build_announcement_list_item(
+    ann: Announcement, state: AnnouncementUserState | None
+) -> AnnouncementListItem:
+    return AnnouncementListItem(
+        uuid=ann.uuid,
+        category=str(ann.category),
+        title=ann.title,
+        subject=SubjectBrief.model_validate(ann.subject) if ann.subject else None,
+        is_important=ann.is_important,
+        is_read=state.is_read if state else False,
+        read_at=state.read_at if state else None,
+        published_at=ann.published_at,
+        due_at=ann.due_at,
+        translation=_translation_block(ann),
     )
