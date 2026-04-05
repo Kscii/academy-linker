@@ -42,8 +42,7 @@ interface AppContextValue {
   login: (
     email: string,
     password: string,
-    rememberMe: boolean,
-    role: 'parent' | 'teacher'
+    rememberMe: boolean
   ) => Promise<{ role: 'parent' | 'teacher'; firstStudentUuid: string }>;
   logout: () => void;
 
@@ -110,7 +109,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     rememberMe: boolean,
-    loginRole: 'parent' | 'teacher'
   ): Promise<{ role: 'parent' | 'teacher'; firstStudentUuid: string }> => {
     // Try real backend first
     try {
@@ -126,16 +124,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Backend offline — fall back to demo credential check
     }
 
-    // Offline fallback: validate against hardcoded demo credentials
+    // Offline fallback: role derived from DEMO_CREDENTIALS (no user selection needed)
     const cred = DEMO_CREDENTIALS[email.toLowerCase()];
     if (!cred || cred.password !== password) {
       throw new Error('invalid_credentials');
     }
-    const mockUser = loginRole === 'parent' ? mockParentUser : mockTeacherUser;
+    const mockUser = cred.role === 'parent' ? mockParentUser : mockTeacherUser;
     setUser(mockUser);
-    setRoleState(loginRole);
+    setRoleState(cred.role);
     setFirstStudentUuid('student-001');
-    return { role: loginRole, firstStudentUuid: 'student-001' };
+    return { role: cred.role, firstStudentUuid: 'student-001' };
   }, []);
 
   const logout = useCallback(() => {

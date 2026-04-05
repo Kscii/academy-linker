@@ -37,17 +37,11 @@ export function LoginScreen() {
   const { t } = useTranslation('login');
   const navigate = useNavigate();
 
-  const [role, setRole] = useState<'parent' | 'teacher'>('parent');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const selectRole = (r: 'parent' | 'teacher') => {
-    setRole(r);
-    setError('');
-  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -57,7 +51,7 @@ export function LoginScreen() {
     setError('');
     setLoading(true);
     try {
-      const result = await login(email, password, rememberMe, role);
+      const result = await login(email, password, rememberMe);
       if (result.role === 'parent') {
         navigate(`/parent/students/${result.firstStudentUuid}/dashboard`, { replace: true });
       } else {
@@ -110,45 +104,6 @@ export function LoginScreen() {
         {/* Language combobox */}
         <div style={{ marginBottom: 20 }}>
           <LanguageCombobox value={language} onChange={setLanguage} />
-        </div>
-
-        {/* Role selection */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {t('selectRole')}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div
-              className={`role-select-card ${role === 'parent' ? 'selected' : ''}`}
-              onClick={() => selectRole('parent')}
-            >
-              <div
-                className="role-icon"
-                style={{ background: role === 'parent' ? 'rgba(232,97,78,0.12)' : 'var(--bg2)' }}
-              >
-                👨‍👩‍👧
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{t('parentRole')}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('parentDesc')}</div>
-              </div>
-            </div>
-            <div
-              className={`role-select-card ${role === 'teacher' ? 'selected' : ''}`}
-              onClick={() => selectRole('teacher')}
-            >
-              <div
-                className="role-icon"
-                style={{ background: role === 'teacher' ? 'rgba(74,144,217,0.12)' : 'var(--bg2)' }}
-              >
-                👩‍🏫
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{t('teacherRole')}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('teacherDesc')}</div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Email */}
