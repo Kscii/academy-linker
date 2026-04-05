@@ -1,0 +1,21 @@
+{
+  "save": "保存",
+  "cancel": "取消",
+  "close": "关闭",
+  "back": "返回",
+  "send": "发送",
+  "delete": "删除",
+  "edit": "编辑",
+  "loading": "加载中…",
+  "error": "发生错误",
+  "signOut": "退出登录",
+  "signedInAs": "当前登录身份",
+  "dayMode": "日间模式",
+  "nightMode": "夜间模式",
+  "parent": "家长",
+  "teacher": "老师",
+  "settings": "设置",
+  "viewAll": "查看全部 →",
+  "search": "搜索…",
+  "noResults": "无结果"
+}

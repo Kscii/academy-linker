@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { mockTeacherStudents, mockTeacherThread, SUBJECT_COLORS } from '@/lib/mock-data';
+// useNavigate not needed here — no screen-level navigation in this view
 import { LineChart } from '@/components/charts/LineChart';
 import type { ThreadPost } from '@/types/api';
 

@@ -1,8 +1,8 @@
 // ============================================================
 // Parent MessagesScreen — list of teacher conversations
-// Click to open subject detail
 // ============================================================
 
+import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { mockDiscussionTeachers } from '@/lib/mock-data';
 
@@ -22,11 +22,13 @@ function initials(name: string): string {
 }
 
 export function MessagesScreen() {
-  const { navigate, markThreadRead, readThreadIds: readThreads } = useApp();
+  const navigate = useNavigate();
+  const { sid } = useParams<{ sid: string }>();
+  const { markThreadRead, readThreadIds: readThreads } = useApp();
 
   const handleOpen = (teacherUuid: string, subjectUuid: string) => {
     markThreadRead(teacherUuid);
-    navigate('subject-detail', { subjectUuid });
+    navigate(`/parent/students/${sid}/subjects/${subjectUuid}`);
   };
 
   return (
@@ -49,7 +51,6 @@ export function MessagesScreen() {
             onClick={() => handleOpen(item.teacher.uuid, item.subject.uuid)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              {/* Avatar */}
               <div
                 className="avatar avatar-lg"
                 style={{
@@ -61,7 +62,6 @@ export function MessagesScreen() {
                 {initials(item.teacher.display_name)}
               </div>
 
-              {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
@@ -88,7 +88,6 @@ export function MessagesScreen() {
                 </div>
               </div>
 
-              {/* Unread badge — disappears once thread is opened */}
               {item.unread_count > 0 && !readThreads.has(item.teacher.uuid) && (
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%',

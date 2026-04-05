@@ -1,0 +1,17 @@
+{
+  "title": "学院联接",
+  "subtitle": "学校沟通平台",
+  "emailLabel": "电子邮件",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "密码",
+  "passwordPlaceholder": "请输入密码",
+  "rememberMe": "记住我",
+  "signIn": "登录",
+  "signingIn": "登录中…",
+  "invalidCredentials": "邮箱或密码不正确",
+  "selectRole": "选择角色",
+  "parentRole": "家长",
+  "teacherRole": "老师",
+  "parentDesc": "查看孩子的学习情况",
+  "teacherDesc": "管理您的班级"
+}

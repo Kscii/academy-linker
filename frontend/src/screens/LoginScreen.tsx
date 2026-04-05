@@ -1,22 +1,12 @@
 // ============================================================
-// LoginScreen — Role selection, email/password, language pills
-// Parent = li.wei@email.com | Teacher = thompson@westside.edu.au
+// LoginScreen — role selection, email/password, language combobox
 // ============================================================
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
-
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'zh', label: '中文' },
-  { code: 'vi', label: 'Tiếng Việt' },
-  { code: 'ar', label: 'العربية' },
-];
-
-const ROLE_EMAILS = {
-  parent:  'li.wei@email.com',
-  teacher: 'thompson@westside.edu.au',
-};
+import { LanguageCombobox } from '@/components/layout/LanguageCombobox';
 
 // ── Decorative background SVG ─────────────────────────────────
 
@@ -44,9 +34,11 @@ function LoginDecor() {
 
 export function LoginScreen() {
   const { login, toggleTheme, theme, language, setLanguage } = useApp();
+  const { t } = useTranslation('login');
+  const navigate = useNavigate();
 
   const [role, setRole] = useState<'parent' | 'teacher'>('parent');
-  const [email, setEmail] = useState(ROLE_EMAILS.parent);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,21 +46,25 @@ export function LoginScreen() {
 
   const selectRole = (r: 'parent' | 'teacher') => {
     setRole(r);
-    setEmail(ROLE_EMAILS[r]);
     setError('');
   };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Please enter your email and password.');
+      setError(t('invalidCredentials'));
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await login(email, password, rememberMe, role);
+      const result = await login(email, password, rememberMe, role);
+      if (result.role === 'parent') {
+        navigate(`/parent/students/${result.firstStudentUuid}/dashboard`, { replace: true });
+      } else {
+        navigate('/teacher/dashboard', { replace: true });
+      }
     } catch {
-      setError('Invalid credentials. Try any password to continue.');
+      setError(t('invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -104,30 +100,22 @@ export function LoginScreen() {
             🎓
           </div>
           <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>
-            Academy Linker
+            {t('title')}
           </div>
           <div style={{ fontSize: 13, color: 'var(--tx2)' }}>
-            Parent–Teacher Communication Portal
+            {t('subtitle')}
           </div>
         </div>
 
-        {/* Language pills */}
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
-          {LANGUAGES.map(l => (
-            <button
-              key={l.code}
-              className={`lang-pill ${language === l.code ? 'active' : ''}`}
-              onClick={() => setLanguage(l.code)}
-            >
-              {l.label}
-            </button>
-          ))}
+        {/* Language combobox */}
+        <div style={{ marginBottom: 20 }}>
+          <LanguageCombobox value={language} onChange={setLanguage} />
         </div>
 
         {/* Role selection */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Sign in as
+            {t('selectRole')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div
@@ -141,8 +129,8 @@ export function LoginScreen() {
                 👨‍👩‍👧
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>Parent</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Family portal</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{t('parentRole')}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('parentDesc')}</div>
               </div>
             </div>
             <div
@@ -156,8 +144,8 @@ export function LoginScreen() {
                 👩‍🏫
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>Teacher</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Staff portal</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{t('teacherRole')}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('teacherDesc')}</div>
               </div>
             </div>
           </div>
@@ -166,28 +154,28 @@ export function LoginScreen() {
         {/* Email */}
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', display: 'block', marginBottom: 6 }}>
-            Email address
+            {t('emailLabel')}
           </label>
           <input
             className="input-field"
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="your@email.com"
+            placeholder={t('emailPlaceholder')}
           />
         </div>
 
         {/* Password */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', display: 'block', marginBottom: 6 }}>
-            Password
+            {t('passwordLabel')}
           </label>
           <input
             className="input-field"
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="Enter any password"
+            placeholder={t('passwordPlaceholder')}
             onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }}
           />
         </div>
@@ -202,7 +190,7 @@ export function LoginScreen() {
             style={{ width: 16, height: 16, accentColor: 'var(--a1)', cursor: 'pointer' }}
           />
           <label htmlFor="remember" style={{ fontSize: 13, color: 'var(--tx2)', cursor: 'pointer' }}>
-            Remember me
+            {t('rememberMe')}
           </label>
         </div>
 
@@ -224,13 +212,8 @@ export function LoginScreen() {
           disabled={loading}
           style={{ opacity: loading ? 0.7 : 1 }}
         >
-          {loading ? 'Signing in…' : 'Sign In'}
+          {loading ? t('signingIn') : t('signIn')}
         </button>
-
-        {/* Demo hint */}
-        <div style={{ marginTop: 16, textAlign: 'center', fontSize: 12, color: 'var(--tx3)' }}>
-          Demo: use any password to sign in
-        </div>
       </div>
     </div>
   );

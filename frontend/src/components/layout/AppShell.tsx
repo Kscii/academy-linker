@@ -1,49 +1,51 @@
 // ============================================================
-// AppShell — Fixed sidebar + scrollable main content
-// Sidebar: logo, role tabs, nav items, theme toggle, user profile
+// AppShell — Fixed sidebar + scrollable main content (Outlet)
+// Sidebar: logo, role tabs, nav items, language, theme, profile
 // ============================================================
 
+import { useLocation, useNavigate, useParams, Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import type { AppScreen } from '@/contexts/AppContext';
+import { useTranslation } from 'react-i18next';
+import { LanguageCombobox } from './LanguageCombobox';
 
 // ── Nav item definitions ──────────────────────────────────────
 
 interface NavItem {
-  id: AppScreen;
-  label: string;
+  id: string;
+  labelKey: string;
   icon: string;
+  /** For parent routes, `path` is a function of sid */
+  path: string | ((sid: string) => string);
 }
 
 const PARENT_NAV: NavItem[] = [
-  { id: 'dashboard',  label: 'Dashboard',     icon: '⊞' },
-  { id: 'messages',   label: 'Messages',      icon: '✉' },
-  { id: 'reports',    label: 'Reports',       icon: '📋' },
-  { id: 'announcements', label: 'Notices',    icon: '📢' },
-  { id: 'resources',  label: 'Resources',     icon: '📚' },
+  { id: 'dashboard',  labelKey: 'nav:dashboard',  icon: '⊞', path: (sid) => `/parent/students/${sid}/dashboard` },
+  { id: 'messages',   labelKey: 'nav:messages',   icon: '✉', path: (sid) => `/parent/students/${sid}/discussions` },
+  { id: 'reports',    labelKey: 'nav:reports',    icon: '📋', path: (sid) => `/parent/students/${sid}/reports` },
+  { id: 'notices',    labelKey: 'nav:notices',    icon: '📢', path: (sid) => `/parent/students/${sid}/tasks` },
+  { id: 'resources',  labelKey: 'nav:resources',  icon: '📚', path: (sid) => `/parent/students/${sid}/resources` },
 ];
 
 const TEACHER_NAV: NavItem[] = [
-  { id: 'dashboard',    label: 'Dashboard',   icon: '⊞' },
-  { id: 'messages',     label: 'Messages',    icon: '✉' },
-  { id: 'find-student', label: 'Find Student', icon: '🔍' },
+  { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '⊞', path: '/teacher/dashboard' },
+  { id: 'messages',     labelKey: 'nav:messages',     icon: '✉', path: '/teacher/messages' },
+  { id: 'find-student', labelKey: 'nav:findStudent',  icon: '🔍', path: '/teacher/find-student' },
 ];
 
-const LANGUAGES = ['EN', 'ZH', 'VI', 'AR'];
-
-interface AppShellProps {
-  children: React.ReactNode;
-}
+const SHARED_NAV: NavItem[] = [
+  { id: 'settings', labelKey: 'nav:settings', icon: '⚙', path: '/settings' },
+];
 
 // ── Decorative sidebar SVG ────────────────────────────────────
 
 function SidebarDecor() {
   return (
     <svg width="180" height="80" viewBox="0 0 180 80" fill="none" style={{ opacity: 0.12, margin: '0 auto', display: 'block' }}>
-      <circle cx="30" cy="40" r="28" stroke="var(--a1)" strokeWidth="1.5" />
-      <circle cx="90" cy="25" r="18" stroke="var(--a2)" strokeWidth="1.5" />
+      <circle cx="30"  cy="40" r="28" stroke="var(--a1)" strokeWidth="1.5" />
+      <circle cx="90"  cy="25" r="18" stroke="var(--a2)" strokeWidth="1.5" />
       <circle cx="150" cy="50" r="22" stroke="var(--a3)" strokeWidth="1.5" />
-      <line x1="58" y1="40" x2="72" y2="28" stroke="var(--tx3)" strokeWidth="1" />
+      <line x1="58" y1="40" x2="72"  y2="28" stroke="var(--tx3)" strokeWidth="1" />
       <line x1="108" y1="30" x2="128" y2="42" stroke="var(--tx3)" strokeWidth="1" />
     </svg>
   );
@@ -52,15 +54,14 @@ function SidebarDecor() {
 // ── User profile popup ────────────────────────────────────────
 
 function UserProfile() {
-  const { user, logout, role } = useApp();
+  const { user, logout } = useApp();
+  const { t } = useTranslation('common');
+  const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
+  const { role } = useApp();
 
   const initials = user?.display_name
-    ?.split(' ')
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) ?? '?';
+    ?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) ?? '?';
 
   return (
     <div style={{ position: 'relative' }}>
@@ -97,10 +98,21 @@ function UserProfile() {
           zIndex: 50, overflow: 'hidden',
         }}>
           <div style={{ padding: '10px 14px', fontSize: 12, color: 'var(--tx2)', borderBottom: '1px solid var(--bd)' }}>
-            Signed in as <strong>{user?.role}</strong>
+            {t('signedInAs')} <strong>{user?.role}</strong>
           </div>
           <button
-            onClick={() => { setShowMenu(false); logout(); }}
+            onClick={() => { setShowMenu(false); navigate('/settings'); }}
+            style={{
+              width: '100%', padding: '10px 14px', textAlign: 'left',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 13, color: 'var(--tx)', fontWeight: 600,
+              fontFamily: 'var(--font-body)', borderBottom: '1px solid var(--bd)',
+            }}
+          >
+            ⚙ {t('settings')}
+          </button>
+          <button
+            onClick={() => { setShowMenu(false); logout(); navigate('/login'); }}
             style={{
               width: '100%', padding: '10px 14px', textAlign: 'left',
               background: 'none', border: 'none', cursor: 'pointer',
@@ -108,7 +120,7 @@ function UserProfile() {
               fontFamily: 'var(--font-body)',
             }}
           >
-            Sign Out
+            {t('signOut')}
           </button>
         </div>
       )}
@@ -118,14 +130,26 @@ function UserProfile() {
 
 // ── AppShell ──────────────────────────────────────────────────
 
-export function AppShell({ children }: AppShellProps) {
-  const { role, setRole, currentScreen, navigate, toggleTheme, theme, language, setLanguage, unreadMessageCount, readThreadIds, markThreadRead } = useApp();
+export function AppShell() {
+  const { role, setRole, toggleTheme, theme, language, setLanguage, unreadMessageCount } = useApp();
+  const { t } = useTranslation(['common', 'nav']);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const params = useParams<{ sid?: string }>();
+  const sid = params.sid ?? 'student-001';
 
   const navItems = role === 'parent' ? PARENT_NAV : TEACHER_NAV;
 
-  // Silence unused variable warning — these are consumed via context only
-  void readThreadIds;
-  void markThreadRead;
+  const getPath = (item: NavItem) =>
+    typeof item.path === 'function' ? item.path(sid) : item.path;
+
+  const isActive = (item: NavItem) => pathname === getPath(item) || pathname.startsWith(getPath(item) + '/');
+
+  const switchRole = (r: 'parent' | 'teacher') => {
+    setRole(r);
+    if (r === 'parent') navigate(`/parent/students/${sid}/dashboard`);
+    else navigate('/teacher/dashboard');
+  };
 
   return (
     <div className="app-shell">
@@ -151,17 +175,11 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Role tabs */}
         <div className="role-tabs">
-          <div
-            className={`role-tab ${role === 'parent' ? 'active' : ''}`}
-            onClick={() => setRole('parent')}
-          >
-            Parent
+          <div className={`role-tab ${role === 'parent' ? 'active' : ''}`} onClick={() => switchRole('parent')}>
+            {t('common:parent')}
           </div>
-          <div
-            className={`role-tab ${role === 'teacher' ? 'active' : ''}`}
-            onClick={() => setRole('teacher')}
-          >
-            Teacher
+          <div className={`role-tab ${role === 'teacher' ? 'active' : ''}`} onClick={() => switchRole('teacher')}>
+            {t('common:teacher')}
           </div>
         </div>
 
@@ -170,11 +188,11 @@ export function AppShell({ children }: AppShellProps) {
           {navItems.map(item => (
             <div
               key={item.id}
-              className={`nav-item ${currentScreen === item.id ? 'active' : ''}`}
-              onClick={() => navigate(item.id)}
+              className={`nav-item ${isActive(item) ? 'active' : ''}`}
+              onClick={() => navigate(getPath(item))}
             >
               <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
-              {item.label}
+              {t(item.labelKey)}
               {item.id === 'messages' && unreadMessageCount > 0 && (
                 <span style={{
                   marginLeft: 'auto',
@@ -184,26 +202,30 @@ export function AppShell({ children }: AppShellProps) {
               )}
             </div>
           ))}
+
+          {/* Settings item */}
+          {SHARED_NAV.map(item => (
+            <div
+              key={item.id}
+              className={`nav-item ${isActive(item) ? 'active' : ''}`}
+              onClick={() => navigate(getPath(item))}
+            >
+              <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
+              {t(item.labelKey)}
+            </div>
+          ))}
         </nav>
 
         {/* Decorative SVG */}
         <SidebarDecor />
 
         {/* Language selector */}
-        <div style={{ padding: '10px 12px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {LANGUAGES.map(lang => (
-            <button
-              key={lang}
-              className={`lang-pill ${language === lang.toLowerCase() ? 'active' : ''}`}
-              onClick={() => setLanguage(lang.toLowerCase())}
-            >
-              {lang}
-            </button>
-          ))}
+        <div style={{ padding: '4px 12px 8px' }}>
+          <LanguageCombobox value={language} onChange={setLanguage} compact />
         </div>
 
         {/* Theme toggle */}
-        <div style={{ padding: '8px 14px' }}>
+        <div style={{ padding: '4px 14px 8px' }}>
           <button
             onClick={toggleTheme}
             style={{
@@ -215,7 +237,7 @@ export function AppShell({ children }: AppShellProps) {
             }}
           >
             <span>{theme === 'day' ? '🌙' : '☀️'}</span>
-            {theme === 'day' ? 'Night Mode' : 'Day Mode'}
+            {theme === 'day' ? t('common:nightMode') : t('common:dayMode')}
           </button>
         </div>
 
@@ -223,9 +245,9 @@ export function AppShell({ children }: AppShellProps) {
         <UserProfile />
       </aside>
 
-      {/* ── Main content ── */}
+      {/* ── Main content (screen rendered by react-router Outlet) ── */}
       <main className="main-content">
-        {children}
+        <Outlet />
       </main>
     </div>
   );

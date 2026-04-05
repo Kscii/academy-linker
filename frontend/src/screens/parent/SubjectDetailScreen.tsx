@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate, useParams } from 'react-router-dom';
 import { mockSubjectDetails } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 import type { ThreadPost } from '@/types/api';
@@ -16,7 +16,6 @@ interface ReplyState {
     text: string;
     submitted: boolean;
     submittedText?: string;
-    submittedAt?: string;
   };
 }
 
@@ -37,7 +36,7 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
     if (!r.text.trim()) return;
     setReplyStates(prev => ({
       ...prev,
-      [uuid]: { text: '', submitted: true, submittedText: r.text, submittedAt: new Date().toISOString() },
+      [uuid]: { text: '', submitted: true, submittedText: r.text },
     }));
   };
 
@@ -64,7 +63,6 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 
         return (
           <div key={post.uuid} className="post-card">
-            {/* Post header */}
             <div className="post-card-header">
               <div
                 className="avatar"
@@ -88,44 +86,32 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
               )}
             </div>
 
-            {/* Post title */}
             {post.title && (
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 6 }}>
                 {post.title}
               </div>
             )}
 
-            {/* Post body */}
             <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 12 }}>
               {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1')}
             </div>
 
-            {/* Submitted reply */}
             {reply.submitted && reply.submittedText && (
               <div style={{
                 background: 'rgba(61,182,168,0.08)', border: '1px solid rgba(61,182,168,0.2)',
                 borderRadius: 8, padding: '10px 12px', marginBottom: 10,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div
-                    className="avatar"
-                    style={{ width: 24, height: 24, fontSize: 10, background: 'var(--a2)', color: '#fff' }}
-                  >
+                  <div className="avatar" style={{ width: 24, height: 24, fontSize: 10, background: 'var(--a2)', color: '#fff' }}>
                     You
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--a2)' }}>Your reply</div>
-                  <span
-                    className="badge badge-ok"
-                    style={{ marginLeft: 'auto', fontSize: 10 }}
-                  >
-                    ✓ Sent
-                  </span>
+                  <span className="badge badge-ok" style={{ marginLeft: 'auto', fontSize: 10 }}>✓ Sent</span>
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--tx)' }}>{reply.submittedText}</div>
               </div>
             )}
 
-            {/* Reply area */}
             {!reply.submitted && (
               <div>
                 <textarea
@@ -144,10 +130,7 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
                     className="btn-primary"
                     onClick={() => submitReply(post.uuid)}
                     disabled={!reply.text.trim()}
-                    style={{
-                      width: 'auto', padding: '7px 16px', fontSize: 12,
-                      opacity: reply.text.trim() ? 1 : 0.5,
-                    }}
+                    style={{ width: 'auto', padding: '7px 16px', fontSize: 12, opacity: reply.text.trim() ? 1 : 0.5 }}
                   >
                     Reply
                   </button>
@@ -155,7 +138,6 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
               </div>
             )}
 
-            {/* Replied badge */}
             {reply.submitted && (
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <span className="badge badge-ok" style={{ fontSize: 11 }}>✓ Replied</span>
@@ -171,22 +153,20 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 // ── Subject Detail Screen ─────────────────────────────────────
 
 export function SubjectDetailScreen() {
-  const { currentSubjectUuid, navigate } = useApp();
+  const navigate = useNavigate();
+  const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
   const [showAvg, setShowAvg] = useState(false);
   const [period, setPeriod] = useState<'term' | 'year'>('term');
 
-  // Fall back to math if no subject selected
-  const subjectUuid = currentSubjectUuid ?? 'sub-math';
+  const subjectUuid = subjectId ?? 'sub-math';
   const detail = mockSubjectDetails[subjectUuid] ?? mockSubjectDetails['sub-math'];
   const subject = detail.subject;
-
   const subjectColor = subject.color ?? 'var(--a1)';
 
   return (
     <div>
-      {/* Back button */}
       <button
-        onClick={() => navigate('dashboard')}
+        onClick={() => navigate(`/parent/students/${sid}/dashboard`)}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -197,7 +177,6 @@ export function SubjectDetailScreen() {
         ← Back to Dashboard
       </button>
 
-      {/* Subject header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
@@ -214,16 +193,12 @@ export function SubjectDetailScreen() {
           <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teacher?.display_name}</div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
-          <div
-            className="badge-score"
-            style={{ background: subjectColor, fontSize: 20, padding: '6px 16px' }}
-          >
+          <div className="badge-score" style={{ background: subjectColor, fontSize: 20, padding: '6px 16px' }}>
             {detail.overview.current_score}%
           </div>
         </div>
       </div>
 
-      {/* 4 stat boxes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Current Score', value: detail.overview.current_score, color: subjectColor },
@@ -238,12 +213,10 @@ export function SubjectDetailScreen() {
         ))}
       </div>
 
-      {/* Line chart with toggles */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>Score Trend</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Period toggle */}
             <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 8, padding: 2 }}>
               {(['term', 'year'] as const).map(p => (
                 <button
@@ -261,7 +234,6 @@ export function SubjectDetailScreen() {
                 </button>
               ))}
             </div>
-            {/* Avg toggle */}
             <button
               onClick={() => setShowAvg(s => !s)}
               style={{
@@ -297,41 +269,27 @@ export function SubjectDetailScreen() {
         )}
       </div>
 
-      {/* Two columns: timeline + post board */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 16 }}>
-        {/* Learning Pathway */}
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-            Learning Pathway
-          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Learning Pathway</div>
           <div className="timeline">
             {detail.timeline.map(node => (
               <div key={node.uuid} className="timeline-node">
                 <div className={`timeline-dot ${node.status}`} />
                 <div>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: node.status === 'future' ? 'var(--tx3)' : 'var(--tx)',
-                  }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: node.status === 'future' ? 'var(--tx3)' : 'var(--tx)' }}>
                     {node.title}
                   </div>
-                  {node.week && (
-                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Week {node.week}</div>
-                  )}
+                  {node.week && <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Week {node.week}</div>}
                   {node.status === 'current' && (
-                    <span className="badge" style={{ background: subjectColor + '18', color: subjectColor, marginTop: 4, fontSize: 10 }}>
-                      In progress
-                    </span>
+                    <span className="badge" style={{ background: subjectColor + '18', color: subjectColor, marginTop: 4, fontSize: 10 }}>In progress</span>
                   )}
-                  {node.status === 'done' && (
-                    <span style={{ fontSize: 11, color: 'var(--a2)' }}>✓ Completed</span>
-                  )}
+                  {node.status === 'done' && <span style={{ fontSize: 11, color: 'var(--a2)' }}>✓ Completed</span>}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* AI Summary if available */}
           {detail.ai_summary && (
             <div style={{
               marginTop: 20, padding: '14px', borderRadius: 10,
@@ -356,7 +314,6 @@ export function SubjectDetailScreen() {
           )}
         </div>
 
-        {/* Post board */}
         <div className="card" style={{ overflowY: 'auto', maxHeight: 600 }}>
           <PostBoard posts={detail.posts} subjectColor={subjectColor} />
         </div>

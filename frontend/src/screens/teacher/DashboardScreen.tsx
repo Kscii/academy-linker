@@ -1,8 +1,8 @@
 // ============================================================
 // Teacher DashboardScreen — greeting, stat cards, class cards grid
-// Each class card has a mini bar chart — click opens ClassDetailScreen
 // ============================================================
 
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { mockTeacherDashboard, mockTeacherClasses, SUBJECT_COLORS } from '@/lib/mock-data';
 import { BarChart } from '@/components/charts/BarChart';
@@ -11,7 +11,6 @@ const ACCENT_COLORS: Record<string, string> = {
   a1: 'var(--a1)', a2: 'var(--a2)', a3: 'var(--a3)', a4: 'var(--a4)',
 };
 
-// Mini bar chart for class card
 function MiniBarChart({ scores, color }: { scores: number[]; color: string }) {
   const max = Math.max(...scores);
   return (
@@ -31,12 +30,12 @@ function MiniBarChart({ scores, color }: { scores: number[]; color: string }) {
 }
 
 export function TeacherDashboardScreen() {
-  const { navigate, user } = useApp();
+  const navigate = useNavigate();
+  const { user } = useApp();
   const dashboard = mockTeacherDashboard;
 
   return (
     <div>
-      {/* Greeting */}
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 28, color: 'var(--tx)', marginBottom: 4 }}>
           Welcome, {user?.display_name?.split(' ')[1] ?? user?.display_name ?? 'Teacher'} 👋
@@ -46,7 +45,6 @@ export function TeacherDashboardScreen() {
         </div>
       </div>
 
-      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
         {dashboard.summary_cards.map((card, i) => {
           const isMessages = card.label === 'Unread Msgs';
@@ -54,16 +52,14 @@ export function TeacherDashboardScreen() {
             <div
               key={i}
               className="stat-box"
-              onClick={isMessages ? () => navigate('messages') : undefined}
+              onClick={isMessages ? () => navigate('/teacher/messages') : undefined}
               style={{ cursor: isMessages ? 'pointer' : 'default' }}
             >
               <div className="stat-label">{card.label}</div>
               <div className="stat-value" style={{ color: ACCENT_COLORS[card.color ?? 'a1'] }}>
                 {card.value}
               </div>
-              {card.sub && (
-                <div className="stat-sub">{card.sub}</div>
-              )}
+              {card.sub && <div className="stat-sub">{card.sub}</div>}
               {isMessages && (
                 <div style={{ fontSize: 10, color: 'var(--a4)', marginTop: 4, fontWeight: 700 }}>
                   View all →
@@ -74,7 +70,6 @@ export function TeacherDashboardScreen() {
         })}
       </div>
 
-      {/* Class cards grid */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
           Your Classes
@@ -87,28 +82,20 @@ export function TeacherDashboardScreen() {
                 key={cls.uuid}
                 className="card"
                 style={{ cursor: 'pointer', transition: 'transform 0.15s', borderTop: `3px solid ${subjectColor}` }}
-                onClick={() => navigate('class-detail', { classUuid: cls.uuid })}
+                onClick={() => navigate(`/teacher/classes/${cls.uuid}`)}
                 onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
                 onMouseLeave={e => (e.currentTarget.style.transform = 'none')}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{cls.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>
-                      {cls.student_count} students
-                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>{cls.student_count} students</div>
                   </div>
-                  <span
-                    className="subject-chip"
-                    style={{ background: subjectColor + '18', color: subjectColor }}
-                  >
+                  <span className="subject-chip" style={{ background: subjectColor + '18', color: subjectColor }}>
                     {cls.subject.code.toUpperCase()}
                   </span>
                 </div>
-
-                {/* Mini bar chart */}
                 <MiniBarChart scores={cls.scores} color={subjectColor} />
-
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Avg score</div>
@@ -129,7 +116,6 @@ export function TeacherDashboardScreen() {
         </div>
       </div>
 
-      {/* All subjects bar chart */}
       <div className="card">
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
           Class Average Scores Comparison

@@ -1,0 +1,13 @@
+{
+  "welcome": "欢迎回来",
+  "overallScore": "综合成绩",
+  "attendance": "出勤率",
+  "pendingTasks": "待处理任务",
+  "unreadMsgs": "未读消息",
+  "recentActivity": "近期动态",
+  "subjects": "学科",
+  "viewAll": "查看全部 →",
+  "atRisk": "需关注",
+  "aiSummary": "AI 摘要",
+  "noStudents": "未找到学生"
+}

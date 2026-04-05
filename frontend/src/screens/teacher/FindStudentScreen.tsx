@@ -3,11 +3,11 @@
 // ============================================================
 
 import { useState, useMemo } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { mockTeacherStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 
 export function FindStudentScreen() {
-  const { navigate } = useApp();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
   const results = useMemo(() => {
@@ -36,7 +36,6 @@ export function FindStudentScreen() {
         </div>
       </div>
 
-      {/* Search input */}
       <div style={{ position: 'relative', marginBottom: 24 }}>
         <span style={{
           position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
@@ -54,12 +53,10 @@ export function FindStudentScreen() {
         />
       </div>
 
-      {/* Results count */}
       <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 14, fontWeight: 700 }}>
         {results.length} {results.length === 1 ? 'student' : 'students'} found
       </div>
 
-      {/* Result cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
         {results.map(item => {
           const subjectColor = SUBJECT_COLORS.math;
@@ -68,7 +65,7 @@ export function FindStudentScreen() {
               key={item.student.uuid}
               className="card-sm"
               style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onClick={() => navigate('student-detail', { studentUuid: item.student.uuid })}
+              onClick={() => navigate(`/teacher/students/${item.student.uuid}`)}
               onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--a1)')}
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--bd)')}
             >
@@ -100,11 +97,7 @@ export function FindStudentScreen() {
                         }}
                       />
                     </div>
-                    <span style={{
-                      fontSize: 12, fontWeight: 700,
-                      color: item.at_risk ? 'var(--warn)' : subjectColor,
-                      width: 36,
-                    }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: item.at_risk ? 'var(--warn)' : subjectColor, width: 36 }}>
                       {item.overall_score}%
                     </span>
                   </div>
@@ -114,10 +107,7 @@ export function FindStudentScreen() {
                     <span className="badge badge-warn" style={{ fontSize: 10 }}>At Risk</span>
                   )}
                   {item.unread_messages > 0 && (
-                    <span
-                      className="badge"
-                      style={{ background: 'var(--a1)', color: '#fff', fontSize: 10 }}
-                    >
+                    <span className="badge" style={{ background: 'var(--a1)', color: '#fff', fontSize: 10 }}>
                       {item.unread_messages} msg
                     </span>
                   )}

@@ -67,7 +67,7 @@ async function apiFetch<T>(
         refreshPromise = apiFetch<void>('/auth/refresh', { method: 'POST' }, false)
           .catch(() => {
             // Refresh failed — redirect to login
-            window.location.href = '/';
+            window.location.replace('/login');
           })
           .finally(() => {
             isRefreshing = false;

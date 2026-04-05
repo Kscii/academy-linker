@@ -1,0 +1,13 @@
+{
+  "welcome": "Welcome back",
+  "overallScore": "Overall Score",
+  "attendance": "Attendance",
+  "pendingTasks": "Pending Tasks",
+  "unreadMsgs": "Unread Msgs",
+  "recentActivity": "Recent Activity",
+  "subjects": "Subjects",
+  "viewAll": "View all →",
+  "atRisk": "At Risk",
+  "aiSummary": "AI Summary",
+  "noStudents": "No students found"
+}
