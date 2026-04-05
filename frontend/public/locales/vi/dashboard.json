@@ -12,5 +12,12 @@
   "avgScoreComparison": "So sánh điểm trung bình lớp",
   "students": "học sinh",
   "avgScore": "Điểm TB",
-  "atRisk": "Cần hỗ trợ"
+  "atRisk": "Cần hỗ trợ",
+  "overallAverage": "Điểm trung bình",
+  "attendance": "Chuyên cần",
+  "tasksDue": "Bài tập đến hạn",
+  "newPosts": "Bài viết mới",
+  "totalStudents": "Tổng số học sinh",
+  "averageScore": "Điểm trung bình",
+  "unreadMsgs": "Tin nhắn chưa đọc"
 }

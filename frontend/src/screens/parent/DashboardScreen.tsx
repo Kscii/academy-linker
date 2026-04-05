@@ -72,7 +72,7 @@ export function DashboardScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {dashboard.summary_cards.map((card, i) => (
           <div key={i} className="stat-box">
-            <div className="stat-label">{card.label}</div>
+            <div className="stat-label">{t(card.label)}</div>
             <div className="stat-value" style={{ color: ACCENT_COLORS[card.color ?? 'a1'] }}>
               {card.value}
             </div>

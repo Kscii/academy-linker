@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "แพลตฟอร์มการสื่อสารของโรงเรียน",
+  "emailLabel": "อีเมล",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "รหัสผ่าน",
+  "passwordPlaceholder": "กรอกรหัสผ่าน",
+  "rememberMe": "จดจำฉัน",
+  "signIn": "เข้าสู่ระบบ",
+  "signingIn": "กำลังเข้าสู่ระบบ…",
+  "invalidCredentials": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+  "selectRole": "เลือกบทบาทของคุณ",
+  "parentRole": "ผู้ปกครอง",
+  "teacherRole": "ครู",
+  "parentDesc": "ดูความก้าวหน้าของบุตรหลาน",
+  "teacherDesc": "จัดการชั้นเรียนของคุณ"
+}

@@ -1,0 +1,23 @@
+{
+  "goodMorning": "อรุณสวัสดิ์, {{name}} 👋",
+  "studentUpdateToday": "อัปเดตของ {{student}} วันนี้",
+  "subjectScores": "คะแนนแต่ละวิชา",
+  "classAvg": "เฉลี่ยชั้นเรียน",
+  "overallTrend": "แนวโน้มรวม — ภาคเรียนที่ 2",
+  "allSubjects": "ทุกวิชา",
+  "viewButton": "ดู",
+  "welcome": "ยินดีต้อนรับ, {{name}} 👋",
+  "classOverview": "ภาพรวมชั้นเรียนของคุณ",
+  "yourClasses": "ชั้นเรียนของคุณ",
+  "avgScoreComparison": "เปรียบเทียบคะแนนเฉลี่ยชั้นเรียน",
+  "students": "นักเรียน",
+  "avgScore": "คะแนนเฉลี่ย",
+  "atRisk": "ต้องดูแล",
+  "overallAverage": "เฉลี่ยรวม",
+  "attendance": "การเข้าเรียน",
+  "tasksDue": "งานที่ถึงกำหนด",
+  "newPosts": "โพสต์ใหม่",
+  "totalStudents": "นักเรียนทั้งหมด",
+  "averageScore": "คะแนนเฉลี่ย",
+  "unreadMsgs": "ข้อความที่ยังไม่ได้อ่าน"
+}

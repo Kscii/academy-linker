@@ -12,5 +12,12 @@
   "avgScoreComparison": "班级平均成绩对比",
   "students": "名学生",
   "avgScore": "平均分",
-  "atRisk": "需关注"
+  "atRisk": "需关注",
+  "overallAverage": "综合平均",
+  "attendance": "出勤率",
+  "tasksDue": "待完成任务",
+  "newPosts": "新帖子",
+  "totalStudents": "学生总数",
+  "averageScore": "平均成绩",
+  "unreadMsgs": "未读消息"
 }

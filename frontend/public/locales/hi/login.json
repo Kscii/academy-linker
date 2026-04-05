@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "स्कूल संचार मंच",
+  "emailLabel": "ईमेल पता",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "पासवर्ड",
+  "passwordPlaceholder": "पासवर्ड दर्ज करें",
+  "rememberMe": "मुझे याद रखें",
+  "signIn": "साइन इन",
+  "signingIn": "साइन इन हो रहा है…",
+  "invalidCredentials": "ईमेल या पासवर्ड गलत है",
+  "selectRole": "अपनी भूमिका चुनें",
+  "parentRole": "अभिभावक",
+  "teacherRole": "शिक्षक",
+  "parentDesc": "अपने बच्चे की प्रगति देखें",
+  "teacherDesc": "अपनी कक्षाएँ प्रबंधित करें"
+}

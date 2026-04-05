@@ -1,0 +1,23 @@
+{
+  "goodMorning": "Selamat pagi, {{name}} 👋",
+  "studentUpdateToday": "Berikut pembaruan {{student}} untuk hari ini",
+  "subjectScores": "Nilai per Mata Pelajaran",
+  "classAvg": "Rata-rata kelas",
+  "overallTrend": "Tren Keseluruhan — Semester 2",
+  "allSubjects": "Semua Mata Pelajaran",
+  "viewButton": "Lihat",
+  "welcome": "Selamat datang, {{name}} 👋",
+  "classOverview": "Berikut gambaran kelas Anda untuk",
+  "yourClasses": "Kelas Anda",
+  "avgScoreComparison": "Perbandingan Rata-rata Nilai Kelas",
+  "students": "siswa",
+  "avgScore": "Nilai rata-rata",
+  "atRisk": "Perlu perhatian",
+  "overallAverage": "Rata-rata Keseluruhan",
+  "attendance": "Kehadiran",
+  "tasksDue": "Tugas yang Harus Dikumpulkan",
+  "newPosts": "Postingan Baru",
+  "totalStudents": "Total Siswa",
+  "averageScore": "Nilai Rata-rata",
+  "unreadMsgs": "Pesan Belum Dibaca"
+}

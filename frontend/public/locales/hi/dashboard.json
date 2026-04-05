@@ -1,0 +1,23 @@
+{
+  "goodMorning": "सुप्रभात, {{name}} 👋",
+  "studentUpdateToday": "{{student}} का आज का अपडेट",
+  "subjectScores": "विषय अनुसार अंक",
+  "classAvg": "कक्षा औसत",
+  "overallTrend": "समग्र प्रवृत्ति — सत्र 2",
+  "allSubjects": "सभी विषय",
+  "viewButton": "देखें",
+  "welcome": "स्वागत है, {{name}} 👋",
+  "classOverview": "आपकी कक्षा का अवलोकन",
+  "yourClasses": "आपकी कक्षाएँ",
+  "avgScoreComparison": "कक्षा औसत अंकों की तुलना",
+  "students": "छात्र",
+  "avgScore": "औसत अंक",
+  "atRisk": "ध्यान आवश्यक",
+  "overallAverage": "समग्र औसत",
+  "attendance": "उपस्थिति",
+  "tasksDue": "देय कार्य",
+  "newPosts": "नई पोस्ट",
+  "totalStudents": "कुल छात्र",
+  "averageScore": "औसत अंक",
+  "unreadMsgs": "अपठित संदेश"
+}

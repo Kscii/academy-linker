@@ -170,10 +170,10 @@ export const mockSubjectPosts: Record<string, ThreadPost[]> = {
 
 export const mockParentDashboard: DashboardResponse = {
   summary_cards: [
-    { label: 'Overall Average',  value: '78%',  sub: '+3 this term',   trend: 'up',   color: 'a1' },
-    { label: 'Attendance',       value: '96%',  sub: '2 absences',     trend: 'flat', color: 'a2' },
-    { label: 'Tasks Due',        value: 4,      sub: 'this week',      trend: 'down', color: 'a3' },
-    { label: 'New Posts',        value: 3,      sub: 'from teachers',  trend: 'up',   color: 'a4' },
+    { label: 'overallAverage', value: '78%',  sub: '+3 this term',   trend: 'up',   color: 'a1' },
+    { label: 'attendance',     value: '96%',  sub: '2 absences',     trend: 'flat', color: 'a2' },
+    { label: 'tasksDue',       value: 4,      sub: 'this week',      trend: 'down', color: 'a3' },
+    { label: 'newPosts',       value: 3,      sub: 'from teachers',  trend: 'up',   color: 'a4' },
   ],
   subject_chart: [
     { label: 'Maths',   value: 82, avg: 74 },
@@ -483,10 +483,10 @@ export const mockTeacherClasses: TeacherClass[] = [
 
 export const mockTeacherDashboard: TeacherDashboardResponse = {
   summary_cards: [
-    { label: 'Total Students', value: 168, sub: 'across 6 classes', color: 'a1' },
-    { label: 'Average Score',  value: '74%', sub: '+2% this term',  color: 'a2' },
-    { label: 'At Risk',        value: 21,    sub: 'need attention',  color: 'a3' },
-    { label: 'Unread Msgs',    value: 7,     sub: 'from parents',    color: 'a4' },
+    { label: 'totalStudents', value: 168, sub: 'across 6 classes', color: 'a1' },
+    { label: 'averageScore',  value: '74%', sub: '+2% this term',  color: 'a2' },
+    { label: 'atRisk',        value: 21,    sub: 'need attention',  color: 'a3' },
+    { label: 'unreadMsgs',    value: 7,     sub: 'from parents',    color: 'a4' },
   ],
   classes: mockTeacherClasses,
 };

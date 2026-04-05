@@ -1,0 +1,23 @@
+{
+  "goodMorning": "Guten Morgen, {{name}} 👋",
+  "studentUpdateToday": "Hier ist das Update von {{student}} für heute",
+  "subjectScores": "Noten nach Fach",
+  "classAvg": "Klassendurchschnitt",
+  "overallTrend": "Gesamttrend — Halbjahr 2",
+  "allSubjects": "Alle Fächer",
+  "viewButton": "Anzeigen",
+  "welcome": "Willkommen, {{name}} 👋",
+  "classOverview": "Hier ist Ihre Klassenübersicht für",
+  "yourClasses": "Ihre Klassen",
+  "avgScoreComparison": "Vergleich der Klassendurchschnitte",
+  "students": "Schüler",
+  "avgScore": "Durchschn.",
+  "atRisk": "Förderbedarf",
+  "overallAverage": "Gesamtdurchschnitt",
+  "attendance": "Anwesenheit",
+  "tasksDue": "Fällige Aufgaben",
+  "newPosts": "Neue Beiträge",
+  "totalStudents": "Schüler gesamt",
+  "averageScore": "Durchschnittsnote",
+  "unreadMsgs": "Ungelesene Msgs"
+}
