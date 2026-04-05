@@ -1,5 +1,5 @@
 
-## 初始化db命令
+## 初始化命令
 uv sync
 uv pip install -e .
 bash podman-dev.sh

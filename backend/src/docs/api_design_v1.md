@@ -344,6 +344,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "email": "string",
   "password": "string",
+  // 增加rt的有效时长, 从3天增加到7天
   "remember_me": false
 }
 ```
