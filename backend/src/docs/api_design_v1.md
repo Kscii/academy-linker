@@ -635,7 +635,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ## 8. 设置接口
 
-### 8.1 获取当前用户设置
+### 8.1 获取当前用户设置（已完成）
 
 **GET** `/api/settings`
 
@@ -659,7 +659,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 8.2 更新当前用户设置
+### 8.2 更新当前用户设置（已完成）
 
 **PATCH** `/api/settings`
 
@@ -908,7 +908,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.5 获取报告列表
+### 9.5 获取报告列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/reports`
 
@@ -932,12 +932,23 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "title": "string",
       "report_type": "weekly | monthly | custom",
       "source_type": "ai | teacher",
-      "created_at": "string",
-      "is_read": false,
-      "is_archived": false,
       "subject": {
-        "uuid": "string | null",
-        "name": "string | null"
+        "uuid": "string",
+        "name": "string",
+        "code": "string | null"
+      },
+      "is_read": false,
+      "read_at": "string | null",
+      "is_archived": false,
+      "archived_at": "string | null",
+      "created_at": "string",
+      "published_at": "string | null",
+      "translation": {
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null"
       }
     }
   ],
@@ -952,7 +963,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.6 获取报告详情
+### 9.6 获取报告详情（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/reports/{report_uuid}`
 
@@ -965,15 +976,18 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "title": "string",
     "report_type": "weekly | monthly | custom",
     "source_type": "ai | teacher",
-    "created_at": "string",
-    "updated_at": "string",
-    "is_read": false,
-    "is_archived": false,
     "subject": {
-      "uuid": "string | null",
-      "name": "string | null"
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
     },
-    "content_markdown": "string",
+    "is_read": false,
+    "read_at": "string | null",
+    "is_archived": false,
+    "archived_at": "string | null",
+    "created_at": "string",
+    "published_at": "string | null",
+    "display_content_markdown": "string",
     "original_content_markdown": "string",
     "translated_content_markdown": "string | null",
     "display_language": "string",
@@ -985,9 +999,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+> 注：`display_content_markdown` 由后端根据 `translation_status` 自动选择 original / translated 版本，前端直接渲染即可。`display_language` 表示当前展示文本所用的语言。
+
 ---
 
-### 9.7 标记报告为已读
+### 9.7 标记报告为已读（已完成）
 
 **POST** `/api/reports/{report_uuid}/read`
 
@@ -1000,16 +1016,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "report_uuid": "string",
-    "is_read": true,
-    "read_at": "string"
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.8 归档报告
+### 9.8 归档报告（已完成）
 
 **POST** `/api/reports/{report_uuid}/archive`
 
@@ -1022,16 +1036,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "report_uuid": "string",
-    "is_archived": true,
-    "archived_at": "string"
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.9 取消归档报告
+### 9.9 取消归档报告（已完成）
 
 **POST** `/api/reports/{report_uuid}/unarchive`
 
@@ -1044,15 +1056,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "report_uuid": "string",
-    "is_archived": false
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.10 获取公告/任务列表
+### 9.10 获取公告/任务列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/announcements`
 
@@ -1075,14 +1086,22 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "category": "announcement | task",
       "title": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string",
+        "code": "string | null"
+      },
+      "is_important": true,
+      "is_read": false,
+      "read_at": "string | null",
       "published_at": "string",
       "due_at": "string | null",
-      "is_read": false,
-      "is_important": true,
-      "author": {
-        "uuid": "string",
-        "display_name": "string",
-        "role": "teacher | admin"
+      "translation": {
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null"
       }
     }
   ],
@@ -1097,7 +1116,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.11 获取公告/任务详情
+### 9.11 获取公告/任务详情（已完成）
 
 **GET** `/api/announcements/{announcement_uuid}`
 
@@ -1109,30 +1128,38 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "uuid": "string",
     "category": "announcement | task",
     "title": "string",
-    "content_markdown": "string",
+    "subject": {
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
+    },
+    "is_important": true,
+    "is_read": false,
+    "read_at": "string | null",
+    "published_at": "string",
+    "due_at": "string | null",
+    "author": {
+      "uuid": "string",
+      "display_name": "string",
+      "role": "teacher | admin"
+    },
+    "display_content_markdown": "string",
     "original_content_markdown": "string",
     "translated_content_markdown": "string | null",
     "display_language": "string",
     "original_language": "string",
     "translated_language": "string | null",
     "translation_status": "completed",
-    "translated_at": "string | null",
-    "published_at": "string",
-    "due_at": "string | null",
-    "is_read": false,
-    "is_important": true,
-    "author": {
-      "uuid": "string",
-      "display_name": "string",
-      "role": "teacher | admin"
-    }
+    "translated_at": "string | null"
   }
 }
 ```
 
+> 注：`display_content_markdown` 由后端根据 `translation_status` 自动选择 original / translated 版本。`display_language` 表示当前展示文本所用的语言。
+
 ---
 
-### 9.12 标记公告为已读
+### 9.12 标记公告为已读（已完成）
 
 **POST** `/api/announcements/{announcement_uuid}/read`
 
@@ -1145,9 +1172,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "announcement_uuid": "string",
-    "is_read": true,
-    "read_at": "string"
+    "success": true
   }
 }
 ```
