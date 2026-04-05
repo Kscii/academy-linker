@@ -36,10 +36,10 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-chat"
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
+CORS(app, origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"], supports_credentials=True)
 
 # ── JWT 配置 ─────────────────────────────────────────────────────────────────
-JWT_SECRET = "dev-secret-do-not-use-in-prod"
+JWT_SECRET = "dev-secret-do-not-use-in-prod-academy-linker"
 AT_EXP_MINUTES = 15
 RT_EXP_DAYS = 3
 
@@ -501,9 +501,10 @@ def ensure_user_state(user_uuid: str):
 
 def check_origin():
     origin = request.headers.get("Origin", "")
-    allowed = {"http://localhost:5173", "http://127.0.0.1:5173"}
-    # Empty origin = same-origin request (via Vite proxy) — allow it
-    if request.method in ("POST", "PATCH", "PUT", "DELETE") and origin and origin not in allowed:
+    # Dev mock server: allow any localhost/127.0.0.1 origin, or empty (Vite proxy same-origin)
+    if origin and not (
+        origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")
+    ):
         return err("origin_not_allowed", "Origin not allowed.", 403)
     return None
 
