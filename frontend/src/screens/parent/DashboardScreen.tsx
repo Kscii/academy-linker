@@ -7,6 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { translateBatch } from '@/lib/translate';
 import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
@@ -26,7 +27,7 @@ function timeAgo(dateStr: string): string {
 export function DashboardScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { user } = useApp();
+  const { user, language } = useApp();
   const { t } = useTranslation('dashboard');
   const student = mockStudents[0];
   const dashboard = mockParentDashboard;
@@ -35,9 +36,20 @@ export function DashboardScreen() {
   // Trigger progress bar entrance animation after mount
   const [barsReady, setBarsReady] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setBarsReady(true), 60);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setBarsReady(true), 60);
+    return () => clearTimeout(timer);
   }, []);
+
+  // Translate subject names when language is not English
+  const [txSubjects, setTxSubjects] = useState(dashboard.subjects);
+  useEffect(() => {
+    setTxSubjects(dashboard.subjects);
+    if (language === 'en') return;
+    const names = dashboard.subjects.map(s => s.name);
+    translateBatch(names, language).then(results => {
+      setTxSubjects(dashboard.subjects.map((s, i) => ({ ...s, name: results[i] || s.name })));
+    });
+  }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
@@ -140,7 +152,7 @@ export function DashboardScreen() {
           {t('allSubjects')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {dashboard.subjects.map((sub, idx) => (
+          {txSubjects.map((sub, idx) => (
             <div
               key={sub.uuid}
               className="subject-row"
