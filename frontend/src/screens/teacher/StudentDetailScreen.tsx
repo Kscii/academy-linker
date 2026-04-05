@@ -1,20 +1,20 @@
 // ============================================================
-// Teacher StudentDetailScreen — student stats, line chart,
-// subject summary, notes / actions
+// Teacher StudentDetailScreen — student stats, chart, notes
 // ============================================================
 
 import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate, useParams } from 'react-router-dom';
 import { mockTeacherStudents, mockSubjectDetails, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 
 export function StudentDetailScreen() {
-  const { currentStudentDetailUuid, navigate } = useApp();
+  const navigate = useNavigate();
+  const { studentUuid } = useParams<{ studentUuid: string }>();
   const [note, setNote] = useState('');
   const [notes, setNotes] = useState<string[]>([]);
 
   const studentItem =
-    mockTeacherStudents.find(s => s.student.uuid === currentStudentDetailUuid) ??
+    mockTeacherStudents.find(s => s.student.uuid === studentUuid) ??
     mockTeacherStudents[0];
 
   const { student, overall_score, at_risk } = studentItem;
@@ -31,9 +31,8 @@ export function StudentDetailScreen() {
 
   return (
     <div>
-      {/* Back button */}
       <button
-        onClick={() => navigate('class-detail')}
+        onClick={() => navigate(-1)}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -41,10 +40,9 @@ export function StudentDetailScreen() {
           fontFamily: 'var(--font-body)',
         }}
       >
-        ← Back to Class
+        ← Back
       </button>
 
-      {/* Student header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
         <div
           className="avatar"
@@ -62,9 +60,7 @@ export function StudentDetailScreen() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
             <span style={{ fontSize: 13, color: 'var(--tx2)' }}>{student.grade} · {student.class_name}</span>
-            {at_risk && (
-              <span className="badge badge-warn" style={{ fontSize: 11 }}>⚠ At Risk</span>
-            )}
+            {at_risk && <span className="badge badge-warn" style={{ fontSize: 11 }}>⚠ At Risk</span>}
           </div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -74,13 +70,12 @@ export function StudentDetailScreen() {
         </div>
       </div>
 
-      {/* Stat boxes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Overall Score',  value: `${overall_score}%`, color: at_risk ? 'var(--warn)' : 'var(--a1)' },
-          { label: 'Attendance',     value: '94%',                color: 'var(--a2)' },
-          { label: 'Tasks Complete', value: '87%',                color: 'var(--a3)' },
-          { label: 'Unread Msgs',    value: studentItem.unread_messages, color: 'var(--a4)' },
+          { label: 'Overall Score',  value: `${overall_score}%`,          color: at_risk ? 'var(--warn)' : 'var(--a1)' },
+          { label: 'Attendance',     value: '94%',                        color: 'var(--a2)' },
+          { label: 'Tasks Complete', value: '87%',                        color: 'var(--a3)' },
+          { label: 'Unread Msgs',    value: studentItem.unread_messages,  color: 'var(--a4)' },
         ].map((s, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{s.label}</div>
@@ -89,7 +84,6 @@ export function StudentDetailScreen() {
         ))}
       </div>
 
-      {/* Maths score chart */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
           Mathematics Score — Term 2
@@ -104,9 +98,7 @@ export function StudentDetailScreen() {
         />
       </div>
 
-      {/* Two columns: subject summary + notes */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Subject summary */}
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
             Subject Performance
@@ -117,15 +109,10 @@ export function StudentDetailScreen() {
               return (
                 <div key={sub.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <div style={{ fontSize: 12, color: 'var(--tx)', fontWeight: 600, width: 130 }}>
-                    {sub.name}
-                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--tx)', fontWeight: 600, width: 130 }}>{sub.name}</div>
                   <div style={{ flex: 1 }}>
                     <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${sub.score ?? 0}%`, background: color }}
-                      />
+                      <div className="progress-fill" style={{ width: `${sub.score ?? 0}%`, background: color }} />
                     </div>
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color, width: 36, textAlign: 'right' }}>
@@ -137,31 +124,25 @@ export function StudentDetailScreen() {
           </div>
         </div>
 
-        {/* Notes / Actions */}
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
             Teacher Notes
           </div>
 
-          {/* Existing notes */}
           {notes.length > 0 && (
             <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {notes.map((n, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: 'var(--bg2)', borderRadius: 8,
-                    padding: '8px 12px', fontSize: 13, color: 'var(--tx)',
-                    borderLeft: '3px solid var(--a3)',
-                  }}
-                >
+                <div key={i} style={{
+                  background: 'var(--bg2)', borderRadius: 8,
+                  padding: '8px 12px', fontSize: 13, color: 'var(--tx)',
+                  borderLeft: '3px solid var(--a3)',
+                }}>
                   {n}
                 </div>
               ))}
             </div>
           )}
 
-          {/* New note input */}
           <textarea
             className="input-field"
             placeholder="Add a note about this student…"
@@ -179,15 +160,14 @@ export function StudentDetailScreen() {
             Save Note
           </button>
 
-          {/* Quick actions */}
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
               Quick Actions
             </div>
             {[
-              { icon: '✉', label: 'Message parent', color: 'var(--a1)' },
+              { icon: '✉', label: 'Message parent',       color: 'var(--a1)' },
               { icon: '📋', label: 'Create report entry', color: 'var(--a2)' },
-              { icon: '⚠', label: 'Flag for support', color: 'var(--warn)' },
+              { icon: '⚠', label: 'Flag for support',    color: 'var(--warn)' },
             ].map(action => (
               <button
                 key={action.label}
