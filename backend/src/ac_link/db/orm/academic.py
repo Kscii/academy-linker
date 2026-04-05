@@ -3,14 +3,13 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Index, String, UniqueConstraint, text
+from sqlalchemy import Boolean, Date, ForeignKey, Index, String, UniqueConstraint, text
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ac_link.db.orm.base import Base, ck, uq
-from ac_link.db.orm.enums import RelationshipType
+from ac_link.db.orm.base import Base, uq
 from ac_link.db.orm.mixins import IntPrimaryKeyMixin, TimestampMixin, UUIDMixin
-from ac_link.db.orm.sqltypes import enum_column
+
 
 if TYPE_CHECKING:
     from ac_link.db.orm.communication import DiscussionThread
@@ -53,12 +52,8 @@ class ParentStudentBinding(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
 
     parent_user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
-    relationship_type: Mapped[RelationshipType] = mapped_column(
-        enum_column(RelationshipType, 'relationship_type'),
-        nullable=False,
-        default=RelationshipType.OTHER,
-    )
-    is_primary_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    relationship_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     parent_user: Mapped['User'] = relationship(back_populates='parent_student_bindings')
@@ -85,22 +80,20 @@ class Subject(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
 class TeachingAssignment(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     __tablename__ = 'teaching_assignments'
     __table_args__ = (
-        CheckConstraint("role in ('subject_teacher', 'homeroom_teacher')", name=ck('teaching_assignments', 'role')),
         Index('ix_teaching_assignments_teacher_student', 'teacher_user_id', 'student_id'),
         Index('ix_teaching_assignments_subject_lookup', 'subject_id', 'student_id'),
         UniqueConstraint(
             'teacher_user_id',
             'student_id',
             'subject_id',
-            'role',
-            name=uq('teaching_assignments', 'teacher_user_id', 'student_id', 'subject_id', 'role'),
+            name=uq('teaching_assignments', 'teacher_user_id', 'student_id', 'subject_id'),
         ),
     )
 
     teacher_user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
     subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-    role: Mapped[str] = mapped_column(String(32), nullable=False, default='subject_teacher')
+    is_homeroom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     teacher_user: Mapped['User'] = relationship(back_populates='teaching_assignments')

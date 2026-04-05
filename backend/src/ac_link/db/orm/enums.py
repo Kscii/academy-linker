@@ -57,8 +57,4 @@ class SessionStatus(StrEnum):
     EXPIRED = 'expired'
 
 
-class RelationshipType(StrEnum):
-    FATHER = 'father'
-    MOTHER = 'mother'
-    GUARDIAN = 'guardian'
-    OTHER = 'other'
+
