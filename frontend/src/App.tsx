@@ -36,14 +36,16 @@ import { FindStudentScreen } from '@/screens/teacher/FindStudentScreen';
 // ── Auth guard ────────────────────────────────────────────────
 
 function ProtectedRoute() {
-  const { isLoggedIn } = useApp();
+  const { isLoggedIn, authChecked } = useApp();
+  if (!authChecked) return null; // 等待 /api/me 返回再决定跳转
   return isLoggedIn ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
 // ── Root redirect ─────────────────────────────────────────────
 
 function RootRedirect() {
-  const { isLoggedIn, role, firstStudentUuid } = useApp();
+  const { isLoggedIn, authChecked, role, firstStudentUuid } = useApp();
+  if (!authChecked) return null;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (role === 'parent') {
     return <Navigate to={`/parent/students/${firstStudentUuid}/dashboard`} replace />;
