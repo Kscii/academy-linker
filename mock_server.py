@@ -502,7 +502,8 @@ def ensure_user_state(user_uuid: str):
 def check_origin():
     origin = request.headers.get("Origin", "")
     allowed = {"http://localhost:5173", "http://127.0.0.1:5173"}
-    if request.method in ("POST", "PATCH", "PUT", "DELETE") and origin not in allowed:
+    # Empty origin = same-origin request (via Vite proxy) — allow it
+    if request.method in ("POST", "PATCH", "PUT", "DELETE") and origin and origin not in allowed:
         return err("origin_not_allowed", "Origin not allowed.", 403)
     return None
 
