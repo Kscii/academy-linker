@@ -1,13 +1,16 @@
 {
-  "welcome": "Welcome back",
-  "overallScore": "Overall Score",
-  "attendance": "Attendance",
-  "pendingTasks": "Pending Tasks",
-  "unreadMsgs": "Unread Msgs",
-  "recentActivity": "Recent Activity",
-  "subjects": "Subjects",
-  "viewAll": "View all →",
-  "atRisk": "At Risk",
-  "aiSummary": "AI Summary",
-  "noStudents": "No students found"
+  "goodMorning": "Good morning, {{name}} 👋",
+  "studentUpdateToday": "Here's {{student}}'s update for today",
+  "subjectScores": "Subject Scores",
+  "classAvg": "Class avg",
+  "overallTrend": "Overall Trend — Term 2",
+  "allSubjects": "All Subjects",
+  "viewButton": "View",
+  "welcome": "Welcome, {{name}} 👋",
+  "classOverview": "Here's your class overview for",
+  "yourClasses": "Your Classes",
+  "avgScoreComparison": "Class Average Scores Comparison",
+  "students": "students",
+  "avgScore": "Avg score",
+  "atRisk": "At risk"
 }

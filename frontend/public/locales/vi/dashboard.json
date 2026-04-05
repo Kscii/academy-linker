@@ -1,13 +1,16 @@
 {
-  "welcome": "Welcome back",
-  "overallScore": "Overall Score",
-  "attendance": "Attendance",
-  "pendingTasks": "Pending Tasks",
-  "unreadMsgs": "Unread Msgs",
-  "recentActivity": "Recent Activity",
-  "subjects": "Subjects",
-  "viewAll": "View all →",
-  "atRisk": "At Risk",
-  "aiSummary": "AI Summary",
-  "noStudents": "No students found"
+  "goodMorning": "Chào buổi sáng, {{name}} 👋",
+  "studentUpdateToday": "Cập nhật hôm nay của {{student}}",
+  "subjectScores": "Điểm các môn học",
+  "classAvg": "Trung bình lớp",
+  "overallTrend": "Xu hướng tổng thể — Học kỳ 2",
+  "allSubjects": "Tất cả môn học",
+  "viewButton": "Xem",
+  "welcome": "Xin chào, {{name}} 👋",
+  "classOverview": "Tổng quan lớp học của bạn",
+  "yourClasses": "Lớp học của bạn",
+  "avgScoreComparison": "So sánh điểm trung bình lớp",
+  "students": "học sinh",
+  "avgScore": "Điểm TB",
+  "atRisk": "Cần hỗ trợ"
 }

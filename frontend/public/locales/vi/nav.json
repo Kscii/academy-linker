@@ -1,11 +1,11 @@
 {
-  "dashboard": "Dashboard",
-  "messages": "Messages",
-  "reports": "Reports",
-  "notices": "Notices",
-  "resources": "Resources",
-  "findStudent": "Find Student",
-  "settings": "Settings",
-  "parentConversations": "Parent conversations",
-  "language": "Language"
+  "dashboard": "Trang chủ",
+  "messages": "Tin nhắn",
+  "reports": "Báo cáo",
+  "notices": "Thông báo",
+  "resources": "Tài liệu",
+  "findStudent": "Tìm học sinh",
+  "settings": "Cài đặt",
+  "parentConversations": "Cuộc hội thoại với phụ huynh",
+  "language": "Ngôn ngữ"
 }

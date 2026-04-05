@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
 import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
@@ -25,6 +26,7 @@ export function DashboardScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
   const { user } = useApp();
+  const { t } = useTranslation('dashboard');
   const student = mockStudents[0];
   const dashboard = mockParentDashboard;
   const banner = dashboard.important_post_banners[0];
@@ -34,10 +36,10 @@ export function DashboardScreen() {
       {/* Greeting */}
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 28, color: 'var(--tx)', marginBottom: 4 }}>
-          Good morning, {user?.display_name?.split(' ')[0] ?? 'Parent'} 👋
+          {t('goodMorning', { name: user?.display_name?.split(' ')[0] ?? 'Parent' })}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Here's {student.display_name}'s update for today — <strong>Week 8, Term 2</strong>
+          {t('studentUpdateToday', { student: student.display_name })} — <strong>Week 8, Term 2</strong>
         </div>
       </div>
 
@@ -61,7 +63,7 @@ export function DashboardScreen() {
               whiteSpace: 'nowrap',
             }}
           >
-            View
+            {t('viewButton')}
           </button>
         </div>
       )}
@@ -89,15 +91,15 @@ export function DashboardScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>Subject Scores</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{t('subjectScores')}</div>
             <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--tx3)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 4, borderRadius: 2, background: 'var(--a1)', display: 'inline-block' }} />
-                Emily
+                {student.display_name.split(' ')[0]}
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 4, borderRadius: 2, background: 'rgba(232,97,78,0.35)', display: 'inline-block' }} />
-                Class avg
+                {t('classAvg')}
               </span>
             </div>
           </div>
@@ -111,7 +113,7 @@ export function DashboardScreen() {
 
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-            Overall Trend — Term 2
+            {t('overallTrend')}
           </div>
           <LineChart
             data={dashboard.trend_chart}
@@ -127,7 +129,7 @@ export function DashboardScreen() {
       {/* Subject list */}
       <div className="card">
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-          All Subjects
+          {t('allSubjects')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {dashboard.subjects.map(sub => (
