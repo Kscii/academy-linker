@@ -1708,7 +1708,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.1 获取用户列表
+### 11.1 获取用户列表（已完成）
 
 **GET** `/api/admin/users`
 
@@ -1740,7 +1740,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.2 创建用户
+### 11.2 创建用户（已完成）
 
 **POST** `/api/admin/users`
 
@@ -1767,7 +1767,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.3 更新用户
+### 11.3 更新用户（已完成）
 
 **PATCH** `/api/admin/users/{user_uuid}`
 
@@ -1784,7 +1784,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.4 获取学生列表
+### 11.4 获取学生列表（已完成）
 
 **GET** `/api/admin/students`
 
@@ -1821,7 +1821,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.5 创建学生
+### 11.5 创建学生（已完成）
 
 **POST** `/api/admin/students`
 
@@ -1840,7 +1840,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.6 更新学生
+### 11.6 更新学生（已完成）
 
 **PATCH** `/api/admin/students/{student_uuid}`
 
@@ -1860,7 +1860,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.7 获取 Parent-Student 绑定列表
+### 11.7 获取 Parent-Student 绑定列表（已完成）
 
 **GET** `/api/admin/bindings/parent_student`
 
@@ -1893,7 +1893,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.8 创建 Parent-Student 绑定
+### 11.8 创建 Parent-Student 绑定（已完成）
 
 **POST** `/api/admin/bindings/parent_student`
 
@@ -1931,7 +1931,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.9 更新 Parent-Student 绑定
+### 11.9 更新 Parent-Student 绑定（已完成）
 
 **PATCH** `/api/admin/bindings/parent_student/{binding_uuid}`
 
@@ -1951,7 +1951,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.10 获取 Teaching Assignment 列表
+### 11.10 获取 Teaching Assignment 列表（已完成）
 
 **GET** `/api/admin/assignments/teaching`
 
@@ -1985,7 +1985,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.11 创建 Teaching Assignment
+### 11.11 创建 Teaching Assignment（已完成）
 
 **POST** `/api/admin/assignments/teaching`
 
@@ -2023,7 +2023,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.12 更新 Teaching Assignment
+### 11.12 更新 Teaching Assignment（已完成）
 
 **PATCH** `/api/admin/assignments/teaching/{assignment_uuid}`
 
@@ -2038,13 +2038,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.13 获取系统 Tag 列表
+### 11.13 获取系统 Tag 列表（已完成）
 
 **GET** `/api/admin/tags/system`
 
 ---
 
-### 11.14 创建系统 Tag
+### 11.14 创建系统 Tag（已完成）
 
 **POST** `/api/admin/tags/system`
 
@@ -2065,7 +2065,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.15 更新系统 Tag
+### 11.15 更新系统 Tag（已完成）
 
 **PATCH** `/api/admin/tags/system/{tag_uuid}`
 
