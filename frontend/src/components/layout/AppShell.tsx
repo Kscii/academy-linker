@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageCombobox } from './LanguageCombobox';
+import { LogoMark } from '@/components/LogoMark';
 
 // ── Nav item definitions ──────────────────────────────────────
 
@@ -152,14 +153,7 @@ export function AppShell() {
         {/* Logo */}
         <div style={{ padding: '20px 16px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: 'linear-gradient(135deg, var(--a1), var(--a3))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, flexShrink: 0,
-            }}>
-              🎓
-            </div>
+            <LogoMark size={28} />
             <div>
               <div className="font-serif" style={{ fontSize: 15, color: 'var(--tx)', fontWeight: 400, lineHeight: 1 }}>Academy</div>
               <div style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Linker</div>
