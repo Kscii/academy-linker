@@ -4,6 +4,10 @@
 包含：
   GET /api/teachers/me/students/{student_uuid}/discussions/parents           §10.3
   GET /api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid} §10.4
+  GET /api/teachers/me/tags                                                  §10.8
+  POST /api/teachers/me/tags                                                 §10.9
+  PATCH /api/teachers/me/tags/{tag_uuid}                                     §10.10
+  DELETE /api/teachers/me/tags/{tag_uuid}                                    §10.11
 """
 
 from __future__ import annotations
@@ -24,6 +28,9 @@ from ac_link.dto.auth import ApiResponse
 from ac_link.dto.discussion import (
     DiscussionParentInfo,
     DiscussionParentListItem,
+    TagCreate,
+    TagDetail,
+    TagUpdate,
     TeacherDiscussionPageData,
     build_post_item,
 )
@@ -144,3 +151,97 @@ def get_discussion_with_parent(
         ),
     )
     return ApiResponse(data=data)
+
+
+# ── Tag 管理 ──────────────────────────────────────────────────────────────────
+
+def _tag_to_detail(tag: object) -> TagDetail:  # type: ignore[type-arg]
+    from ac_link.db.orm.communication import Tag as TagORM
+
+    t: TagORM = tag  # type: ignore[assignment]
+    return TagDetail(
+        uuid=t.uuid,
+        name=t.name,
+        scope=str(t.scope),
+        owner_teacher_uuid=t.owner_user.uuid if t.owner_user else None,
+        is_selectable_by_parent=t.is_selectable_by_parent,
+        is_selectable_by_teacher=t.is_selectable_by_teacher,
+        affects_business_logic=t.affects_business_logic,
+    )
+
+
+@router.get(
+    "/tags",
+    response_model=ApiResponse[list[TagDetail]],
+)
+def list_tags(
+    scope: str = "all",
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[TagDetail]]:
+    """列出当前教师可用的 tag（§10.8）。"""
+    if scope not in ("all", "system", "teacher_private"):
+        raise Errors.not_found("scope 参数无效，可选值：all, system, teacher_private")
+
+    tags = discussion_crud.list_tags_for_teacher(db, current_user.id, scope=scope)
+    return ApiResponse(data=[_tag_to_detail(t) for t in tags])
+
+
+@router.post(
+    "/tags",
+    response_model=ApiResponse[TagDetail],
+    status_code=201,
+)
+def create_tag(
+    body: TagCreate,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[TagDetail]:
+    """创建教师私有 tag（§10.9）。"""
+    tag = discussion_crud.create_teacher_tag(db, current_user.id, name=body.name)
+    db.commit()
+    db.refresh(tag)
+    # 加载 owner_user 以便序列化
+    _ = tag.owner_user
+    return ApiResponse(data=_tag_to_detail(tag))
+
+
+@router.patch(
+    "/tags/{tag_uuid}",
+    response_model=ApiResponse[TagDetail],
+)
+def update_tag(
+    tag_uuid: UUID,
+    body: TagUpdate,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[TagDetail]:
+    """更新教师私有 tag 名称（§10.10）。"""
+    tag = discussion_crud.get_tag_by_uuid(db, tag_uuid)
+    if tag is None:
+        raise Errors.not_found("tag 不存在")
+
+    updated = discussion_crud.update_teacher_tag(db, tag, current_user.id, name=body.name)
+    db.commit()
+    db.refresh(updated)
+    _ = updated.owner_user
+    return ApiResponse(data=_tag_to_detail(updated))
+
+
+@router.delete(
+    "/tags/{tag_uuid}",
+    response_model=ApiResponse[dict],
+)
+def delete_tag(
+    tag_uuid: UUID,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[dict]:
+    """软删除教师私有 tag（§10.11）。"""
+    tag = discussion_crud.get_tag_by_uuid(db, tag_uuid)
+    if tag is None:
+        raise Errors.not_found("tag 不存在")
+
+    discussion_crud.soft_delete_teacher_tag(db, tag, current_user.id)
+    db.commit()
+    return ApiResponse(data={"success": True})

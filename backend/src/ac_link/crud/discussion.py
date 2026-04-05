@@ -525,3 +525,143 @@ def _increment_unread(db: Session, thread_id: int, user_id: int) -> None:
         db.add(state)
     else:
         state.unread_post_count = (state.unread_post_count or 0) + 1
+
+
+# ── Tag CRUD（教师私有 tag 管理）──────────────────────────────────────────────
+
+def list_tags_for_teacher(
+    db: Session,
+    teacher_user_id: int,
+    *,
+    scope: str = "all",
+) -> list[Tag]:
+    """
+    返回当前教师可见的 tag 列表（is_active=True 且 is_selectable 满足条件）。
+
+    scope:
+      "all"             — 系统 tag（is_selectable_by_teacher=True）+ 本人私有 tag
+      "system"          — 仅系统 tag（is_selectable_by_teacher=True）
+      "teacher_private" — 仅本人私有 tag
+    """
+    from ac_link.db.orm.enums import TagScope
+
+    q = db.query(Tag).filter(Tag.is_active == True)  # noqa: E712
+
+    if scope == "system":
+        q = q.filter(
+            Tag.scope == TagScope.SYSTEM,
+            Tag.is_selectable_by_teacher == True,  # noqa: E712
+        )
+    elif scope == "teacher_private":
+        q = q.filter(
+            Tag.scope == TagScope.TEACHER_PRIVATE,
+            Tag.owner_user_id == teacher_user_id,
+        )
+    else:  # "all"
+        q = q.filter(
+            or_(
+                (Tag.scope == TagScope.SYSTEM) & (Tag.is_selectable_by_teacher == True),  # noqa: E712
+                (Tag.scope == TagScope.TEACHER_PRIVATE) & (Tag.owner_user_id == teacher_user_id),
+            )
+        )
+
+    return q.order_by(Tag.scope, Tag.name).all()
+
+
+def get_tag_by_uuid(db: Session, tag_uuid: UUID) -> Tag | None:
+    """按 uuid 获取 tag，不关心 is_active 状态（调用方自行决策）。"""
+    return db.query(Tag).filter(Tag.uuid == tag_uuid).first()
+
+
+def create_teacher_tag(
+    db: Session,
+    teacher_user_id: int,
+    *,
+    name: str,
+) -> Tag:
+    """
+    创建教师私有 tag。
+    同名检查：同一 teacher 已有同名（is_active=True）私有 tag 则抛 409。
+    """
+    from ac_link.db.orm.enums import TagScope
+
+    existing = (
+        db.query(Tag)
+        .filter(
+            Tag.owner_user_id == teacher_user_id,
+            Tag.scope == TagScope.TEACHER_PRIVATE,
+            Tag.name == name,
+            Tag.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if existing is not None:
+        raise Errors.duplicate_tag_name(name)
+
+    tag = Tag(
+        name=name,
+        scope=TagScope.TEACHER_PRIVATE,
+        owner_user_id=teacher_user_id,
+        is_selectable_by_parent=True,
+        is_selectable_by_teacher=True,
+        affects_business_logic=False,
+        is_active=True,
+    )
+    db.add(tag)
+    db.flush()
+    return tag
+
+
+def update_teacher_tag(
+    db: Session,
+    tag: Tag,
+    teacher_user_id: int,
+    *,
+    name: str,
+) -> Tag:
+    """
+    更新教师私有 tag 名称。
+    - 非本人私有 tag（系统 tag 或他人 tag）→ 403
+    - 改名后与已有 active 同名私有 tag 冲突 → 409
+    """
+    from ac_link.db.orm.enums import TagScope
+
+    if tag.scope != TagScope.TEACHER_PRIVATE or tag.owner_user_id != teacher_user_id:
+        raise Errors.forbidden("只能修改自己的私有 tag")
+
+    if tag.name != name:
+        conflict = (
+            db.query(Tag)
+            .filter(
+                Tag.owner_user_id == teacher_user_id,
+                Tag.scope == TagScope.TEACHER_PRIVATE,
+                Tag.name == name,
+                Tag.is_active == True,  # noqa: E712
+                Tag.id != tag.id,
+            )
+            .first()
+        )
+        if conflict is not None:
+            raise Errors.duplicate_tag_name(name)
+        tag.name = name
+
+    db.flush()
+    return tag
+
+
+def soft_delete_teacher_tag(
+    db: Session,
+    tag: Tag,
+    teacher_user_id: int,
+) -> None:
+    """
+    软删除教师私有 tag（is_active=False）。
+    - 系统 tag 或他人私有 tag → 403
+    """
+    from ac_link.db.orm.enums import TagScope
+
+    if tag.scope != TagScope.TEACHER_PRIVATE or tag.owner_user_id != teacher_user_id:
+        raise Errors.forbidden("只能删除自己的私有 tag")
+
+    tag.is_active = False
+    db.flush()

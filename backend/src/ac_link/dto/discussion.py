@@ -32,6 +32,43 @@ class TagBrief(BaseModel):
         from_attributes = True
 
 
+class TagDetail(BaseModel):
+    """完整 tag 响应（§10.8-10.10），用于教师端 tag 列表和写操作响应。"""
+    uuid: UUID
+    name: str
+    scope: str
+    owner_teacher_uuid: UUID | None
+    is_selectable_by_parent: bool
+    is_selectable_by_teacher: bool
+    affects_business_logic: bool
+
+
+# ── Tag 写操作 Body ───────────────────────────────────────────────────────────
+
+class TagCreate(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("name 不能为空或纯空格")
+        return stripped
+
+
+class TagUpdate(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("name 不能为空或纯空格")
+        return stripped
+
+
 class PostItem(BaseModel):
     """
     讨论帖子单条。

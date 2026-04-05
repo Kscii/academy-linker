@@ -76,5 +76,9 @@ class Errors:
         return AppError(409, "already_archived", "该内容已归档")
 
     @staticmethod
+    def duplicate_tag_name(name: str) -> AppError:
+        return AppError(409, "duplicate_tag_name", f"Tag 名称 '{name}' 已存在")
+
+    @staticmethod
     def internal_error(message: str = "服务端内部错误") -> AppError:
         return AppError(500, "internal_error", message)

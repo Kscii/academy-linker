@@ -1641,7 +1641,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| `scope` | enum | 否 | `system`, `teacher_private`, `all` |
+| `scope` | enum | 否 | `system`, `teacher_private`, `all`；默认 `all` |
+
+#### 规则
+
+- `all`：返回 `is_selectable_by_teacher=true` 的系统 tag + 当前教师所有私有 tag
+- `system`：仅返回 `is_selectable_by_teacher=true` 的系统 tag
+- `teacher_private`：仅返回当前教师的私有 tag
+- `is_active=false` 的 tag 不出现在列表中
+- `is_selectable_by_teacher=false` 的系统 tag 不出现在列表中
 
 #### Success 200
 
@@ -1653,6 +1661,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "name": "important",
       "scope": "system | teacher_private",
       "owner_teacher_uuid": "string | null",
+      "is_selectable_by_parent": true,
       "is_selectable_by_teacher": true,
       "affects_business_logic": true
     }
@@ -1677,7 +1686,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 #### 规则
 
 - 仅创建 `teacher_private` tag
-- 家长可使用与该老师有关的家长（即相同 thread 下的家长）自动可访，无需额外配置
+- `name` 不能为空或纯空格，最大长度 64 字符，前后空格自动 trim
+- 同名私有 tag 已存在（`is_active=true`）时返回 409 `duplicate_tag_name`
+- 创建后的私有 tag 对关联家长（同 thread 下的家长）自动可见，无需额外配置
 
 #### Success 201
 
@@ -1688,6 +1699,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "name": "string",
     "scope": "teacher_private",
     "owner_teacher_uuid": "string",
+    "is_selectable_by_parent": true,
     "is_selectable_by_teacher": true,
     "affects_business_logic": false
   }
@@ -1711,7 +1723,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 #### 规则
 
 - 只能修改自己的私有 tag
-- 系统 tag 不可修改
+- 更新系统 tag 或他人私有 tag 返回 403 `forbidden`
+- `name` 不能为空或纯空格，最大长度 64 字符，前后空格自动 trim
+- 改名后与当前教师已有 active 同名私有 tag 冲突返回 409 `duplicate_tag_name`
+
+#### Success 200
+
+返回更新后的完整 tag 对象，结构与 §10.9 Success 201 一致。
 
 ---
 
@@ -1721,8 +1739,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- 只能删除自己的私有 tag
-- 系统 tag 不可删除
+- 只能删除自己的私有 tag（软删除：`is_active=false`）
+- 删除系统 tag 或他人私有 tag 返回 403 `forbidden`
+- 软删除后，已有帖子上的该 tag 历史记录保留（不受影响），但该 tag 不再出现在可用列表中
 
 #### Success 200
 
