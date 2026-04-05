@@ -1,0 +1,196 @@
+"""
+家长端 CRUD 层。
+
+职责：纯粹的数据库读写，不含业务逻辑。
+"""
+
+from __future__ import annotations
+
+import math
+from uuid import UUID
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+
+from ac_link.db.orm.academic import ParentStudentBinding, Student, Subject, TeachingAssignment
+from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, PostTagBinding, Tag
+from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report
+from ac_link.db.orm.user import User
+
+
+def list_parent_students(
+    db: Session,
+    parent_user_id: int,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[list[Student], int]:
+    """返回该家长通过 active 绑定关联的 active 学生，按姓名升序分页。"""
+    q = (
+        db.query(Student)
+        .join(ParentStudentBinding, ParentStudentBinding.student_id == Student.id)
+        .filter(
+            ParentStudentBinding.parent_user_id == parent_user_id,
+            ParentStudentBinding.is_active == True,  # noqa: E712
+            Student.is_active == True,  # noqa: E712
+        )
+        .order_by(Student.full_name.asc())
+    )
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return items, total
+
+
+def get_student_for_parent(
+    db: Session,
+    parent_user_id: int,
+    student_uuid: UUID,
+) -> Student | None:
+    """返回该家长有权访问的学生对象，无权限或不存在时返回 None。"""
+    return (
+        db.query(Student)
+        .join(ParentStudentBinding, ParentStudentBinding.student_id == Student.id)
+        .filter(
+            Student.uuid == student_uuid,
+            ParentStudentBinding.parent_user_id == parent_user_id,
+            ParentStudentBinding.is_active == True,  # noqa: E712
+            Student.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+
+
+def list_student_subjects_with_teachers(
+    db: Session,
+    student_id: int,
+) -> list[tuple[Subject, list[User]]]:
+    """返回 [(subject, [teacher_user, ...]), ...] 按 subject.name 升序。"""
+    assignments = (
+        db.query(TeachingAssignment)
+        .options(
+            joinedload(TeachingAssignment.subject),
+            joinedload(TeachingAssignment.teacher_user),
+        )
+        .filter(
+            TeachingAssignment.student_id == student_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+    subject_map: dict[int, tuple[Subject, list[User]]] = {}
+    for ta in assignments:
+        if ta.subject_id not in subject_map:
+            subject_map[ta.subject_id] = (ta.subject, [])
+        subject_map[ta.subject_id][1].append(ta.teacher_user)
+    return sorted(subject_map.values(), key=lambda x: x[0].name)
+
+
+def get_subject_for_student(
+    db: Session,
+    student_id: int,
+    subject_uuid: UUID,
+) -> tuple[Subject, list[User]] | None:
+    """返回 (subject, [teachers]) 或 None（确认该学生有此学科分配）。"""
+    assignments = (
+        db.query(TeachingAssignment)
+        .options(
+            joinedload(TeachingAssignment.subject),
+            joinedload(TeachingAssignment.teacher_user),
+        )
+        .join(Subject, Subject.id == TeachingAssignment.subject_id)
+        .filter(
+            TeachingAssignment.student_id == student_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+            Subject.uuid == subject_uuid,
+        )
+        .all()
+    )
+    if not assignments:
+        return None
+    teachers = [ta.teacher_user for ta in assignments]
+    return assignments[0].subject, teachers
+
+
+def get_latest_report_for_student(
+    db: Session,
+    student_id: int,
+    subject_id: int | None = None,
+) -> Report | None:
+    """取最近一条已发布的 report；若给出 subject_id，则只取该学科的。"""
+    q = db.query(Report).filter(
+        Report.student_id == student_id,
+        Report.is_published == True,  # noqa: E712
+    )
+    if subject_id is not None:
+        q = q.filter(Report.subject_id == subject_id)
+    return q.order_by(Report.created_at.desc()).first()
+
+
+def get_unread_announcement_count(
+    db: Session,
+    student_id: int,
+    user_id: int,
+) -> int:
+    """计算该用户对该学生的未读公告数（总数减去已读数）。"""
+    total = (
+        db.query(func.count(Announcement.id))
+        .filter(
+            Announcement.student_id == student_id,
+            Announcement.is_published == True,  # noqa: E712
+        )
+        .scalar()
+    ) or 0
+    read_count = (
+        db.query(func.count(AnnouncementUserState.id))
+        .join(Announcement, Announcement.id == AnnouncementUserState.announcement_id)
+        .filter(
+            Announcement.student_id == student_id,
+            AnnouncementUserState.user_id == user_id,
+            AnnouncementUserState.is_read == True,  # noqa: E712
+        )
+        .scalar()
+    ) or 0
+    return max(total - read_count, 0)
+
+
+def get_unread_post_count(
+    db: Session,
+    student_id: int,
+    user_id: int,
+) -> int:
+    """汇总该用户在该学生所有 discussion thread 中的未读帖子数。"""
+    result = (
+        db.query(func.sum(DiscussionParticipantState.unread_post_count))
+        .join(DiscussionThread, DiscussionThread.id == DiscussionParticipantState.thread_id)
+        .filter(
+            DiscussionThread.student_id == student_id,
+            DiscussionParticipantState.user_id == user_id,
+        )
+        .scalar()
+    )
+    return int(result) if result else 0
+
+
+def get_important_post_banners(
+    db: Session,
+    student_id: int,
+    parent_user_id: int,
+    limit: int = 5,
+) -> list[Post]:
+    """返回该家长+学生的 thread 中带 'important' tag 的 Post 列表（含作者），按 created_at desc。"""
+    return (
+        db.query(Post)
+        .options(joinedload(Post.author_user))
+        .join(DiscussionThread, DiscussionThread.id == Post.thread_id)
+        .join(PostTagBinding, PostTagBinding.post_id == Post.id)
+        .join(Tag, Tag.id == PostTagBinding.tag_id)
+        .filter(
+            DiscussionThread.student_id == student_id,
+            DiscussionThread.parent_user_id == parent_user_id,
+            Tag.name == "important",
+            Post.is_deleted == False,  # noqa: E712
+        )
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+        .all()
+    )

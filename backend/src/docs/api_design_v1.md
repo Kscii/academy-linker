@@ -687,7 +687,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ## 9. 家长端接口
 
-### 9.1 获取当前家长绑定的学生列表
+### 9.1 获取当前家长绑定的学生列表（已完成）
 
 **GET** `/api/parents/me/students`
 
@@ -724,7 +724,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.2 获取学生 Dashboard 聚合数据
+### 9.2 获取学生 Dashboard 聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/dashboard`
 
@@ -749,7 +749,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "avatar_url": "string | null"
     },
     "dashboard_context": {
-      "last_updated_at": "string",
       "selected_range": "30d",
       "unread_post_count": 2,
       "unread_announcement_count": 3
@@ -758,7 +757,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "overall_performance_index": 85.5,
       "assignment_completion_rate": 0.92,
       "attendance_rate": 0.97,
-      "ai_summary": {
+      "summary": {
+        "report_uuid": "string",
+        "report_title": "string",
         "display_text": "string",
         "original_text": "string",
         "translated_text": "string | null",
@@ -816,7 +817,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.3 获取学生学科列表
+### 9.3 获取学生学科列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/subjects`
 
@@ -829,10 +830,12 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "name": "Mathematics",
       "code": "MATH",
-      "teacher": {
-        "uuid": "string",
-        "display_name": "string"
-      }
+      "teachers": [
+        {
+          "uuid": "string",
+          "display_name": "string"
+        }
+      ]
     }
   ]
 }
@@ -840,7 +843,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.4 获取某学科详情聚合数据
+### 9.4 获取某学科详情聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/subjects/{subject_uuid}`
 
@@ -864,11 +867,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "name": "Mathematics",
       "code": "MATH",
-      "teacher": {
-        "uuid": "string",
-        "display_name": "string",
-        "email": "string"
-      }
+      "teachers": [
+        {
+          "uuid": "string",
+          "display_name": "string",
+          "email": "string"
+        }
+      ]
     },
     "overview": {
       "score": 88.0,
@@ -883,7 +888,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
         "progress": 0.72
       }
     ],
-    "ai_summary": {
+    "summary": {
+      "report_uuid": "string",
+      "report_title": "string",
       "display_text": "string",
       "original_text": "string",
       "translated_text": "string | null",
@@ -896,6 +903,8 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
+
+> 注：`summary` 取该学生该学科最近一条 report（不限 source_type）的正文内容，若无 report 则为 `null`。
 
 ---
 
