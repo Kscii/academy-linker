@@ -65,7 +65,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<'day' | 'night'>('day');
   const [role, setRoleState] = useState<'parent' | 'teacher'>('parent');
   const [user, setUser] = useState<UserSummary | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [firstStudentUuid, setFirstStudentUuid] = useState('');
   const [language, setLanguageState] = useState(i18n.language?.slice(0, 2) || 'en');
   const [readThreadIds, setReadThreadIds] = useState<Set<string>>(new Set());
@@ -97,7 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => {
       // Not logged in — stay on login page
     }).finally(() => {
-      setAuthChecked(true);
+      setInitialCheckDone(true);
     });
   }, []);
 
@@ -171,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRole,
     user,
     isLoggedIn: user !== null,
-    authChecked,
+    authChecked: initialCheckDone || user !== null,
     firstStudentUuid,
     login,
     logout,
