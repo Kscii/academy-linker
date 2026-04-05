@@ -25,7 +25,7 @@ from __future__ import annotations
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from ac_link.common.exceptions import Errors
+from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import user as user_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.user import User
