@@ -1,24 +1,21 @@
 // ============================================================
-// ClassDetailScreen — Class stats, student list with scores,
-// click student → StudentDetailScreen
+// ClassDetailScreen — Class stats, student list, click → StudentDetail
 // ============================================================
 
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate, useParams } from 'react-router-dom';
 import { mockTeacherClasses, mockTeacherStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 
 export function ClassDetailScreen() {
-  const { currentClassUuid, navigate } = useApp();
-  const cls = mockTeacherClasses.find(c => c.uuid === currentClassUuid) ?? mockTeacherClasses[0];
+  const navigate = useNavigate();
+  const { classUuid } = useParams<{ classUuid: string }>();
+  const cls = mockTeacherClasses.find(c => c.uuid === classUuid) ?? mockTeacherClasses[0];
   const subjectColor = SUBJECT_COLORS[cls.subject.code] ?? cls.subject.color;
-
-  // Filter students to those in this class (mock: use all for demo)
   const students = mockTeacherStudents;
 
   return (
     <div>
-      {/* Back button */}
       <button
-        onClick={() => navigate('dashboard')}
+        onClick={() => navigate('/teacher/dashboard')}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -29,7 +26,6 @@ export function ClassDetailScreen() {
         ← Back to Dashboard
       </button>
 
-      {/* Class header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
         <div style={{
           width: 48, height: 48, borderRadius: 12,
@@ -47,13 +43,12 @@ export function ClassDetailScreen() {
         </div>
       </div>
 
-      {/* Class stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Students',   value: cls.student_count, color: subjectColor },
-          { label: 'Avg Score',  value: `${cls.avg_score}%`, color: 'var(--a2)' },
-          { label: 'At Risk',    value: cls.at_risk_count, color: 'var(--warn)' },
-          { label: 'Passing',    value: cls.student_count - cls.at_risk_count, color: 'var(--a3)' },
+          { label: 'Students',  value: cls.student_count,                     color: subjectColor },
+          { label: 'Avg Score', value: `${cls.avg_score}%`,                   color: 'var(--a2)' },
+          { label: 'At Risk',   value: cls.at_risk_count,                     color: 'var(--warn)' },
+          { label: 'Passing',   value: cls.student_count - cls.at_risk_count, color: 'var(--a3)' },
         ].map((s, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{s.label}</div>
@@ -62,13 +57,9 @@ export function ClassDetailScreen() {
         ))}
       </div>
 
-      {/* Student list */}
       <div className="card">
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-          Students
-        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Students</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {/* Header */}
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 120px 80px 80px 32px',
             gap: 12, padding: '6px 10px',
@@ -76,8 +67,7 @@ export function ClassDetailScreen() {
             textTransform: 'uppercase', letterSpacing: '0.06em',
             borderBottom: '1px solid var(--bd)',
           }}>
-            <span>Student</span>
-            <span>Progress</span>
+            <span>Student</span><span>Progress</span>
             <span style={{ textAlign: 'center' }}>Score</span>
             <span style={{ textAlign: 'center' }}>Status</span>
             <span />
@@ -99,9 +89,8 @@ export function ClassDetailScreen() {
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg2)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                onClick={() => navigate('student-detail', { studentUuid: item.student.uuid })}
+                onClick={() => navigate(`/teacher/students/${item.student.uuid}`)}
               >
-                {/* Name */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div
                     className="avatar"
@@ -117,13 +106,10 @@ export function ClassDetailScreen() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>
                       {item.student.display_name}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
-                      {item.student.class_name}
-                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{item.student.class_name}</div>
                   </div>
                 </div>
 
-                {/* Progress bar */}
                 <div>
                   <div className="progress-bar">
                     <div
@@ -136,7 +122,6 @@ export function ClassDetailScreen() {
                   </div>
                 </div>
 
-                {/* Score */}
                 <div style={{ textAlign: 'center' }}>
                   <span
                     className="badge"
@@ -150,7 +135,6 @@ export function ClassDetailScreen() {
                   </span>
                 </div>
 
-                {/* Status */}
                 <div style={{ textAlign: 'center' }}>
                   {item.at_risk ? (
                     <span className="badge badge-warn" style={{ fontSize: 10 }}>At Risk</span>

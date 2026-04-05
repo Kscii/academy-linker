@@ -3,6 +3,7 @@
 // subject bar chart, trend line chart, subject list
 // ============================================================
 
+import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
@@ -21,7 +22,9 @@ function timeAgo(dateStr: string): string {
 }
 
 export function DashboardScreen() {
-  const { navigate, user } = useApp();
+  const navigate = useNavigate();
+  const { sid } = useParams<{ sid: string }>();
+  const { user } = useApp();
   const student = mockStudents[0];
   const dashboard = mockParentDashboard;
   const banner = dashboard.important_post_banners[0];
@@ -50,7 +53,7 @@ export function DashboardScreen() {
             <div style={{ fontSize: 11, opacity: 0.8, marginTop: 2 }}>{timeAgo(banner.created_at)}</div>
           </div>
           <button
-            onClick={() => navigate('messages')}
+            onClick={() => navigate(`/parent/students/${sid}/discussions`)}
             style={{
               background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.35)',
               borderRadius: 8, padding: '7px 14px', cursor: 'pointer',
@@ -84,7 +87,6 @@ export function DashboardScreen() {
 
       {/* Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        {/* Subject bar chart */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>Subject Scores</div>
@@ -107,7 +109,6 @@ export function DashboardScreen() {
           />
         </div>
 
-        {/* Trend line chart */}
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
             Overall Trend — Term 2
@@ -133,21 +134,16 @@ export function DashboardScreen() {
             <div
               key={sub.uuid}
               style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', padding: '6px 0' }}
-              onClick={() => navigate('subject-detail', { subjectUuid: sub.uuid })}
+              onClick={() => navigate(`/parent/students/${sid}/subjects/${sub.uuid}`)}
             >
-              {/* Colour dot */}
               <div style={{
                 width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
                 background: SUBJECT_COLORS[sub.code] ?? sub.color,
               }} />
-
-              {/* Name + teacher */}
               <div style={{ width: 150, flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{sub.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teacher?.display_name}</div>
               </div>
-
-              {/* Progress bar */}
               <div style={{ flex: 1 }}>
                 <div className="progress-bar">
                   <div
@@ -159,8 +155,6 @@ export function DashboardScreen() {
                   />
                 </div>
               </div>
-
-              {/* Score badge */}
               <div
                 className="badge"
                 style={{
@@ -171,7 +165,6 @@ export function DashboardScreen() {
               >
                 {sub.score ?? '—'}%
               </div>
-
               <span style={{ fontSize: 12, color: 'var(--tx3)' }}>›</span>
             </div>
           ))}

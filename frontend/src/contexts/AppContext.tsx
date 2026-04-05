@@ -1,6 +1,7 @@
 // ============================================================
 // Academy Linker — App Context
-// Global state: theme, role, user, navigation, language
+// Global state: theme, role, user, language, unread messages
+// Navigation is handled by react-router (useNavigate / useParams)
 // ============================================================
 
 import {
@@ -11,34 +12,16 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
+import i18n from '@/i18n';
 import type { UserSummary } from '@/types/api';
 import { auth } from '@/lib/api';
 import { mockParentUser, mockTeacherUser, mockDiscussionTeachers, mockTeacherStudents } from '@/lib/mock-data';
 
 // Hardcoded demo credentials for fallback when backend is offline
 const DEMO_CREDENTIALS: Record<string, { password: string; role: 'parent' | 'teacher' }> = {
-  'li.wei@email.com':          { password: 'password123', role: 'parent' },
-  'thompson@westside.edu.au':  { password: 'password123', role: 'teacher' },
+  'li.wei@email.com':         { password: 'password123', role: 'parent' },
+  'thompson@westside.edu.au': { password: 'password123', role: 'teacher' },
 };
-
-// ── Screen names ─────────────────────────────────────────────
-
-export type ParentScreen =
-  | 'dashboard'
-  | 'subject-detail'
-  | 'reports'
-  | 'messages'
-  | 'resources'
-  | 'announcements';
-
-export type TeacherScreen =
-  | 'dashboard'
-  | 'class-detail'
-  | 'student-detail'
-  | 'messages'
-  | 'find-student';
-
-export type AppScreen = ParentScreen | TeacherScreen;
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -47,52 +30,31 @@ interface AppContextValue {
   theme: 'day' | 'night';
   toggleTheme: () => void;
 
-  /* Role */
+  /* Role — kept in context so sidebar can determine which nav to show.
+     Synced from URL by AppLayout (in App.tsx). */
   role: 'parent' | 'teacher';
   setRole: (r: 'parent' | 'teacher') => void;
 
   /* Auth */
   user: UserSummary | null;
   isLoggedIn: boolean;
-  login: (email: string, password: string, rememberMe: boolean, role: 'parent' | 'teacher') => Promise<void>;
+  firstStudentUuid: string;
+  login: (
+    email: string,
+    password: string,
+    rememberMe: boolean,
+    role: 'parent' | 'teacher'
+  ) => Promise<{ role: 'parent' | 'teacher'; firstStudentUuid: string }>;
   logout: () => void;
-
-  /* Navigation */
-  currentScreen: AppScreen;
-  navigate: (screen: AppScreen, params?: NavigationParams) => void;
-
-  /* Student context (parent view) */
-  currentStudentUuid: string | null;
-  setCurrentStudentUuid: (uuid: string | null) => void;
-
-  /* Subject context */
-  currentSubjectUuid: string | null;
-  setCurrentSubjectUuid: (uuid: string | null) => void;
-
-  /* Class / teacher context */
-  currentClassUuid: string | null;
-  setCurrentClassUuid: (uuid: string | null) => void;
-  currentStudentDetailUuid: string | null;
-  setCurrentStudentDetailUuid: (uuid: string | null) => void;
 
   /* Language */
   language: string;
   setLanguage: (lang: string) => void;
 
-  /* Navigation params stack */
-  navParams: NavigationParams;
-
   /* Unread messages */
   readThreadIds: Set<string>;
   markThreadRead: (id: string) => void;
   unreadMessageCount: number;
-}
-
-export interface NavigationParams {
-  subjectUuid?: string;
-  classUuid?: string;
-  studentUuid?: string;
-  [key: string]: string | undefined;
 }
 
 // ── Context ───────────────────────────────────────────────────
@@ -103,13 +65,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<'day' | 'night'>('day');
   const [role, setRoleState] = useState<'parent' | 'teacher'>('parent');
   const [user, setUser] = useState<UserSummary | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
-  const [currentStudentUuid, setCurrentStudentUuid] = useState<string | null>('student-001');
-  const [currentSubjectUuid, setCurrentSubjectUuid] = useState<string | null>(null);
-  const [currentClassUuid, setCurrentClassUuid] = useState<string | null>(null);
-  const [currentStudentDetailUuid, setCurrentStudentDetailUuid] = useState<string | null>(null);
-  const [language, setLanguage] = useState('en');
-  const [navParams, setNavParams] = useState<NavigationParams>({});
+  const [firstStudentUuid, setFirstStudentUuid] = useState('student-001');
+  const [language, setLanguageState] = useState(i18n.language?.slice(0, 2) || 'en');
   const [readThreadIds, setReadThreadIds] = useState<Set<string>>(new Set());
 
   const markThreadRead = useCallback((id: string) => {
@@ -142,7 +99,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setRole = useCallback((r: 'parent' | 'teacher') => {
     setRoleState(r);
-    setCurrentScreen('dashboard');
+  }, []);
+
+  const setLanguage = useCallback((lang: string) => {
+    setLanguageState(lang);
+    i18n.changeLanguage(lang);
   }, []);
 
   const login = useCallback(async (
@@ -150,14 +111,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     password: string,
     rememberMe: boolean,
     loginRole: 'parent' | 'teacher'
-  ) => {
+  ): Promise<{ role: 'parent' | 'teacher'; firstStudentUuid: string }> => {
     // Try real backend first
     try {
       const res = await auth.login({ email, password, remember_me: rememberMe });
-      setUser(res.data.user);
-      setRoleState(res.data.user.role as 'parent' | 'teacher');
-      setCurrentScreen('dashboard');
-      return;
+      const userFromApi = res.data.user;
+      setUser(userFromApi);
+      const apiRole = userFromApi.role as 'parent' | 'teacher';
+      setRoleState(apiRole);
+      const sid = 'student-001'; // TODO: fetch from /parents/me/students
+      setFirstStudentUuid(sid);
+      return { role: apiRole, firstStudentUuid: sid };
     } catch {
       // Backend offline — fall back to demo credential check
     }
@@ -170,20 +134,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const mockUser = loginRole === 'parent' ? mockParentUser : mockTeacherUser;
     setUser(mockUser);
     setRoleState(loginRole);
-    setCurrentScreen('dashboard');
+    setFirstStudentUuid('student-001');
+    return { role: loginRole, firstStudentUuid: 'student-001' };
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    setCurrentScreen('dashboard');
-  }, []);
-
-  const navigate = useCallback((screen: AppScreen, params: NavigationParams = {}) => {
-    setCurrentScreen(screen);
-    setNavParams(params);
-    if (params.subjectUuid) setCurrentSubjectUuid(params.subjectUuid);
-    if (params.classUuid) setCurrentClassUuid(params.classUuid);
-    if (params.studentUuid) setCurrentStudentDetailUuid(params.studentUuid);
   }, []);
 
   const value: AppContextValue = {
@@ -193,21 +149,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRole,
     user,
     isLoggedIn: user !== null,
+    firstStudentUuid,
     login,
     logout,
-    currentScreen,
-    navigate,
-    currentStudentUuid,
-    setCurrentStudentUuid,
-    currentSubjectUuid,
-    setCurrentSubjectUuid,
-    currentClassUuid,
-    setCurrentClassUuid,
-    currentStudentDetailUuid,
-    setCurrentStudentDetailUuid,
     language,
     setLanguage,
-    navParams,
     readThreadIds,
     markThreadRead,
     unreadMessageCount,
