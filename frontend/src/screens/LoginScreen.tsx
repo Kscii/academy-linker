@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
 import { LanguageCombobox } from '@/components/layout/LanguageCombobox';
+import { LogoMark } from '@/components/LogoMark';
 
 // ── Decorative background SVG ─────────────────────────────────
 
@@ -85,19 +86,14 @@ export function LoginScreen() {
       <div className="login-card">
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 14,
-            background: 'linear-gradient(135deg, var(--a1), var(--a3))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 26, margin: '0 auto 14px',
-          }}>
-            🎓
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <LogoMark size={56} />
           </div>
           <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>
-            {t('title')}
+            Academy Linker
           </div>
           <div style={{ fontSize: 13, color: 'var(--tx2)' }}>
-            {t('subtitle')}
+            Bridging School &amp; Home
           </div>
         </div>
 
