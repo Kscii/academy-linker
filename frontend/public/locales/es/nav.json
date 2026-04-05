@@ -1,0 +1,11 @@
+{
+  "dashboard": "Panel",
+  "messages": "Mensajes",
+  "reports": "Informes",
+  "notices": "Avisos",
+  "resources": "Recursos",
+  "findStudent": "Buscar alumno",
+  "settings": "Configuración",
+  "parentConversations": "Conversaciones con padres",
+  "language": "Idioma"
+}

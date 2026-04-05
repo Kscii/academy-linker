@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "Platform ng komunikasyon sa paaralan",
+  "emailLabel": "Email address",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "Password",
+  "passwordPlaceholder": "Ilagay ang iyong password",
+  "rememberMe": "Alalahanin ako",
+  "signIn": "Mag-sign in",
+  "signingIn": "Nagsa-sign in…",
+  "invalidCredentials": "Maling email o password",
+  "selectRole": "Piliin ang iyong papel",
+  "parentRole": "Magulang",
+  "teacherRole": "Guro",
+  "parentDesc": "Tingnan ang pag-unlad ng iyong anak",
+  "teacherDesc": "Pamahalaan ang iyong mga klase"
+}
