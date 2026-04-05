@@ -33,7 +33,30 @@ const RESOURCES = [
   },
 ];
 
+import { useState, useEffect } from 'react';
+import { useApp } from '@/contexts/AppContext';
+import { translateBatch } from '@/lib/translate';
+
 export function ResourcesScreen() {
+  const { language } = useApp();
+  const [txResources, setTxResources] = useState(RESOURCES);
+
+  useEffect(() => {
+    setTxResources(RESOURCES);
+    if (language === 'en') return;
+    // Flatten: [title, description, ...items] × 4 categories
+    const texts = RESOURCES.flatMap(r => [r.title, r.description, ...r.items]);
+    translateBatch(texts, language).then(results => {
+      let offset = 0;
+      setTxResources(RESOURCES.map(r => {
+        const title = results[offset++];
+        const description = results[offset++];
+        const items = r.items.map(() => results[offset++]);
+        return { ...r, title, description, items };
+      }));
+    });
+  }, [language]);
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -46,7 +69,7 @@ export function ResourcesScreen() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {RESOURCES.map(resource => (
+        {txResources.map(resource => (
           <div
             key={resource.title}
             className="card"

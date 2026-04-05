@@ -59,15 +59,29 @@ async function loadChatHistory(): Promise<Message[]> {
 
 export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelProps) {
   const [open, setOpen] = useState(false);
+  const defaultGreeting = reportUuid
+    ? 'Hi! I have read this report. Ask me anything about it, or I can summarise it for you.'
+    : "Hi! I'm your AI assistant. Ask me anything about your student's progress.";
+
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: genId(),
-      role: 'assistant',
-      text: reportUuid
-        ? 'Hi! I have read this report. Ask me anything about it, or I can summarise it for you.'
-        : "Hi! I'm your AI assistant. Ask me anything about your student's progress.",
-    },
+    { id: genId(), role: 'assistant', text: defaultGreeting },
   ]);
+
+  // Translate greeting when language changes
+  useEffect(() => {
+    if (uiLanguage === 'en') return;
+    import('@/lib/translate').then(({ translateText }) =>
+      translateText(defaultGreeting, uiLanguage)
+    ).then(translated => {
+      setMessages(prev => {
+        if (prev.length === 1 && prev[0].role === 'assistant') {
+          return [{ ...prev[0], text: translated }];
+        }
+        return prev;
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiLanguage]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
