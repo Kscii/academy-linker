@@ -34,6 +34,11 @@ function resolveColor(color: string): string {
   return color;
 }
 
+// Ease-out cubic
+function easeOut(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 export function LineChart({
   data,
   avgData,
@@ -45,11 +50,12 @@ export function LineChart({
 }: LineChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false, x: 0, y: 0, value: 0, label: '',
   });
 
-  const draw = useCallback(() => {
+  const draw = useCallback((progress = 1) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container || data.length === 0) return;
@@ -121,6 +127,13 @@ export function LineChart({
       ctx.fillText(d.label, x, h - 6);
     });
 
+    // Clip to animated region (left→right reveal)
+    const clipW = padLeft + chartW * progress;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padLeft, 0, clipW - padLeft, h);
+    ctx.clip();
+
     // Draw line helper
     const drawLine = (points: number[][], lineColor: string, dashed = false) => {
       if (points.length < 2) return;
@@ -133,7 +146,6 @@ export function LineChart({
       ctx.beginPath();
       ctx.moveTo(points[0][0], points[0][1]);
       for (let i = 1; i < points.length; i++) {
-        // Smooth curve using control points
         const cp1x = (points[i - 1][0] + points[i][0]) / 2;
         const cp1y = points[i - 1][1];
         const cp2x = (points[i - 1][0] + points[i][0]) / 2;
@@ -178,9 +190,10 @@ export function LineChart({
       drawLine(avgPoints, resolvedAvgColor, true);
     }
 
-    // Dots on main line
+    // Dots on main line — only show dots that fall within clipped region
     data.forEach((d, i) => {
       const x = toX(i);
+      if (x > clipW) return;
       const y = toY(d.value);
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
@@ -190,11 +203,31 @@ export function LineChart({
       ctx.lineWidth = 2;
       ctx.stroke();
     });
+
+    ctx.restore();
   }, [data, avgData, color, avgColor, showAvg, height]);
 
+  // Entrance animation on mount / data change
   useEffect(() => {
-    draw();
-    const ro = new ResizeObserver(draw);
+    cancelAnimationFrame(rafRef.current);
+
+    const duration = 700; // ms
+    const start = performance.now();
+
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(elapsed / duration, 1);
+      draw(easeOut(t));
+      if (t < 1) rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [draw]);
+
+  // Resize: redraw at full progress without animation
+  useEffect(() => {
+    const ro = new ResizeObserver(() => draw(1));
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, [draw]);
