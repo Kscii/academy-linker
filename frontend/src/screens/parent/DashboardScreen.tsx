@@ -5,6 +5,7 @@
 
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
@@ -30,6 +31,13 @@ export function DashboardScreen() {
   const student = mockStudents[0];
   const dashboard = mockParentDashboard;
   const banner = dashboard.important_post_banners[0];
+
+  // Trigger progress bar entrance animation after mount
+  const [barsReady, setBarsReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setBarsReady(true), 60);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div>
@@ -131,11 +139,11 @@ export function DashboardScreen() {
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
           {t('allSubjects')}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {dashboard.subjects.map(sub => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {dashboard.subjects.map((sub, idx) => (
             <div
               key={sub.uuid}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', padding: '6px 0' }}
+              className="subject-row"
               onClick={() => navigate(`/parent/students/${sid}/subjects/${sub.uuid}`)}
             >
               <div style={{
@@ -151,14 +159,15 @@ export function DashboardScreen() {
                   <div
                     className="progress-fill"
                     style={{
-                      width: `${sub.progress ?? sub.score ?? 0}%`,
+                      width: barsReady ? `${sub.progress ?? sub.score ?? 0}%` : '0%',
                       background: SUBJECT_COLORS[sub.code] ?? sub.color,
+                      transitionDelay: `${idx * 80}ms`,
                     }}
                   />
                 </div>
               </div>
               <div
-                className="badge"
+                className="badge subject-row-badge"
                 style={{
                   background: `${SUBJECT_COLORS[sub.code] ?? sub.color}22`,
                   color: SUBJECT_COLORS[sub.code] ?? sub.color,
