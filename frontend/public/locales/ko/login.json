@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "학교 소통 플랫폼",
+  "emailLabel": "이메일 주소",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "비밀번호",
+  "passwordPlaceholder": "비밀번호를 입력하세요",
+  "rememberMe": "로그인 상태 유지",
+  "signIn": "로그인",
+  "signingIn": "로그인 중…",
+  "invalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다",
+  "selectRole": "역할 선택",
+  "parentRole": "학부모",
+  "teacherRole": "교사",
+  "parentDesc": "자녀의 학습 현황 확인",
+  "teacherDesc": "학급 관리"
+}

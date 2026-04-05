@@ -1,0 +1,21 @@
+{
+  "save": "저장",
+  "cancel": "취소",
+  "close": "닫기",
+  "back": "뒤로",
+  "send": "보내기",
+  "delete": "삭제",
+  "edit": "편집",
+  "loading": "로딩 중…",
+  "error": "오류가 발생했습니다",
+  "signOut": "로그아웃",
+  "signedInAs": "로그인 계정",
+  "dayMode": "라이트 모드",
+  "nightMode": "다크 모드",
+  "parent": "학부모",
+  "teacher": "교사",
+  "settings": "설정",
+  "viewAll": "전체 보기 →",
+  "search": "검색…",
+  "noResults": "결과 없음"
+}

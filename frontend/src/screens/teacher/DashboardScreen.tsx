@@ -49,7 +49,7 @@ export function TeacherDashboardScreen() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
         {dashboard.summary_cards.map((card, i) => {
-          const isMessages = card.label === 'Unread Msgs';
+          const isMessages = card.label === 'unreadMsgs';
           return (
             <div
               key={i}
@@ -57,7 +57,7 @@ export function TeacherDashboardScreen() {
               onClick={isMessages ? () => navigate('/teacher/messages') : undefined}
               style={{ cursor: isMessages ? 'pointer' : 'default' }}
             >
-              <div className="stat-label">{card.label}</div>
+              <div className="stat-label">{t(card.label)}</div>
               <div className="stat-value" style={{ color: ACCENT_COLORS[card.color ?? 'a1'] }}>
                 {card.value}
               </div>

@@ -12,5 +12,12 @@
   "avgScoreComparison": "Class Average Scores Comparison",
   "students": "students",
   "avgScore": "Avg score",
-  "atRisk": "At risk"
+  "atRisk": "At risk",
+  "overallAverage": "Overall Average",
+  "attendance": "Attendance",
+  "tasksDue": "Tasks Due",
+  "newPosts": "New Posts",
+  "totalStudents": "Total Students",
+  "averageScore": "Average Score",
+  "unreadMsgs": "Unread Msgs"
 }

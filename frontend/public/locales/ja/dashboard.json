@@ -1,0 +1,23 @@
+{
+  "goodMorning": "おはようございます、{{name}} 👋",
+  "studentUpdateToday": "{{student}}の本日の更新",
+  "subjectScores": "教科別得点",
+  "classAvg": "クラス平均",
+  "overallTrend": "全体的な傾向 — 第2学期",
+  "allSubjects": "すべての教科",
+  "viewButton": "表示",
+  "welcome": "ようこそ、{{name}} 👋",
+  "classOverview": "クラスの概要",
+  "yourClasses": "担当クラス",
+  "avgScoreComparison": "クラス平均点の比較",
+  "students": "名の生徒",
+  "avgScore": "平均点",
+  "atRisk": "要注意",
+  "overallAverage": "総合平均",
+  "attendance": "出席率",
+  "tasksDue": "提出期限のある課題",
+  "newPosts": "新着投稿",
+  "totalStudents": "生徒総数",
+  "averageScore": "平均点",
+  "unreadMsgs": "未読メッセージ"
+}
