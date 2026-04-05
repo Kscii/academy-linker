@@ -35,10 +35,12 @@ const RESOURCES = [
 
 import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch } from '@/lib/translate';
+import { translateBatch, useTranslatedText } from '@/lib/translate';
 
 export function ResourcesScreen() {
   const { language } = useApp();
+  const txTitle = useTranslatedText('Resources', language);
+  const txSubtitle = useTranslatedText('Helpful materials and links for parents and students', language);
   const [txResources, setTxResources] = useState(RESOURCES);
 
   useEffect(() => {
@@ -61,10 +63,10 @@ export function ResourcesScreen() {
     <div>
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 6 }}>
-          Resources
+          {txTitle}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Helpful materials and links for parents and students
+          {txSubtitle}
         </div>
       </div>
 

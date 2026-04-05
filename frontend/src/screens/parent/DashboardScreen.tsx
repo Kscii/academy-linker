@@ -7,7 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch } from '@/lib/translate';
+import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
@@ -40,16 +40,26 @@ export function DashboardScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Translate subject names when language is not English
+  // Translate subject names + bar chart labels
   const [txSubjects, setTxSubjects] = useState(dashboard.subjects);
+  const [txChartData, setTxChartData] = useState(dashboard.subject_chart);
   useEffect(() => {
     setTxSubjects(dashboard.subjects);
+    setTxChartData(dashboard.subject_chart);
     if (language === 'en') return;
     const names = dashboard.subjects.map(s => s.name);
-    translateBatch(names, language).then(results => {
-      setTxSubjects(dashboard.subjects.map((s, i) => ({ ...s, name: results[i] || s.name })));
+    const chartLabels = dashboard.subject_chart.map(d => d.label);
+    translateBatch([...names, ...chartLabels], language).then(results => {
+      const nameResults = results.slice(0, names.length);
+      const labelResults = results.slice(names.length);
+      setTxSubjects(dashboard.subjects.map((s, i) => ({ ...s, name: nameResults[i] || s.name })));
+      setTxChartData(dashboard.subject_chart.map((d, i) => ({ ...d, label: labelResults[i] || d.label })));
     });
   }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Translate banner content
+  const txBannerSubject = useTranslatedText(banner?.subject ?? '', language);
+  const txBannerTitle = useTranslatedText(banner?.title ?? '', language);
 
   return (
     <div>
@@ -69,9 +79,9 @@ export function DashboardScreen() {
           <div style={{ fontSize: 22, flexShrink: 0 }}>📢</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.85, marginBottom: 2 }}>
-              New post from {banner.teacher_name} · {banner.subject}
+              New post from {banner.teacher_name} · {txBannerSubject}
             </div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{banner.title}</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{txBannerTitle}</div>
             <div style={{ fontSize: 11, opacity: 0.8, marginTop: 2 }}>{timeAgo(banner.created_at)}</div>
           </div>
           <button
@@ -124,7 +134,7 @@ export function DashboardScreen() {
             </div>
           </div>
           <BarChart
-            data={dashboard.subject_chart}
+            data={txChartData}
             colors={['#E8614E', '#3DB6A8', '#4A90D9', '#F0A732', '#8B5CF6', '#E91E8C']}
             height={180}
             showAvg

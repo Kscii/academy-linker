@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { mockAnnouncements } from '@/lib/mock-data';
-import { translateBatch } from '@/lib/translate';
+import { translateBatch, useTranslatedText } from '@/lib/translate';
 import type { Announcement } from '@/types/api';
 
 function formatDate(dateStr: string): string {
@@ -23,6 +23,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export function AnnouncementsScreen() {
   const { language } = useApp();
+  const txTitle = useTranslatedText('School Notices', language);
+  const txSubtitle = useTranslatedText('Important announcements from the school', language);
+  const txUnread = useTranslatedText('unread notices', language);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [readSet, setReadSet] = useState<Set<string>>(
     new Set(mockAnnouncements.filter(a => a.is_read).map(a => a.uuid))
@@ -32,12 +35,14 @@ export function AnnouncementsScreen() {
   useEffect(() => {
     setTxAnn(mockAnnouncements);
     if (language === 'en') return;
-    const texts = mockAnnouncements.flatMap(a => [a.title, a.body_preview]);
+    // title + body_preview + category per item
+    const texts = mockAnnouncements.flatMap(a => [a.title, a.body_preview, a.category ?? '']);
     translateBatch(texts, language).then(results => {
       setTxAnn(mockAnnouncements.map((a, i) => ({
         ...a,
-        title: results[i * 2] || a.title,
-        body_preview: results[i * 2 + 1] || a.body_preview,
+        title: results[i * 3] || a.title,
+        body_preview: results[i * 3 + 1] || a.body_preview,
+        category: results[i * 3 + 2] || a.category,
       })));
     });
   }, [language]);
@@ -59,10 +64,10 @@ export function AnnouncementsScreen() {
     <div>
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 6 }}>
-          School Notices
+          {txTitle}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Important announcements from the school
+          {txSubtitle}
         </div>
       </div>
 
@@ -74,7 +79,7 @@ export function AnnouncementsScreen() {
           display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--a1)',
         }}>
           <span style={{ fontSize: 16 }}>📢</span>
-          <strong>{mockAnnouncements.filter(a => !readSet.has(a.uuid)).length} unread notices</strong>
+          <strong>{mockAnnouncements.filter(a => !readSet.has(a.uuid)).length} {txUnread}</strong>
         </div>
       )}
 

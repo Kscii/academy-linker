@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { mockDiscussionTeachers } from '@/lib/mock-data';
-import { translateBatch } from '@/lib/translate';
+import { translateBatch, useTranslatedText } from '@/lib/translate';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -45,6 +45,9 @@ export function MessagesScreen() {
     });
   }, [language]);
 
+  const txTitle = useTranslatedText('Messages', language);
+  const txSubtitle = useTranslatedText("Your conversations with your student's teachers", language);
+
   const handleOpen = (teacherUuid: string, subjectUuid: string) => {
     markThreadRead(teacherUuid);
     navigate(`/parent/students/${sid}/subjects/${subjectUuid}`);
@@ -54,10 +57,10 @@ export function MessagesScreen() {
     <div>
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 6 }}>
-          Messages
+          {txTitle}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Your conversations with Emily's teachers
+          {txSubtitle}
         </div>
       </div>
 
