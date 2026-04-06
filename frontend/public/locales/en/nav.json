@@ -1,0 +1,18 @@
+{
+  "dashboard": "Dashboard",
+  "messages": "Messages",
+  "reports": "Reports",
+  "notices": "Notices",
+  "resources": "Resources",
+  "findStudent": "Find Student",
+  "settings": "Settings",
+  "parentConversations": "Parent conversations",
+  "language": "Language",
+  "posts": "Class Posts",
+  "teachers": "Teachers",
+  "classes": "Classes",
+  "students": "Students",
+  "parents": "Parents"
+,
+  "grades": "Grades"
+}

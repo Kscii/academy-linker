@@ -1,0 +1,16 @@
+{
+  "dashboard": "Papan Pemuka",
+  "messages": "Mesej",
+  "reports": "Laporan",
+  "notices": "Notis",
+  "resources": "Sumber",
+  "findStudent": "Cari Pelajar",
+  "settings": "Tetapan",
+  "parentConversations": "Perbualan Ibu Bapa",
+  "language": "Bahasa",
+  "posts": "Catatan Kelas"
+,
+  "teachers": "Guru", "classes": "Kelas", "students": "Pelajar", "parents": "Ibu Bapa"
+,
+  "grades": "Gred"
+}

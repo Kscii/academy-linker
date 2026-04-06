@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "Schulkommunikationsplattform",
+  "emailLabel": "E-Mail-Adresse",
+  "emailPlaceholder": "ihre@email.de",
+  "passwordLabel": "Passwort",
+  "passwordPlaceholder": "Passwort eingeben",
+  "rememberMe": "Angemeldet bleiben",
+  "signIn": "Anmelden",
+  "signingIn": "Anmeldung läuft…",
+  "invalidCredentials": "E-Mail oder Passwort falsch",
+  "selectRole": "Rolle auswählen",
+  "parentRole": "Elternteil",
+  "teacherRole": "Lehrer",
+  "parentDesc": "Fortschritt Ihres Kindes verfolgen",
+  "teacherDesc": "Klassen verwalten"
+}

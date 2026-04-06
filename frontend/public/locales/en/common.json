@@ -1,0 +1,21 @@
+{
+  "save": "Save",
+  "cancel": "Cancel",
+  "close": "Close",
+  "back": "Back",
+  "send": "Send",
+  "delete": "Delete",
+  "edit": "Edit",
+  "loading": "Loading…",
+  "error": "Something went wrong",
+  "signOut": "Sign Out",
+  "signedInAs": "Signed in as",
+  "dayMode": "Day Mode",
+  "nightMode": "Night Mode",
+  "parent": "Parent",
+  "teacher": "Teacher",
+  "settings": "Settings",
+  "viewAll": "View all →",
+  "search": "Search…",
+  "noResults": "No results"
+}

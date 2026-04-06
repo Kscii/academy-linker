@@ -1,0 +1,16 @@
+{
+  "dashboard": "แดชบอร์ด",
+  "messages": "ข้อความ",
+  "reports": "รายงาน",
+  "notices": "ประกาศ",
+  "resources": "สื่อการเรียน",
+  "findStudent": "ค้นหานักเรียน",
+  "settings": "การตั้งค่า",
+  "parentConversations": "การสนทนากับผู้ปกครอง",
+  "language": "ภาษา",
+  "posts": "โพสต์ชั้นเรียน"
+,
+  "teachers": "ครู", "classes": "ชั้นเรียน", "students": "นักเรียน", "parents": "ผู้ปกครอง"
+,
+  "grades": "เกรด"
+}
