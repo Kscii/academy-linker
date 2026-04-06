@@ -25,6 +25,8 @@ from sqlalchemy.orm import Session
 from ac_link.common.deps import require_teacher
 from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import discussion as discussion_crud
+from ac_link.crud import metrics as metrics_crud
+from ac_link.crud import score as score_crud
 from ac_link.crud import teacher as teacher_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.enums import AnnouncementCategory, ReportType, TranslationStatus, UserRole
@@ -43,12 +45,24 @@ from ac_link.dto.discussion import (
 from ac_link.dto.parent import AuthorBrief, StudentBrief, SubjectBrief, SummaryCards
 from ac_link.dto.teacher import (
     AnnouncementCreate,
+    ClassStudentItem,
+    CreateExamScoreRequest,
+    ExamScoreItem,
+    GradeStatsClassInfo,
+    GradeStatsData,
+    GradeStatsStudent,
+    GradeStatsSummary,
+    PeriodMetricItem,
+    StudentSubjectScore,
     TeacherAnnouncementDetail,
+    TeacherClassItem,
     TeacherDashboardData,
     TeacherReportDetail,
     TeacherStudentBrief,
     TeacherStudentListItem,
     ReportCreate,
+    UpdateExamScoreRequest,
+    UpsertPeriodMetricRequest,
 )
 
 router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
@@ -144,8 +158,7 @@ _VALID_STUDENT_SORTS = frozenset({
 def list_my_students(
     page: int = 1,
     page_size: int = 20,
-    class_name: str | None = None,
-    grade_level: str | None = None,
+    class_uuid: str | None = None,
     subject_uuid: str | None = None,
     keyword: str | None = None,
     sort: str = "full_name_asc",
@@ -163,12 +176,26 @@ def list_my_students(
 
     page_size = min(page_size, 100)
 
+    # 解析 class_uuid → class_id
+    class_id: int | None = None
+    if class_uuid is not None:
+        from uuid import UUID as _UUID
+        try:
+            parsed_class_uuid = _UUID(class_uuid)
+        except ValueError:
+            raise AppError(400, "invalid_filter", "class_uuid 格式无效")
+        from ac_link.db.orm.academic import Class as ClassORM
+        cls_obj = db.query(ClassORM).filter(ClassORM.uuid == parsed_class_uuid).first()
+        if cls_obj is None:
+            raise Errors.not_found("班级不存在")
+        class_id = cls_obj.id
+
     # 解析 subject_uuid → subject_id
     subject_id: int | None = None
     if subject_uuid is not None:
-        from uuid import UUID as _UUID
+        from uuid import UUID as _UUID2
         try:
-            parsed_uuid = _UUID(subject_uuid)
+            parsed_uuid = _UUID2(subject_uuid)
         except ValueError:
             raise AppError(400, "invalid_filter", "subject_uuid 格式无效")
         subject = teacher_crud.get_subject_by_uuid(db, parsed_uuid)
@@ -179,7 +206,7 @@ def list_my_students(
     rows, total = teacher_crud.list_teacher_students(
         db, current_user.id,
         page=page, page_size=page_size,
-        class_name=class_name, grade_level=grade_level,
+        class_id=class_id,
         subject_id=subject_id, keyword=keyword, sort=sort,
     )
 
@@ -189,8 +216,9 @@ def list_my_students(
             sid=student.sid,
             full_name=student.full_name,
             preferred_name=student.preferred_name,
-            class_name=student.class_name,
-            grade_level=student.grade_level,
+            class_uuid=student.class_obj.uuid if student.class_obj else None,
+            class_name=student.class_obj.name if student.class_obj else None,
+            grade_level=student.class_obj.grade_level if student.class_obj else None,
             avatar_url=student.avatar_url,
             score=None,  # 待 student_metrics 表建好后填充
             last_activity_at=last_activity_at,
@@ -255,7 +283,7 @@ def get_student_dashboard(
         )
 
     return ApiResponse(data=TeacherDashboardData(
-        student=TeacherStudentBrief.model_validate(student),
+        student=TeacherStudentBrief.from_student(student),
         unread_post_count=unread_posts,
         summary_cards=SummaryCards(summary=summary),
     ))
@@ -571,3 +599,458 @@ def delete_tag(
     discussion_crud.soft_delete_teacher_tag(db, tag, current_user.id)
     db.commit()
     return ApiResponse(data={"success": True})
+
+
+# ── GET /api/teachers/me/classes ───────────────────────────────────────────────────────
+
+@router.get("/classes", response_model=ApiResponse[list[TeacherClassItem]])
+def list_my_classes(
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[TeacherClassItem]]:
+    """获取老师负责的班级列表（§10.16）。"""
+    rows = teacher_crud.list_teacher_classes(db, current_user.id)
+    data = [
+        TeacherClassItem(
+            uuid=cls.uuid,
+            name=cls.name,
+            grade_level=cls.grade_level,
+            academic_year=cls.academic_year,
+            is_homeroom=is_homeroom,
+            student_count=student_count,
+        )
+        for cls, is_homeroom, student_count in rows
+    ]
+    return ApiResponse(data=data)
+
+
+# ── GET /api/teachers/me/classes/{class_uuid}/students ──────────────────────────────
+
+@router.get(
+    "/classes/{class_uuid}/students",
+    response_model=PaginatedResponse[ClassStudentItem],
+)
+def list_class_students(
+    class_uuid: UUID,
+    page: int = 1,
+    page_size: int = 50,
+    subject_uuid: UUID | None = None,
+    keyword: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ClassStudentItem]:
+    """获取班级学生列表（§10.17）。"""
+    page_size = min(page_size, 200)
+
+    cls = teacher_crud.get_class_for_teacher(db, current_user.id, class_uuid)
+    if cls is None:
+        raise Errors.not_found("班级不存在或无访问权")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subject = teacher_crud.get_subject_by_uuid(db, subject_uuid)
+        if subject is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subject.id
+
+    rows, total = teacher_crud.list_class_students_for_teacher(
+        db, current_user.id, cls.id,
+        subject_id=subject_id, keyword=keyword,
+        page=page, page_size=page_size,
+    )
+    data = [
+        ClassStudentItem(
+            uuid=s.uuid,
+            sid=s.sid,
+            full_name=s.full_name,
+            preferred_name=s.preferred_name,
+            avatar_url=s.avatar_url,
+            subjects=[SubjectBrief.model_validate(subj) for subj in subjects],
+        )
+        for s, subjects in rows
+    ]
+    return PaginatedResponse(
+        data=data,
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/teachers/me/classes/{class_uuid}/grade-stats ────────────────────────
+
+@router.get(
+    "/classes/{class_uuid}/grade-stats",
+    response_model=ApiResponse[GradeStatsData],
+)
+def get_class_grade_stats(
+    class_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    exam_date_from: str | None = None,
+    exam_date_to: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[GradeStatsData]:
+    """班级成绩统计（§10.18）。"""
+    from datetime import date as _date
+
+    cls = teacher_crud.get_class_for_teacher(db, current_user.id, class_uuid)
+    if cls is None:
+        raise Errors.not_found("班级不存在或无访问权")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subject = teacher_crud.get_subject_by_uuid(db, subject_uuid)
+        if subject is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subject.id
+
+    date_from: _date | None = None
+    date_to: _date | None = None
+    try:
+        if exam_date_from:
+            date_from = _date.fromisoformat(exam_date_from)
+        if exam_date_to:
+            date_to = _date.fromisoformat(exam_date_to)
+    except ValueError:
+        raise AppError(400, "invalid_filter", "exam_date 格式应为 YYYY-MM-DD")
+
+    stats = teacher_crud.get_class_grade_stats(
+        db, current_user.id, cls.id,
+        subject_id=subject_id, date_from=date_from, date_to=date_to,
+    )
+
+    data = GradeStatsData(
+        class_info=GradeStatsClassInfo(
+            uuid=cls.uuid,
+            name=cls.name,
+            grade_level=cls.grade_level,
+        ),
+        summary=GradeStatsSummary(
+            student_count=stats["student_count"],
+            avg_score=stats["avg_score"],
+            max_score=stats["max_score"],
+            min_score=stats["min_score"],
+            exam_count=stats["exam_count"],
+        ),
+        students=[
+            GradeStatsStudent(
+                student_uuid=row["student"].uuid,
+                full_name=row["student"].full_name,
+                sid=row["student"].sid,
+                subject_scores=[
+                    StudentSubjectScore(
+                        subject_uuid=sc["subject"].uuid,
+                        subject_name=sc["subject"].name,
+                        avg_score=sc["avg_score"],
+                        latest_score=sc["latest_score"],
+                        exam_count=sc["exam_count"],
+                    )
+                    for sc in row["subject_scores"]
+                ],
+            )
+            for row in stats["student_results"]
+        ],
+    )
+    return ApiResponse(data=data)
+
+
+# ── 考试成绩 CRUD ────────────────────────────────────────────────────────────────────
+
+def _load_score_relations(score_obj: object) -> None:
+    """touch 关联目标，确保序列化时已加载。"""
+    _ = score_obj.subject  # type: ignore[attr-defined]
+    _ = score_obj.author_user  # type: ignore[attr-defined]
+
+
+@router.get(
+    "/students/{student_uuid}/exam-scores",
+    response_model=PaginatedResponse[ExamScoreItem],
+)
+def list_student_exam_scores(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    exam_date_from: str | None = None,
+    exam_date_to: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ExamScoreItem]:
+    """获取学生考试成绩列表（§10.19）。"""
+    from datetime import date as _date
+
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subj = teacher_crud.get_subject_by_uuid(db, subject_uuid)
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    date_from: _date | None = None
+    date_to: _date | None = None
+    try:
+        if exam_date_from:
+            date_from = _date.fromisoformat(exam_date_from)
+        if exam_date_to:
+            date_to = _date.fromisoformat(exam_date_to)
+    except ValueError:
+        raise AppError(400, "invalid_filter", "exam_date 格式应为 YYYY-MM-DD")
+
+    page_size = min(page_size, 100)
+    items, total = score_crud.list_exam_scores(
+        db, student.id,
+        subject_id=subject_id,
+        date_from=date_from, date_to=date_to,
+        page=page, page_size=page_size,
+    )
+    for s in items:
+        _load_score_relations(s)
+    return PaginatedResponse(
+        data=[ExamScoreItem.from_orm_obj(s) for s in items],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+@router.post(
+    "/students/{student_uuid}/exam-scores",
+    response_model=ApiResponse[ExamScoreItem],
+    status_code=201,
+)
+def create_student_exam_score(
+    student_uuid: UUID,
+    body: CreateExamScoreRequest,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ExamScoreItem]:
+    """创建考试成绩（§10.20）。"""
+    from datetime import date as _date
+
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject = teacher_crud.get_subject_by_uuid(db, body.subject_uuid)
+    if subject is None:
+        raise Errors.not_found("学科不存在")
+    if not teacher_crud.verify_teaching_assignment(db, current_user.id, student.id, subject.id):
+        raise Errors.forbidden("当前教师未被分配该学生的此学科")
+
+    if body.full_score <= 0:
+        raise AppError(422, "validation_error", "full_score 必须 > 0")
+    if body.score > body.full_score:
+        raise AppError(422, "validation_error", "score 不得超过 full_score")
+
+    try:
+        exam_date = _date.fromisoformat(body.exam_date)
+    except ValueError:
+        raise AppError(422, "validation_error", "exam_date 格式应为 YYYY-MM-DD")
+
+    score_obj = score_crud.create_exam_score(
+        db,
+        student_id=student.id,
+        subject_id=subject.id,
+        author_user_id=current_user.id,
+        exam_name=body.exam_name,
+        exam_date=exam_date,
+        score=body.score,
+        full_score=body.full_score,
+        note=body.note,
+    )
+    db.commit()
+    db.refresh(score_obj)
+    _load_score_relations(score_obj)
+    return ApiResponse(data=ExamScoreItem.from_orm_obj(score_obj))
+
+
+@router.patch(
+    "/students/{student_uuid}/exam-scores/{score_uuid}",
+    response_model=ApiResponse[ExamScoreItem],
+)
+def update_student_exam_score(
+    student_uuid: UUID,
+    score_uuid: UUID,
+    body: UpdateExamScoreRequest,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ExamScoreItem]:
+    """更新考试成绩（§10.21）。只有创建者可修改。"""
+    from datetime import date as _date
+
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    score_obj = score_crud.get_exam_score_by_uuid(db, score_uuid)
+    if score_obj is None or score_obj.student_id != student.id:
+        raise Errors.not_found("成绩不存在")
+    if score_obj.author_user_id != current_user.id:
+        raise Errors.forbidden("只有创建者可修改成绩")
+
+    updates = body.model_dump(exclude_unset=True)
+    if 'exam_date' in updates:
+        try:
+            updates['exam_date'] = _date.fromisoformat(updates['exam_date'])
+        except ValueError:
+            raise AppError(422, "validation_error", "exam_date 格式应为 YYYY-MM-DD")
+
+    final_score = updates.get('score', score_obj.score)
+    final_full = updates.get('full_score', score_obj.full_score)
+    if final_full <= 0:
+        raise AppError(422, "validation_error", "full_score 必须 > 0")
+    if final_score > final_full:
+        raise AppError(422, "validation_error", "score 不得超过 full_score")
+
+    updated = score_crud.update_exam_score(db, score_obj, **updates)
+    db.commit()
+    db.refresh(updated)
+    _load_score_relations(updated)
+    return ApiResponse(data=ExamScoreItem.from_orm_obj(updated))
+
+
+@router.delete(
+    "/students/{student_uuid}/exam-scores/{score_uuid}",
+    response_model=ApiResponse[dict],
+)
+def delete_student_exam_score(
+    student_uuid: UUID,
+    score_uuid: UUID,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[dict]:
+    """删除考试成绩（物理删除）（§10.22）。只有创建者可删除。"""
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    score_obj = score_crud.get_exam_score_by_uuid(db, score_uuid)
+    if score_obj is None or score_obj.student_id != student.id:
+        raise Errors.not_found("成绩不存在")
+    if score_obj.author_user_id != current_user.id:
+        raise Errors.forbidden("只有创建者可删除成绩")
+
+    score_crud.delete_exam_score(db, score_obj)
+    db.commit()
+    return ApiResponse(data={"success": True})
+
+
+# ── 周期指标 CRUD ──────────────────────────────────────────────────────────────────
+
+def _load_metric_relations(metric_obj: object) -> None:
+    _ = metric_obj.subject  # type: ignore[attr-defined]
+    _ = metric_obj.author_user  # type: ignore[attr-defined]
+
+
+@router.get(
+    "/students/{student_uuid}/period-metrics",
+    response_model=ApiResponse[list[PeriodMetricItem]],
+)
+def list_student_period_metrics(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    term: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[PeriodMetricItem]]:
+    """获取学生周期指标列表（§10.23）。"""
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subj = teacher_crud.get_subject_by_uuid(db, subject_uuid)
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    items = metrics_crud.list_period_metrics(
+        db, student.id, subject_id=subject_id, term=term
+    )
+    for m in items:
+        _load_metric_relations(m)
+    return ApiResponse(data=[PeriodMetricItem.from_orm_obj(m) for m in items])
+
+
+@router.post(
+    "/students/{student_uuid}/period-metrics",
+    response_model=ApiResponse[PeriodMetricItem],
+)
+def upsert_student_period_metric(
+    student_uuid: UUID,
+    body: UpsertPeriodMetricRequest,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+    response: object = None,
+) -> ApiResponse[PeriodMetricItem]:
+    """创建/更新学生周期指标（UPSERT）（§10.24）。
+    存在则更新（200），不存在则新建（201）。
+    """
+    from datetime import date as _date
+    from fastapi.responses import JSONResponse
+
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject = teacher_crud.get_subject_by_uuid(db, body.subject_uuid)
+    if subject is None:
+        raise Errors.not_found("学科不存在")
+    if not teacher_crud.verify_teaching_assignment(db, current_user.id, student.id, subject.id):
+        raise Errors.forbidden("当前教师未被分配该学生的此学科")
+
+    try:
+        snapshot_date = _date.fromisoformat(body.snapshot_date)
+    except ValueError:
+        raise AppError(422, "validation_error", "snapshot_date 格式应为 YYYY-MM-DD")
+
+    for field, label in [
+        (body.progress, "progress"),
+        (body.assignment_completion_rate, "assignment_completion_rate"),
+        (body.attendance_rate, "attendance_rate"),
+    ]:
+        if field is not None and not (0.0 <= field <= 1.0):
+            raise AppError(422, "validation_error", f"{label} 必须在 [0.0, 1.0] 内")
+
+    fields: dict = {}
+    if body.term is not None:
+        fields['term'] = body.term
+    if body.progress is not None:
+        fields['progress'] = body.progress
+    if body.assignment_completion_rate is not None:
+        fields['assignment_completion_rate'] = body.assignment_completion_rate
+    if body.attendance_rate is not None:
+        fields['attendance_rate'] = body.attendance_rate
+
+    metric_obj, created = metrics_crud.upsert_period_metric(
+        db,
+        student_id=student.id,
+        subject_id=subject.id,
+        author_user_id=current_user.id,
+        snapshot_date=snapshot_date,
+        **fields,
+    )
+    db.commit()
+    db.refresh(metric_obj)
+    _load_metric_relations(metric_obj)
+    result = ApiResponse(data=PeriodMetricItem.from_orm_obj(metric_obj))
+    if created:
+        from fastapi import Response
+        # 新建返回 201，更新返回 200
+        # FastAPI 不支持动态 status_code，返回 raw JSONResponse
+        import json
+        return JSONResponse(  # type: ignore[return-value]
+            content=json.loads(result.model_dump_json()),
+            status_code=201,
+        )
+    return result

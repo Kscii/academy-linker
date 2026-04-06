@@ -19,13 +19,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, nullslast, select
 from sqlalchemy.orm import Session, joinedload
 
-from ac_link.db.orm.academic import Student, Subject, TeachingAssignment
+from ac_link.db.orm.academic import Class, Student, Subject, TeachingAssignment
 from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post
 from ac_link.db.orm.content import Announcement, Report
 from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType, TranslationStatus
@@ -63,8 +63,7 @@ def list_teacher_students(
     *,
     page: int = 1,
     page_size: int = 20,
-    class_name: str | None = None,
-    grade_level: str | None = None,
+    class_id: int | None = None,
     subject_id: int | None = None,
     keyword: str | None = None,
     sort: str = "full_name_asc",
@@ -101,10 +100,8 @@ def list_teacher_students(
         .group_by(Student.id)
     )
 
-    if class_name is not None:
-        base = base.filter(Student.class_name == class_name)
-    if grade_level is not None:
-        base = base.filter(Student.grade_level == grade_level)
+    if class_id is not None:
+        base = base.filter(Student.class_id == class_id)
     if subject_id is not None:
         base = base.filter(TeachingAssignment.subject_id == subject_id)
     if keyword is not None:
@@ -114,7 +111,7 @@ def list_teacher_students(
         )
 
     # 按 count(student.id) 的 count 查 total（去重后）
-    total = (
+    total_q = (
         db.query(func.count(func.distinct(Student.id)))
         .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
         .filter(
@@ -122,16 +119,17 @@ def list_teacher_students(
             TeachingAssignment.is_active == True,  # noqa: E712
             Student.is_active == True,  # noqa: E712
         )
-        .filter(
-            *([Student.class_name == class_name] if class_name is not None else []),
-            *([Student.grade_level == grade_level] if grade_level is not None else []),
-            *([TeachingAssignment.subject_id == subject_id] if subject_id is not None else []),
-            *([
-                Student.full_name.ilike(f"%{keyword}%") | Student.sid.ilike(f"%{keyword}%")
-            ] if keyword is not None else []),
+    )
+    if class_id is not None:
+        total_q = total_q.filter(Student.class_id == class_id)
+    if subject_id is not None:
+        total_q = total_q.filter(TeachingAssignment.subject_id == subject_id)
+    if keyword is not None:
+        kw = f"%{keyword}%"
+        total_q = total_q.filter(
+            Student.full_name.ilike(kw) | Student.sid.ilike(kw)
         )
-        .scalar()
-    ) or 0
+    total = total_q.scalar() or 0
 
     # 排序
     if sort == "full_name_desc":
@@ -429,3 +427,236 @@ def update_announcement(
 
     db.flush()
     return announcement
+
+
+# ── 班级查询 ──────────────────────────────────────────────────────────────────────
+
+def list_teacher_classes(
+    db: Session,
+    teacher_user_id: int,
+) -> list[tuple[Class, bool, int]]:
+    """
+    返回当前教师通过 active teaching_assignment 关联的所有不重复班级，
+    附带 is_homeroom 标志和班级学生数量。
+    """
+    class_id_rows = (
+        db.query(Student.class_id)
+        .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
+        .filter(
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+            Student.is_active == True,  # noqa: E712
+            Student.class_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    id_list = [row[0] for row in class_id_rows]
+    if not id_list:
+        return []
+
+    classes = db.query(Class).filter(Class.id.in_(id_list)).all()
+    result = []
+    for cls in classes:
+        is_homeroom = cls.homeroom_teacher_user_id == teacher_user_id
+        student_count = (
+            db.query(func.count(Student.id))
+            .filter(Student.class_id == cls.id, Student.is_active == True)  # noqa: E712
+            .scalar() or 0
+        )
+        result.append((cls, is_homeroom, student_count))
+    return result
+
+
+def get_class_for_teacher(db: Session, teacher_user_id: int, class_uuid: UUID) -> Class | None:
+    """
+    返回该教师有访问权的班级（在该班级有至少一名 active 学生的 active 分配）。
+    """
+    cls = db.query(Class).filter(Class.uuid == class_uuid).first()
+    if cls is None:
+        return None
+    has_access = db.query(
+        db.query(Student)
+        .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
+        .filter(
+            Student.class_id == cls.id,
+            Student.is_active == True,  # noqa: E712
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+        .exists()
+    ).scalar()
+    return cls if has_access else None
+
+
+def list_class_students_for_teacher(
+    db: Session,
+    teacher_user_id: int,
+    class_id: int,
+    *,
+    subject_id: int | None = None,
+    keyword: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> tuple[list[tuple[Student, list[Subject]]], int]:
+    """
+    返回班级中该教师有 active 分配的学生（去重），附带该教师对每个学生的全部科目。
+    subject_id 仅用于筛选学生，返回的 subjects 始终为全部科目。
+    """
+    student_q = (
+        db.query(Student)
+        .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
+        .filter(
+            Student.class_id == class_id,
+            Student.is_active == True,  # noqa: E712
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+        .distinct()
+        .order_by(Student.full_name.asc())
+    )
+    if subject_id is not None:
+        student_q = student_q.filter(TeachingAssignment.subject_id == subject_id)
+    if keyword is not None:
+        kw = f"%{keyword}%"
+        student_q = student_q.filter(
+            Student.full_name.ilike(kw) | Student.sid.ilike(kw)
+        )
+
+    total_q = (
+        db.query(func.count(func.distinct(Student.id)))
+        .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
+        .filter(
+            Student.class_id == class_id,
+            Student.is_active == True,  # noqa: E712
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+    )
+    if subject_id is not None:
+        total_q = total_q.filter(TeachingAssignment.subject_id == subject_id)
+    if keyword is not None:
+        kw = f"%{keyword}%"
+        total_q = total_q.filter(
+            Student.full_name.ilike(kw) | Student.sid.ilike(kw)
+        )
+    total = total_q.scalar() or 0
+
+    students = student_q.offset((page - 1) * page_size).limit(page_size).all()
+    if not students:
+        return [], total
+
+    student_ids = [s.id for s in students]
+    subject_rows = (
+        db.query(TeachingAssignment.student_id, Subject)
+        .join(Subject, Subject.id == TeachingAssignment.subject_id)
+        .filter(
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.student_id.in_(student_ids),
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+
+    from collections import defaultdict
+    student_subjects: dict[int, list[Subject]] = defaultdict(list)
+    for sid, subj in subject_rows:
+        student_subjects[sid].append(subj)
+
+    return [(s, student_subjects[s.id]) for s in students], total
+
+
+def get_class_grade_stats(
+    db: Session,
+    teacher_user_id: int,
+    class_id: int,
+    *,
+    subject_id: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> dict:
+    """
+    汇总该班级中教师负责科目的考试成绩统计。
+    返回包含 student_count, avg_score, max_score, min_score, exam_count,
+    以及 student_results 列表的 dict。
+    """
+    from collections import defaultdict
+    from ac_link.db.orm.academic import StudentExamScore
+
+    pair_q = (
+        db.query(Student, Subject)
+        .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
+        .join(Subject, Subject.id == TeachingAssignment.subject_id)
+        .filter(
+            Student.class_id == class_id,
+            Student.is_active == True,  # noqa: E712
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+    )
+    if subject_id is not None:
+        pair_q = pair_q.filter(TeachingAssignment.subject_id == subject_id)
+
+    pairs = pair_q.all()
+    student_map: dict[int, Student] = {}
+    student_subjects: dict[int, dict[int, Subject]] = defaultdict(dict)
+    for student, subject in pairs:
+        student_map[student.id] = student
+        student_subjects[student.id][subject.id] = subject
+
+    if not student_map:
+        return {
+            "student_count": 0,
+            "avg_score": None,
+            "max_score": None,
+            "min_score": None,
+            "exam_count": 0,
+            "student_results": [],
+        }
+
+    all_subject_ids = list({
+        sid for subjects in student_subjects.values() for sid in subjects
+    })
+    score_q = (
+        db.query(StudentExamScore)
+        .filter(
+            StudentExamScore.student_id.in_(list(student_map.keys())),
+            StudentExamScore.subject_id.in_(all_subject_ids),
+        )
+    )
+    if date_from is not None:
+        score_q = score_q.filter(StudentExamScore.exam_date >= date_from)
+    if date_to is not None:
+        score_q = score_q.filter(StudentExamScore.exam_date <= date_to)
+
+    all_scores = score_q.all()
+    score_groups: dict[tuple[int, int], list[StudentExamScore]] = defaultdict(list)
+    for s in all_scores:
+        score_groups[(s.student_id, s.subject_id)].append(s)
+
+    student_results = []
+    for student_id, student in student_map.items():
+        subject_scores_data = []
+        for subj_id, subj in student_subjects[student_id].items():
+            scores = score_groups.get((student_id, subj_id), [])
+            sorted_scores = sorted(scores, key=lambda x: x.exam_date, reverse=True)
+            subject_scores_data.append({
+                "subject": subj,
+                "avg_score": sum(s.score for s in scores) / len(scores) if scores else None,
+                "latest_score": sorted_scores[0].score if sorted_scores else None,
+                "exam_count": len(scores),
+            })
+        student_results.append({
+            "student": student,
+            "subject_scores": subject_scores_data,
+        })
+
+    all_score_values = [s.score for s in all_scores]
+    return {
+        "student_count": len(student_map),
+        "avg_score": sum(all_score_values) / len(all_score_values) if all_score_values else None,
+        "max_score": max(all_score_values) if all_score_values else None,
+        "min_score": min(all_score_values) if all_score_values else None,
+        "exam_count": len(all_scores),
+        "student_results": student_results,
+    }

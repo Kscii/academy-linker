@@ -24,7 +24,9 @@ from sqlalchemy.orm import Session
 from ac_link.common.deps import require_parent
 from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import discussion as discussion_crud
+from ac_link.crud import metrics as metrics_crud
 from ac_link.crud import parent as parent_crud
+from ac_link.crud import score as score_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 from ac_link.db.orm.enums import TranslationStatus
@@ -46,6 +48,8 @@ from ac_link.dto.parent import (
     DashboardData,
     ImportantPostBanner,
     LearningProgressPoint,
+    ParentExamScoreItem,
+    ParentPeriodMetricItem,
     ReportDetail,
     ReportListItem,
     StudentBrief,
@@ -82,7 +86,7 @@ def list_my_students(
         db, current_user.id, page=page, page_size=page_size
     )
     return PaginatedResponse(
-        data=[StudentOut.model_validate(s) for s in students],
+        data=[StudentOut.from_student(s) for s in students],
         meta=PaginationMeta(
             page=page,
             page_size=page_size,
@@ -214,7 +218,7 @@ def get_student_dashboard(
     ]
 
     return ApiResponse(data=DashboardData(
-        student=StudentOut.model_validate(student),
+        student=StudentOut.from_student(student),
         dashboard_context=DashboardContext(
             selected_range=range,
             unread_post_count=unread_posts,
@@ -508,6 +512,203 @@ def _display_content(obj: Report | Announcement) -> str:
     if obj.translation_status == TranslationStatus.COMPLETED and obj.translated_content_markdown:
         return obj.translated_content_markdown
     return obj.original_content_markdown
+
+
+# ── GET /api/parents/me/students/{student_uuid}/exam-scores ──────────────────────
+
+@router.get(
+    "/students/{student_uuid}/exam-scores",
+    response_model=PaginatedResponse[ParentExamScoreItem],
+)
+def list_student_exam_scores(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    exam_date_from: str | None = None,
+    exam_date_to: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ParentExamScoreItem]:
+    """获取学生考试成绩列表（§9.18）。"""
+    from datetime import date as _date
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        from ac_link.db.orm.academic import Subject
+        subj = db.query(Subject).filter(
+            Subject.uuid == subject_uuid, Subject.is_active == True  # noqa: E712
+        ).first()
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    date_from: _date | None = None
+    date_to: _date | None = None
+    try:
+        if exam_date_from:
+            date_from = _date.fromisoformat(exam_date_from)
+        if exam_date_to:
+            date_to = _date.fromisoformat(exam_date_to)
+    except ValueError:
+        raise AppError(400, "invalid_filter", "exam_date 格式应为 YYYY-MM-DD")
+
+    page_size = min(page_size, 100)
+    items, total = score_crud.list_exam_scores(
+        db, student.id,
+        subject_id=subject_id,
+        date_from=date_from, date_to=date_to,
+        page=page, page_size=page_size,
+    )
+    for s in items:
+        _ = s.subject
+        _ = s.author_user
+    return PaginatedResponse(
+        data=[ParentExamScoreItem.from_orm_obj(s) for s in items],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/period-metrics ───────────────────
+
+@router.get(
+    "/students/{student_uuid}/period-metrics",
+    response_model=ApiResponse[list[ParentPeriodMetricItem]],
+)
+def list_student_period_metrics(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    term: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[ParentPeriodMetricItem]]:
+    """获取学生周期指标列表（§9.19）。"""
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        from ac_link.db.orm.academic import Subject
+        subj = db.query(Subject).filter(
+            Subject.uuid == subject_uuid, Subject.is_active == True  # noqa: E712
+        ).first()
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    items = metrics_crud.list_period_metrics(
+        db, student.id, subject_id=subject_id, term=term
+    )
+    for m in items:
+        _ = m.subject
+        _ = m.author_user
+    return ApiResponse(data=[ParentPeriodMetricItem.from_orm_obj(m) for m in items])
+
+# ── GET /api/parents/me/students/{student_uuid}/exam-scores ──────────────────────
+
+@router.get(
+    "/students/{student_uuid}/exam-scores",
+    response_model=PaginatedResponse[ParentExamScoreItem],
+)
+def list_student_exam_scores(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    exam_date_from: str | None = None,
+    exam_date_to: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ParentExamScoreItem]:
+    """获取学生考试成绩列表（§9.18）。"""
+    from datetime import date as _date
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        from ac_link.db.orm.academic import Subject
+        subj = db.query(Subject).filter(
+            Subject.uuid == subject_uuid, Subject.is_active == True  # noqa: E712
+        ).first()
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    date_from: _date | None = None
+    date_to: _date | None = None
+    try:
+        if exam_date_from:
+            date_from = _date.fromisoformat(exam_date_from)
+        if exam_date_to:
+            date_to = _date.fromisoformat(exam_date_to)
+    except ValueError:
+        raise AppError(400, "invalid_filter", "exam_date 格式应为 YYYY-MM-DD")
+
+    page_size = min(page_size, 100)
+    items, total = score_crud.list_exam_scores(
+        db, student.id,
+        subject_id=subject_id,
+        date_from=date_from, date_to=date_to,
+        page=page, page_size=page_size,
+    )
+    for s in items:
+        _ = s.subject
+        _ = s.author_user
+    return PaginatedResponse(
+        data=[ParentExamScoreItem.from_orm_obj(s) for s in items],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/period-metrics ───────────────────
+
+@router.get(
+    "/students/{student_uuid}/period-metrics",
+    response_model=ApiResponse[list[ParentPeriodMetricItem]],
+)
+def list_student_period_metrics(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    term: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[ParentPeriodMetricItem]]:
+    """获取学生周期指标列表（§9.19）。"""
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        from ac_link.db.orm.academic import Subject
+        subj = db.query(Subject).filter(
+            Subject.uuid == subject_uuid, Subject.is_active == True  # noqa: E712
+        ).first()
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    items = metrics_crud.list_period_metrics(
+        db, student.id, subject_id=subject_id, term=term
+    )
+    for m in items:
+        _ = m.subject
+        _ = m.author_user
+    return ApiResponse(data=[ParentPeriodMetricItem.from_orm_obj(m) for m in items])
 
 
 def _translation_block(obj: Report | Announcement) -> TranslationBlock:

@@ -12,7 +12,7 @@ from ac_link.db.orm.mixins import IntPrimaryKeyMixin, TimestampMixin, UUIDMixin,
 from ac_link.db.orm.sqltypes import enum_column
 
 if TYPE_CHECKING:
-    from ac_link.db.orm.academic import ParentStudentBinding, TeachingAssignment
+    from ac_link.db.orm.academic import Class, ParentStudentBinding, StudentExamScore, StudentPeriodMetric, TeachingAssignment
     from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, Tag
     from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 
@@ -58,6 +58,12 @@ class User(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     report_states: Mapped[list['ReportUserState']] = relationship(back_populates='user')
     authored_announcements: Mapped[list['Announcement']] = relationship(back_populates='author_user')
     announcement_states: Mapped[list['AnnouncementUserState']] = relationship(back_populates='user')
+    homeroom_classes: Mapped[list['Class']] = relationship(
+        back_populates='homeroom_teacher',
+        foreign_keys='Class.homeroom_teacher_user_id',
+    )
+    authored_exam_scores: Mapped[list['StudentExamScore']] = relationship(back_populates='author_user')
+    authored_period_metrics: Mapped[list['StudentPeriodMetric']] = relationship(back_populates='author_user')
 
 
 class UserSettings(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):

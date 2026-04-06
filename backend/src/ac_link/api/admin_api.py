@@ -7,9 +7,13 @@ Admin 管理接口：/api/admin/*
   GET    /api/admin/users                              - 获取用户列表
   POST   /api/admin/users                              - 创建用户
   PATCH  /api/admin/users/{user_uuid}                  - 更新用户
+  GET    /api/admin/classes                            - 获取班级列表
+  POST   /api/admin/classes                            - 创建班级
+  PATCH  /api/admin/classes/{class_uuid}               - 更新班级
   GET    /api/admin/students                           - 获取学生列表
   POST   /api/admin/students                           - 创建学生
   PATCH  /api/admin/students/{student_uuid}            - 更新学生
+  POST   /api/admin/students/{student_uuid}/transfer-class  - 学生换班
   GET    /api/admin/bindings/parent_student            - 获取绑定列表
   POST   /api/admin/bindings/parent_student            - 创建绑定
   PATCH  /api/admin/bindings/parent_student/{uuid}     - 更新绑定
@@ -38,8 +42,11 @@ from ac_link.db.orm.user import User
 from ac_link.dto.admin import (
     AssignmentListItem,
     BindingListItem,
+    ClassDetail,
+    ClassListItem,
     CreateAssignmentRequest,
     CreateBindingRequest,
+    CreateClassRequest,
     CreateStudentRequest,
     CreateSystemTagRequest,
     CreateUserRequest,
@@ -47,8 +54,11 @@ from ac_link.dto.admin import (
     PaginationMeta,
     StudentListItem,
     SystemTagItem,
+    TransferClassRequest,
+    TransferClassResult,
     UpdateAssignmentRequest,
     UpdateBindingRequest,
+    UpdateClassRequest,
     UpdateStudentRequest,
     UpdateSystemTagRequest,
     UpdateUserRequest,
@@ -141,26 +151,31 @@ def list_students(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
-    class_name: str | None = None,
-    grade_level: str | None = None,
+    class_uuid: UUID | None = None,
     is_active: bool | None = None,
     sort: str = "created_at_desc",
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[StudentListItem]:
-    """获取学生列表，支持 keyword/班级/年级/状态 筛选与排序。"""
+    """获取学生列表，支持 keyword/班级/状态 筛选与排序。"""
+    class_id: int | None = None
+    if class_uuid is not None:
+        cls_obj = admin_crud.get_class_by_uuid(db, class_uuid)
+        if cls_obj is None:
+            raise Errors.not_found("班级不存在")
+        class_id = cls_obj.id
+
     items, total = admin_crud.list_students(
         db,
         page=page,
         page_size=page_size,
         keyword=keyword,
-        class_name=class_name,
-        grade_level=grade_level,
+        class_id=class_id,
         is_active=is_active,
         sort=sort,
     )
     return PaginatedResponse(
-        data=[StudentListItem.model_validate(s) for s in items],
+        data=[StudentListItem.from_student(s) for s in items],
         meta=PaginationMeta(
             page=page,
             page_size=page_size,
@@ -177,14 +192,23 @@ def create_student(
     db: Session = Depends(get_db),
 ) -> ApiResponse[StudentListItem]:
     """创建学生。sid 全局唯一（非空时），重复返回 409。"""
+    class_id: int | None = None
+    if body.class_uuid is not None:
+        cls_obj = admin_crud.get_class_by_uuid(db, body.class_uuid)
+        if cls_obj is None:
+            raise Errors.not_found("班级不存在")
+        class_id = cls_obj.id
+
     try:
-        student = admin_crud.create_student(db, **body.model_dump())
+        fields = body.model_dump(exclude={'class_uuid'})
+        fields['class_id'] = class_id
+        student = admin_crud.create_student(db, **fields)
         db.commit()
         db.refresh(student)
     except IntegrityError:
         db.rollback()
         raise Errors.conflict("该学号（sid）已被使用")
-    return ApiResponse(data=StudentListItem.model_validate(student))
+    return ApiResponse(data=StudentListItem.from_student(student))
 
 
 @router.patch("/students/{student_uuid}", response_model=ApiResponse[StudentListItem])
@@ -198,7 +222,18 @@ def update_student(
     student = admin_crud.get_student_by_uuid(db, student_uuid)
     if student is None:
         raise Errors.not_found("学生不存在")
+
     updates = body.model_dump(exclude_unset=True)
+    if 'class_uuid' in updates:
+        raw_class_uuid = updates.pop('class_uuid')
+        if raw_class_uuid is not None:
+            cls_obj = admin_crud.get_class_by_uuid(db, raw_class_uuid)
+            if cls_obj is None:
+                raise Errors.not_found("班级不存在")
+            updates['class_id'] = cls_obj.id
+        else:
+            updates['class_id'] = None
+
     try:
         updated = admin_crud.update_student(db, student, **updates)
         db.commit()
@@ -206,7 +241,7 @@ def update_student(
     except IntegrityError:
         db.rollback()
         raise Errors.conflict("该学号（sid）已被使用")
-    return ApiResponse(data=StudentListItem.model_validate(updated))
+    return ApiResponse(data=StudentListItem.from_student(updated))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -412,7 +447,6 @@ def list_assignments(
             teacher_uuid=a.teacher_user.uuid,
             student_uuid=a.student.uuid,
             subject_uuid=a.subject.uuid,
-            is_homeroom=a.is_homeroom,
             is_active=a.is_active,
             created_at=a.created_at,
         )
@@ -461,7 +495,6 @@ def create_assignment(
         teacher_user_id=teacher.id,
         student_id=student.id,
         subject_id=subject.id,
-        is_homeroom=body.is_homeroom,
         is_active=True,
     )
     db.commit()
@@ -472,7 +505,6 @@ def create_assignment(
         teacher_uuid=teacher.uuid,
         student_uuid=student.uuid,
         subject_uuid=subject.uuid,
-        is_homeroom=assignment.is_homeroom,
         is_active=assignment.is_active,
         created_at=assignment.created_at,
     ))
@@ -498,7 +530,6 @@ def update_assignment(
         teacher_uuid=updated.teacher_user.uuid,
         student_uuid=updated.student.uuid,
         subject_uuid=updated.subject.uuid,
-        is_homeroom=updated.is_homeroom,
         is_active=updated.is_active,
         created_at=updated.created_at,
     ))
@@ -569,3 +600,149 @@ def update_system_tag(
         db.rollback()
         raise AppError(409, "duplicate_tag_name", "Tag 名称冲突")
     return ApiResponse(data=SystemTagItem.model_validate(updated))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 班级管理
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/classes", response_model=PaginatedResponse[ClassListItem])
+def list_classes(
+    page: int = 1,
+    page_size: int = 20,
+    grade_level: str | None = None,
+    academic_year: str | None = None,
+    homeroom_teacher_uuid: UUID | None = None,
+    is_active: bool | None = None,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ClassListItem]:
+    """获取班级列表（§11.16）。"""
+    homeroom_teacher_user_id: int | None = None
+    if homeroom_teacher_uuid is not None:
+        teacher = admin_crud.get_user_by_uuid(db, homeroom_teacher_uuid)
+        if teacher is None:
+            raise Errors.not_found("班主任用户不存在")
+        homeroom_teacher_user_id = teacher.id
+
+    items, total = admin_crud.list_classes(
+        db,
+        page=page,
+        page_size=page_size,
+        grade_level=grade_level,
+        academic_year=academic_year,
+        homeroom_teacher_user_id=homeroom_teacher_user_id,
+        is_active=is_active,
+    )
+    data = [
+        ClassListItem.from_class(c, student_count=admin_crud.count_students_in_class(db, c.id))
+        for c in items
+    ]
+    return PaginatedResponse(
+        data=data,
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=admin_crud.calc_total_pages(total, page_size),
+        ),
+    )
+
+
+@router.post("/classes", response_model=ApiResponse[ClassDetail], status_code=201)
+def create_class(
+    body: CreateClassRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassDetail]:
+    """创建班级（§11.17）。"""
+    if not body.name or not body.name.strip():
+        raise AppError(422, "validation_error", "name 不可为空字符串")
+
+    homeroom_teacher_user_id: int | None = None
+    if body.homeroom_teacher_uuid is not None:
+        teacher = admin_crud.get_user_by_uuid(db, body.homeroom_teacher_uuid)
+        if teacher is None:
+            raise Errors.not_found("班主任用户不存在")
+        if teacher.role != UserRole.TEACHER or not teacher.is_active:
+            raise AppError(400, "bad_request", "班主任必须是 active 的 teacher 用户")
+        homeroom_teacher_user_id = teacher.id
+
+    cls_obj = admin_crud.create_class(
+        db,
+        name=body.name.strip(),
+        grade_level=body.grade_level,
+        academic_year=body.academic_year,
+        homeroom_teacher_user_id=homeroom_teacher_user_id,
+        is_active=True,
+    )
+    db.commit()
+    db.refresh(cls_obj)
+    _ = cls_obj.homeroom_teacher
+    return ApiResponse(data=ClassDetail.from_class(cls_obj))
+
+
+@router.patch("/classes/{class_uuid}", response_model=ApiResponse[ClassDetail])
+def update_class(
+    class_uuid: UUID,
+    body: UpdateClassRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassDetail]:
+    """更新班级（§11.18）。"""
+    cls_obj = admin_crud.get_class_by_uuid(db, class_uuid)
+    if cls_obj is None:
+        raise Errors.not_found("班级不存在")
+
+    updates = body.model_dump(exclude_unset=True)
+    if 'homeroom_teacher_uuid' in updates:
+        raw_ht_uuid = updates.pop('homeroom_teacher_uuid')
+        if raw_ht_uuid is not None:
+            teacher = admin_crud.get_user_by_uuid(db, raw_ht_uuid)
+            if teacher is None:
+                raise Errors.not_found("班主任用户不存在")
+            if teacher.role != UserRole.TEACHER or not teacher.is_active:
+                raise AppError(400, "bad_request", "班主任必须是 active 的 teacher 用户")
+            updates['homeroom_teacher_user_id'] = teacher.id
+        else:
+            updates['homeroom_teacher_user_id'] = None
+
+    if 'name' in updates and (not updates['name'] or not updates['name'].strip()):
+        raise AppError(422, "validation_error", "name 不可为空字符串")
+
+    updated = admin_crud.update_class(db, cls_obj, **updates)
+    db.commit()
+    db.refresh(updated)
+    _ = updated.homeroom_teacher
+    return ApiResponse(data=ClassDetail.from_class(updated))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 学生换班
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/students/{student_uuid}/transfer-class", response_model=ApiResponse[TransferClassResult])
+def transfer_class(
+    student_uuid: UUID,
+    body: TransferClassRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[TransferClassResult]:
+    """学生换班原子操作（§11.19）。"""
+    student = admin_crud.get_student_by_uuid(db, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在")
+
+    new_class = admin_crud.get_class_by_uuid(db, body.new_class_uuid)
+    if new_class is None or not new_class.is_active:
+        raise Errors.not_found("目标班级不存在或已停用")
+
+    deactivated, created = admin_crud.transfer_student_class(db, student, new_class)
+    db.commit()
+    return ApiResponse(data=TransferClassResult(
+        student_uuid=student.uuid,
+        new_class_uuid=new_class.uuid,
+        deactivated_assignment_count=deactivated,
+        created_assignment_count=created,
+    ))
+

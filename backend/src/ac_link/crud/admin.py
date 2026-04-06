@@ -20,7 +20,7 @@ from uuid import UUID
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ac_link.db.orm.academic import ParentStudentBinding, Student, Subject, TeachingAssignment
+from ac_link.db.orm.academic import Class, ParentStudentBinding, Student, Subject, TeachingAssignment
 from ac_link.db.orm.communication import Tag
 from ac_link.db.orm.enums import TagScope
 from ac_link.db.orm.user import User
@@ -81,8 +81,7 @@ def list_students(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
-    class_name: str | None = None,
-    grade_level: str | None = None,
+    class_id: int | None = None,
     is_active: bool | None = None,
     sort: str = "created_at_desc",
 ) -> tuple[list[Student], int]:
@@ -96,10 +95,8 @@ def list_students(
                 Student.sid.ilike(like),
             )
         )
-    if class_name is not None:
-        q = q.filter(Student.class_name == class_name)
-    if grade_level is not None:
-        q = q.filter(Student.grade_level == grade_level)
+    if class_id is not None:
+        q = q.filter(Student.class_id == class_id)
     if is_active is not None:
         q = q.filter(Student.is_active == is_active)
     if sort == "created_at_asc":
@@ -283,3 +280,115 @@ def update_tag(db: Session, tag: Tag, **fields: object) -> Tag:
 
 def calc_total_pages(total: int, page_size: int) -> int:
     return max(1, math.ceil(total / page_size)) if total > 0 else 1
+
+
+# ── 班级 ────────────────────────────────────────────────────────────────────────────────
+
+def list_classes(
+    db: Session,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    grade_level: str | None = None,
+    academic_year: str | None = None,
+    homeroom_teacher_user_id: int | None = None,
+    is_active: bool | None = None,
+) -> tuple[list[Class], int]:
+    q = db.query(Class)
+    if grade_level is not None:
+        q = q.filter(Class.grade_level == grade_level)
+    if academic_year is not None:
+        q = q.filter(Class.academic_year == academic_year)
+    if homeroom_teacher_user_id is not None:
+        q = q.filter(Class.homeroom_teacher_user_id == homeroom_teacher_user_id)
+    if is_active is not None:
+        q = q.filter(Class.is_active == is_active)
+    q = q.order_by(Class.name.asc())
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return items, total
+
+
+def get_class_by_uuid(db: Session, uuid: UUID) -> Class | None:
+    return db.query(Class).filter(Class.uuid == uuid).first()
+
+
+def create_class(db: Session, **fields: object) -> Class:
+    cls_obj = Class(**fields)
+    db.add(cls_obj)
+    db.flush()
+    return cls_obj
+
+
+def update_class(db: Session, cls_obj: Class, **fields: object) -> Class:
+    for k, v in fields.items():
+        setattr(cls_obj, k, v)
+    db.flush()
+    return cls_obj
+
+
+def count_students_in_class(db: Session, class_id: int) -> int:
+    return db.query(Student).filter(Student.class_id == class_id, Student.is_active == True).count()  # noqa: E712
+
+
+def transfer_student_class(
+    db: Session,
+    student: Student,
+    new_class: Class,
+) -> tuple[int, int]:
+    """
+    原子性换班操作：
+    1. 更新 student.class_id
+    2. 旧 teaching_assignments 全部设为 is_active=False
+    3. 按新班级已有的 active assignments 推断新分配
+    返回 (deactivated_count, created_count)
+    """
+    # 步骤1：更新班级
+    student.class_id = new_class.id
+
+    # 步骤2：停用旧分配
+    old_assignments = (
+        db.query(TeachingAssignment)
+        .filter(
+            TeachingAssignment.student_id == student.id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+    for ta in old_assignments:
+        ta.is_active = False
+    deactivated_count = len(old_assignments)
+
+    # 步骤3：按新班级学生的现有分配推断新分配
+    # 取新班级中任意学生的 active assignments -> 获得谁教什么科目
+    new_class_student_ids = (
+        db.query(Student.id)
+        .filter(Student.class_id == new_class.id, Student.is_active == True, Student.id != student.id)  # noqa: E712
+        .all()
+    )
+    created_count = 0
+    if new_class_student_ids:
+        sample_student_id = new_class_student_ids[0][0]
+        template_assignments = (
+            db.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.student_id == sample_student_id,
+                TeachingAssignment.is_active == True,  # noqa: E712
+            )
+            .all()
+        )
+        for ta in template_assignments:
+            existing = get_assignment_by_triple(db, ta.teacher_user_id, student.id, ta.subject_id)
+            if existing:
+                existing.is_active = True
+            else:
+                new_ta = TeachingAssignment(
+                    teacher_user_id=ta.teacher_user_id,
+                    student_id=student.id,
+                    subject_id=ta.subject_id,
+                    is_active=True,
+                )
+                db.add(new_ta)
+                created_count += 1
+    db.flush()
+    return deactivated_count, created_count

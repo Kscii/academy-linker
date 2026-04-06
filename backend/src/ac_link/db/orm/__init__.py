@@ -1,4 +1,4 @@
-from ac_link.db.orm.academic import ParentStudentBinding, Student, Subject, TeachingAssignment
+from ac_link.db.orm.academic import Class, ParentStudentBinding, Student, StudentExamScore, StudentPeriodMetric, Subject, TeachingAssignment
 from ac_link.db.orm.base import Base
 from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, PostTagBinding, Tag
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
@@ -29,10 +29,13 @@ __all__ = [
     'User',
     'UserSettings',
     'UserSession',
+    'Class',
     'Student',
     'ParentStudentBinding',
     'Subject',
     'TeachingAssignment',
+    'StudentExamScore',
+    'StudentPeriodMetric',
     'DiscussionThread',
     'DiscussionParticipantState',
     'Post',

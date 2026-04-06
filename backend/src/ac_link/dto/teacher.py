@@ -12,10 +12,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ac_link.dto.parent import AuthorBrief, SubjectBrief, SummaryCards
 
@@ -28,6 +28,7 @@ class TeacherStudentListItem(BaseModel):
     sid: str | None = None
     full_name: str
     preferred_name: str | None = None
+    class_uuid: UUID | None = None
     class_name: str | None = None
     grade_level: str | None = None
     avatar_url: str | None = None
@@ -45,9 +46,24 @@ class TeacherStudentBrief(BaseModel):
     sid: str | None = None
     full_name: str
     preferred_name: str | None = None
+    class_uuid: UUID | None = None
     class_name: str | None = None
     grade_level: str | None = None
     avatar_url: str | None = None
+
+    @classmethod
+    def from_student(cls, s: object) -> 'TeacherStudentBrief':
+        c = getattr(s, 'class_obj', None)
+        return cls(
+            uuid=s.uuid,  # type: ignore[attr-defined]
+            sid=s.sid,  # type: ignore[attr-defined]
+            full_name=s.full_name,  # type: ignore[attr-defined]
+            preferred_name=s.preferred_name,  # type: ignore[attr-defined]
+            class_uuid=c.uuid if c else None,
+            class_name=c.name if c else None,
+            grade_level=c.grade_level if c else None,
+            avatar_url=s.avatar_url,  # type: ignore[attr-defined]
+        )
 
     class Config:
         from_attributes = True
@@ -235,3 +251,155 @@ class TeacherAnnouncementDetail(BaseModel):
     translated_language: str | None = None
     translation_status: str
     translated_at: datetime | None = None
+
+
+# ── §10.16 老师班级列表 ────────────────────────────────────────────────────────
+
+class TeacherClassItem(BaseModel):
+    uuid: UUID
+    name: str
+    grade_level: str | None = None
+    academic_year: str | None = None
+    is_homeroom: bool
+    student_count: int
+
+
+class ClassStudentItem(BaseModel):
+    uuid: UUID
+    sid: str | None = None
+    full_name: str
+    preferred_name: str | None = None
+    avatar_url: str | None = None
+    subjects: list[SubjectBrief]
+
+
+# ── §10.18 班级成绩统计 ────────────────────────────────────────────────────────
+
+class GradeStatsClassInfo(BaseModel):
+    uuid: UUID
+    name: str
+    grade_level: str | None = None
+
+
+class GradeStatsSummary(BaseModel):
+    student_count: int
+    avg_score: float | None = None
+    max_score: float | None = None
+    min_score: float | None = None
+    exam_count: int
+
+
+class StudentSubjectScore(BaseModel):
+    subject_uuid: UUID
+    subject_name: str
+    avg_score: float | None = None
+    latest_score: float | None = None
+    exam_count: int
+
+
+class GradeStatsStudent(BaseModel):
+    student_uuid: UUID
+    full_name: str
+    sid: str | None = None
+    subject_scores: list[StudentSubjectScore]
+
+
+class GradeStatsData(BaseModel):
+    """§10.18 成绩统计聚合。JSON 序列化时 class_info 输出为 \"class\" key。"""
+    model_config = ConfigDict(populate_by_name=True)
+    class_info: GradeStatsClassInfo = Field(alias="class")
+    summary: GradeStatsSummary
+    students: list[GradeStatsStudent]
+
+
+# ── §10.19–10.22 考试成绩 ──────────────────────────────────────────────────────
+
+class ExamScoreItem(BaseModel):
+    uuid: UUID
+    subject: SubjectBrief
+    exam_name: str | None = None
+    exam_date: date
+    score: float
+    full_score: float
+    note: str | None = None
+    author: AuthorBrief
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_orm_obj(cls, s: object) -> 'ExamScoreItem':
+        return cls(
+            uuid=s.uuid,  # type: ignore[attr-defined]
+            subject=SubjectBrief.model_validate(s.subject),  # type: ignore[attr-defined]
+            exam_name=s.exam_name,  # type: ignore[attr-defined]
+            exam_date=s.exam_date,  # type: ignore[attr-defined]
+            score=s.score,  # type: ignore[attr-defined]
+            full_score=s.full_score,  # type: ignore[attr-defined]
+            note=s.note,  # type: ignore[attr-defined]
+            author=AuthorBrief(
+                uuid=s.author_user.uuid,  # type: ignore[attr-defined]
+                display_name=s.author_user.display_name,  # type: ignore[attr-defined]
+                role=str(s.author_user.role),  # type: ignore[attr-defined]
+            ),
+            created_at=s.created_at,  # type: ignore[attr-defined]
+            updated_at=s.updated_at,  # type: ignore[attr-defined]
+        )
+
+
+class CreateExamScoreRequest(BaseModel):
+    subject_uuid: UUID
+    exam_name: str | None = None
+    exam_date: str  # YYYY-MM-DD
+    score: float
+    full_score: float = 100.0
+    note: str | None = None
+
+
+class UpdateExamScoreRequest(BaseModel):
+    """所有字段可选，未传字段不更新。"""
+    exam_name: str | None = None
+    exam_date: str | None = None
+    score: float | None = None
+    full_score: float | None = None
+    note: str | None = None
+
+
+# ── §10.23–10.24 周期指标 ──────────────────────────────────────────────────────
+
+class PeriodMetricItem(BaseModel):
+    uuid: UUID
+    subject: SubjectBrief
+    term: str | None = None
+    snapshot_date: date
+    progress: float | None = None
+    assignment_completion_rate: float | None = None
+    attendance_rate: float | None = None
+    author: AuthorBrief
+    created_at: datetime
+
+    @classmethod
+    def from_orm_obj(cls, m: object) -> 'PeriodMetricItem':
+        return cls(
+            uuid=m.uuid,  # type: ignore[attr-defined]
+            subject=SubjectBrief.model_validate(m.subject),  # type: ignore[attr-defined]
+            term=m.term,  # type: ignore[attr-defined]
+            snapshot_date=m.snapshot_date,  # type: ignore[attr-defined]
+            progress=m.progress,  # type: ignore[attr-defined]
+            assignment_completion_rate=m.assignment_completion_rate,  # type: ignore[attr-defined]
+            attendance_rate=m.attendance_rate,  # type: ignore[attr-defined]
+            author=AuthorBrief(
+                uuid=m.author_user.uuid,  # type: ignore[attr-defined]
+                display_name=m.author_user.display_name,  # type: ignore[attr-defined]
+                role=str(m.author_user.role),  # type: ignore[attr-defined]
+            ),
+            created_at=m.created_at,  # type: ignore[attr-defined]
+        )
+
+
+class UpsertPeriodMetricRequest(BaseModel):
+    subject_uuid: UUID
+    term: str | None = None
+    snapshot_date: str  # YYYY-MM-DD
+    progress: float | None = None
+    assignment_completion_rate: float | None = None
+    attendance_rate: float | None = None

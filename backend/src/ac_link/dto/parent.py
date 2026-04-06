@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -42,12 +42,27 @@ class StudentOut(BaseModel):
     sid: str | None = None
     full_name: str
     preferred_name: str | None = None
+    class_uuid: UUID | None = None
     class_name: str | None = None
     grade_level: str | None = None
     avatar_url: str | None = None
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_student(cls, s: object) -> 'StudentOut':
+        c = getattr(s, 'class_obj', None)
+        return cls(
+            uuid=s.uuid,  # type: ignore[attr-defined]
+            sid=s.sid,  # type: ignore[attr-defined]
+            full_name=s.full_name,  # type: ignore[attr-defined]
+            preferred_name=s.preferred_name,  # type: ignore[attr-defined]
+            class_uuid=c.uuid if c else None,
+            class_name=c.name if c else None,
+            grade_level=c.grade_level if c else None,
+            avatar_url=s.avatar_url,  # type: ignore[attr-defined]
+        )
 
 
 class StudentBrief(BaseModel):
@@ -263,6 +278,70 @@ class AuthorBrief(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── §9.18 家长视角考试成绩 ────────────────────────────────────────────────────
+
+class ParentExamScoreItem(BaseModel):
+    uuid: UUID
+    subject: SubjectBrief
+    exam_name: str | None = None
+    exam_date: date
+    score: float
+    full_score: float
+    note: str | None = None
+    author: AuthorBrief
+    created_at: datetime
+
+    @classmethod
+    def from_orm_obj(cls, s: object) -> 'ParentExamScoreItem':
+        return cls(
+            uuid=s.uuid,  # type: ignore[attr-defined]
+            subject=SubjectBrief.model_validate(s.subject),  # type: ignore[attr-defined]
+            exam_name=s.exam_name,  # type: ignore[attr-defined]
+            exam_date=s.exam_date,  # type: ignore[attr-defined]
+            score=s.score,  # type: ignore[attr-defined]
+            full_score=s.full_score,  # type: ignore[attr-defined]
+            note=s.note,  # type: ignore[attr-defined]
+            author=AuthorBrief(
+                uuid=s.author_user.uuid,  # type: ignore[attr-defined]
+                display_name=s.author_user.display_name,  # type: ignore[attr-defined]
+                role=str(s.author_user.role),  # type: ignore[attr-defined]
+            ),
+            created_at=s.created_at,  # type: ignore[attr-defined]
+        )
+
+
+# ── §9.19 家长视角周期指标 ────────────────────────────────────────────────────
+
+class ParentPeriodMetricItem(BaseModel):
+    uuid: UUID
+    subject: SubjectBrief
+    term: str | None = None
+    snapshot_date: date
+    progress: float | None = None
+    assignment_completion_rate: float | None = None
+    attendance_rate: float | None = None
+    author: AuthorBrief
+    created_at: datetime
+
+    @classmethod
+    def from_orm_obj(cls, m: object) -> 'ParentPeriodMetricItem':
+        return cls(
+            uuid=m.uuid,  # type: ignore[attr-defined]
+            subject=SubjectBrief.model_validate(m.subject),  # type: ignore[attr-defined]
+            term=m.term,  # type: ignore[attr-defined]
+            snapshot_date=m.snapshot_date,  # type: ignore[attr-defined]
+            progress=m.progress,  # type: ignore[attr-defined]
+            assignment_completion_rate=m.assignment_completion_rate,  # type: ignore[attr-defined]
+            attendance_rate=m.attendance_rate,  # type: ignore[attr-defined]
+            author=AuthorBrief(
+                uuid=m.author_user.uuid,  # type: ignore[attr-defined]
+                display_name=m.author_user.display_name,  # type: ignore[attr-defined]
+                role=str(m.author_user.role),  # type: ignore[attr-defined]
+            ),
+            created_at=m.created_at,  # type: ignore[attr-defined]
+        )
 
 
 class AnnouncementDetail(BaseModel):

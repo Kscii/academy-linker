@@ -107,37 +107,62 @@ class UpdateUserRequest(BaseModel):
 
 # ── §11.4 / §11.5 / §11.6  学生管理 ─────────────────────────────────────────
 
+class TeacherBrief(BaseModel):
+    """班主任简要信息，嵌入 ClassListItem / ClassDetail 中使用。"""
+    uuid: UUID
+    display_name: str
+
+    class Config:
+        from_attributes = True
+
+
 class StudentListItem(BaseModel):
     uuid: UUID
     sid: str | None = None
     full_name: str
     preferred_name: str | None = None
+    class_uuid: UUID | None = None
     class_name: str | None = None
     grade_level: str | None = None
     avatar_url: str | None = None
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {'from_attributes': True}
+
+    @classmethod
+    def from_student(cls, s: object) -> 'StudentListItem':
+        c = getattr(s, 'class_obj', None)
+        return cls(
+            uuid=s.uuid,  # type: ignore[attr-defined]
+            sid=s.sid,  # type: ignore[attr-defined]
+            full_name=s.full_name,  # type: ignore[attr-defined]
+            preferred_name=s.preferred_name,  # type: ignore[attr-defined]
+            class_uuid=c.uuid if c else None,
+            class_name=c.name if c else None,
+            grade_level=c.grade_level if c else None,
+            avatar_url=s.avatar_url,  # type: ignore[attr-defined]
+            is_active=s.is_active,  # type: ignore[attr-defined]
+            created_at=s.created_at,  # type: ignore[attr-defined]
+        )
 
 
 class CreateStudentRequest(BaseModel):
     sid: str | None = None
     full_name: str
     preferred_name: str | None = None
-    class_name: str | None = None
-    grade_level: str | None = None
+    class_uuid: UUID | None = None
     avatar_url: str | None = None
+    date_of_birth: str | None = None
 
 
 class UpdateStudentRequest(BaseModel):
     sid: str | None = None
     full_name: str | None = None
     preferred_name: str | None = None
-    class_name: str | None = None
-    grade_level: str | None = None
+    class_uuid: UUID | None = None
     avatar_url: str | None = None
+    date_of_birth: str | None = None
     is_active: bool | None = None
 
 
@@ -176,7 +201,6 @@ class AssignmentListItem(BaseModel):
     teacher_uuid: UUID
     student_uuid: UUID
     subject_uuid: UUID
-    is_homeroom: bool
     is_active: bool
     created_at: datetime
 
@@ -188,11 +212,9 @@ class CreateAssignmentRequest(BaseModel):
     teacher_uuid: UUID
     student_uuid: UUID
     subject_uuid: UUID
-    is_homeroom: bool = False
 
 
 class UpdateAssignmentRequest(BaseModel):
-    is_homeroom: bool | None = None
     is_active: bool | None = None
 
 
@@ -223,3 +245,87 @@ class UpdateSystemTagRequest(BaseModel):
     is_selectable_by_parent: bool | None = None
     is_selectable_by_teacher: bool | None = None
     affects_business_logic: bool | None = None
+
+
+# ── §11.16 / §11.17 / §11.18  班级管理 ───────────────────────────────────────
+
+class HomeroomTeacherBrief(BaseModel):
+    uuid: UUID
+    display_name: str
+
+    class Config:
+        from_attributes = True
+
+
+class ClassDetail(BaseModel):
+    uuid: UUID
+    name: str
+    grade_level: str | None = None
+    academic_year: str | None = None
+    homeroom_teacher: HomeroomTeacherBrief | None = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_class(cls, c: object, student_count: int | None = None) -> 'ClassDetail':
+        ht = getattr(c, 'homeroom_teacher', None)
+        obj = cls(
+            uuid=c.uuid,  # type: ignore[attr-defined]
+            name=c.name,  # type: ignore[attr-defined]
+            grade_level=c.grade_level,  # type: ignore[attr-defined]
+            academic_year=c.academic_year,  # type: ignore[attr-defined]
+            homeroom_teacher=HomeroomTeacherBrief(uuid=ht.uuid, display_name=ht.display_name) if ht else None,
+            is_active=c.is_active,  # type: ignore[attr-defined]
+            created_at=c.created_at,  # type: ignore[attr-defined]
+        )
+        return obj
+
+
+class ClassListItem(ClassDetail):
+    student_count: int = 0
+
+    @classmethod
+    def from_class(cls, c: object, student_count: int = 0) -> 'ClassListItem':  # type: ignore[override]
+        ht = getattr(c, 'homeroom_teacher', None)
+        return cls(
+            uuid=c.uuid,  # type: ignore[attr-defined]
+            name=c.name,  # type: ignore[attr-defined]
+            grade_level=c.grade_level,  # type: ignore[attr-defined]
+            academic_year=c.academic_year,  # type: ignore[attr-defined]
+            homeroom_teacher=HomeroomTeacherBrief(uuid=ht.uuid, display_name=ht.display_name) if ht else None,
+            is_active=c.is_active,  # type: ignore[attr-defined]
+            created_at=c.created_at,  # type: ignore[attr-defined]
+            student_count=student_count,
+        )
+
+
+class CreateClassRequest(BaseModel):
+    name: str
+    grade_level: str | None = None
+    academic_year: str | None = None
+    homeroom_teacher_uuid: UUID | None = None
+
+
+class UpdateClassRequest(BaseModel):
+    name: str | None = None
+    grade_level: str | None = None
+    academic_year: str | None = None
+    homeroom_teacher_uuid: UUID | None = None
+    is_active: bool | None = None
+
+
+# ── §11.19  学生换班 ──────────────────────────────────────────────────────────
+
+class TransferClassRequest(BaseModel):
+    new_class_uuid: UUID
+
+
+class TransferClassResult(BaseModel):
+    student_uuid: UUID
+    new_class_uuid: UUID
+    deactivated_assignment_count: int
+    created_assignment_count: int
+
