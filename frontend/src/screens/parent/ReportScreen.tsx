@@ -96,7 +96,6 @@ export function ReportScreen() {
 
   const txTitle       = useTranslatedText('Progress Reports', language);
   const txSectionHdr  = useTranslatedText('Reports', language);
-  const txNew         = useTranslatedText('New', language);
   const txTerm        = useTranslatedText('Term', language);
   const txGenerating  = useTranslatedText('Generating full report…', language);
   const txDownload    = useTranslatedText('Download PDF', language);
@@ -263,9 +262,6 @@ export function ReportScreen() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{report.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>{txTerm} {report.term}</div>
                   </div>
-                  {!readIds.has(report.uuid) && (
-                    <span className="badge" style={{ background: 'var(--a1)', color: '#fff', fontSize: 10, flexShrink: 0 }}>{txNew}</span>
-                  )}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>{formatDate(report.created_at)}</div>
               </div>

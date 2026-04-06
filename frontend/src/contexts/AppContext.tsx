@@ -10,13 +10,13 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import i18n from '@/i18n';
 import type { UserSummary, PersonalizedPost, PostReply } from '@/types/api';
-import { auth, parent as parentApi } from '@/lib/api';
-import { mockParentUser, mockTeacherUser, mockAnnouncements, mockDirectMessages, SUBJECT_COLORS } from '@/lib/mock-data';
-import type { DirectMessage } from '@/lib/mock-data';
+import { auth, parent as parentApi, teacher as teacherApi } from '@/lib/api';
+import { mockParentUser, mockTeacherUser, mockAnnouncements, SUBJECT_COLORS } from '@/lib/mock-data';
 
 // Hardcoded demo credentials for fallback when backend is offline
 const DEMO_CREDENTIALS: Record<string, { password: string; role: 'parent' | 'teacher' }> = {
@@ -91,10 +91,6 @@ interface AppContextValue {
   readPostIds: Set<string>;
   markPostRead: (id: string) => void;
 
-  /* Shared conversations (parent ↔ teacher) */
-  conversations: Record<string, DirectMessage[]>;
-  sendMessage: (threadUuid: string, sender: 'parent' | 'teacher', text: string, sourceLang?: string) => Promise<void>;
-
   /* Personalized class posts (teacher publishes → parents read own version) */
   classPosts: PersonalizedPost[];
   addClassPost: (post: PersonalizedPost) => void;
@@ -106,9 +102,9 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 // ── localStorage persistence keys ────────────────────────────
-const LS_READ_ANN    = 'al_read_ann_v2';
-const LS_READ_POSTS  = 'al_read_posts_v2';
-const LS_THREAD_CNTS = 'al_thread_counts_v2';
+const LS_READ_ANN    = 'al_read_ann_v3';
+const LS_READ_POSTS  = 'al_read_posts_v3';
+const LS_THREAD_CNTS = 'al_thread_counts_v3';
 
 function lsLoadSet(key: string, defaults: string[]): Set<string> {
   try {
@@ -147,16 +143,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(LS_THREAD_CNTS, JSON.stringify(threadUnreadCounts));
   }, [threadUnreadCounts]);
 
+  // Tracks threads the user explicitly read — poll won't restore stale counts for 10s
+  const recentlyReadRef = useRef<Map<string, number>>(new Map());
+
   const markThreadRead = useCallback((key: string) => {
     setThreadUnreadCounts(prev => ({ ...prev, [key]: 0 }));
+    recentlyReadRef.current.set(key, Date.now());
     fetch(`/api/threads/${key}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
   }, []);
 
   const updateThreadUnreadCounts = useCallback((counts: Record<string, number>) => {
+    const now = Date.now();
     setThreadUnreadCounts(prev => {
       const next = { ...prev };
       for (const [key, count] of Object.entries(counts)) {
-        // Only raise the count — never override a locally-cleared (0) entry with stale server data
+        const readAt = recentlyReadRef.current.get(key);
+        if (readAt !== undefined && now - readAt < 10_000) {
+          // Within 10s grace period — server confirms read when it returns 0
+          if (count === 0) recentlyReadRef.current.delete(key);
+          // Don't let stale server count restore the badge
+          continue;
+        }
         if (count > (prev[key] ?? 0)) next[key] = count;
       }
       return next;
@@ -194,7 +201,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // computed after classPosts is declared (see below)
   const unreadAnnCount = announcementUuids.filter(id => !readAnnouncementIds.has(id)).length;
 
-  const [conversations, setConversations] = useState<Record<string, DirectMessage[]>>(mockDirectMessages);
 
   // ── Personalized class posts seed ────────────────────────────
   const [classPosts, setClassPosts] = useState<PersonalizedPost[]>([
@@ -251,26 +257,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
-  const sendMessage = useCallback(async (
-    threadUuid: string,
-    sender: 'parent' | 'teacher',
-    text: string,
-    _sourceLang = 'en',
-  ) => {
-    const newMsg: DirectMessage = {
-      uuid: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      sender,
-      text,
-      sent_at: new Date().toISOString(),
-    };
-    setConversations(prev => ({
-      ...prev,
-      [threadUuid]: [...(prev[threadUuid] ?? []), newMsg],
-    }));
-  }, []);
-
   // Total unread = sum of all persisted counts (populated by MessagesScreen API call)
   const unreadMessageCount = Object.values(threadUnreadCounts).reduce((sum, c) => sum + c, 0);
+
+  // Background poll every 5s — keeps nav unread badge in sync for both roles
+  useEffect(() => {
+    if (!user) return;
+    const poll = () => {
+      if (user.role === 'parent' && firstStudentUuid) {
+        parentApi.getDiscussionTeachers(firstStudentUuid).then(res => {
+          updateThreadUnreadCounts(
+            Object.fromEntries(res.data.map((t: { thread_uuid: string; unread_count: number }) => [t.thread_uuid, t.unread_count]))
+          );
+        }).catch(() => {});
+      } else if (user.role === 'teacher') {
+        teacherApi.getStudents().then(res => {
+          const counts: Record<string, number> = {};
+          for (const item of res.data) counts[item.student.uuid] = item.unread_messages;
+          updateThreadUnreadCounts(counts);
+        }).catch(() => {});
+      }
+    };
+    poll();
+    const id = setInterval(poll, 5_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uuid, firstStudentUuid]);
 
   // Restore session on page load:
   // 1. Immediately restore from localStorage (works offline, no flash)
@@ -396,8 +408,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAnnouncementUuids,
     readPostIds,
     markPostRead,
-    conversations,
-    sendMessage,
     classPosts,
     addClassPost,
     addPostReply,
