@@ -19,5 +19,7 @@
   "newPosts": "منشورات جديدة",
   "totalStudents": "إجمالي الطلاب",
   "averageScore": "متوسط الدرجات",
-  "unreadMsgs": "رسائل غير مقروءة"
+  "unreadMsgs": "رسائل غير مقروءة",
+  "overallScore": "الدرجة الإجمالية",
+  "assignments": "الواجبات"
 }

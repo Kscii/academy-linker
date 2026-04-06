@@ -19,5 +19,7 @@
   "newPosts": "Nuovi post",
   "totalStudents": "Totale studenti",
   "averageScore": "Voto medio",
-  "unreadMsgs": "Msgs non letti"
+  "unreadMsgs": "Msgs non letti",
+  "overallScore": "Punteggio complessivo",
+  "assignments": "Compiti"
 }

@@ -19,5 +19,7 @@
   "newPosts": "新帖子",
   "totalStudents": "学生总数",
   "averageScore": "平均成绩",
-  "unreadMsgs": "未读消息"
+  "unreadMsgs": "未读消息",
+  "overallScore": "综合得分",
+  "assignments": "作业"
 }

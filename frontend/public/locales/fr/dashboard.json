@@ -19,5 +19,7 @@
   "newPosts": "Nouveaux messages",
   "totalStudents": "Total élèves",
   "averageScore": "Note moyenne",
-  "unreadMsgs": "Msgs non lus"
+  "unreadMsgs": "Msgs non lus",
+  "overallScore": "Score global",
+  "assignments": "Devoirs"
 }
