@@ -76,6 +76,8 @@ class Post(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     reply_to_post_id: Mapped[int | None] = mapped_column(ForeignKey('posts.id', ondelete='SET NULL'), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None, onupdate=None)
+
     thread: Mapped['DiscussionThread'] = relationship(back_populates='posts')
     author_user: Mapped['User'] = relationship(back_populates='posts')
     reply_to_post: Mapped['Post | None'] = relationship(remote_side='Post.id')

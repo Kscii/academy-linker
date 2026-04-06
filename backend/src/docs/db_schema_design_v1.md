@@ -153,6 +153,7 @@ users(
 ```text
 user_settings(
   id PK,
+  uuid UNIQUE,
   user_id UNIQUE FK -> users.id,
   language NULL,
   timezone NULL,
@@ -411,6 +412,7 @@ reports(
 ```text
 report_user_states(
   id PK,
+  uuid UNIQUE,
   report_id FK -> reports.id,
   user_id FK -> users.id,
   is_read,
@@ -481,6 +483,7 @@ announcements(
 ```text
 announcement_user_states(
   id PK,
+  uuid UNIQUE,
   announcement_id FK -> announcements.id,
   user_id FK -> users.id,
   is_read,
@@ -632,6 +635,7 @@ post_tags(
 ```text
 thread_user_states(
   id PK,
+  uuid UNIQUE,
   thread_id FK -> discussion_threads.id,
   user_id FK -> users.id,
   last_read_post_id NULL FK -> posts.id,
