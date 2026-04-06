@@ -31,10 +31,10 @@ from sqlalchemy.orm import Session, joinedload
 from ac_link.common.exceptions import AppError, Errors
 from ac_link.db.orm.academic import ParentStudentBinding, Student, Subject, TeachingAssignment
 from ac_link.db.orm.communication import (
-    DiscussionParticipantState,
+    ThreadUserState,
     DiscussionThread,
     Post,
-    PostTagBinding,
+    PostTag,
     Tag,
 )
 from ac_link.db.orm.user import User
@@ -154,13 +154,13 @@ def list_teachers_for_parent_student(
     thread_by_teacher: dict[int, DiscussionThread] = {t.teacher_user_id: t for t in threads}
 
     thread_ids = [t.id for t in threads]
-    state_by_thread: dict[int, DiscussionParticipantState] = {}
+    state_by_thread: dict[int, ThreadUserState] = {}
     if thread_ids:
         states = (
-            db.query(DiscussionParticipantState)
+            db.query(ThreadUserState)
             .filter(
-                DiscussionParticipantState.thread_id.in_(thread_ids),
-                DiscussionParticipantState.user_id == parent_user_id,
+                ThreadUserState.thread_id.in_(thread_ids),
+                ThreadUserState.user_id == parent_user_id,
             )
             .all()
         )
@@ -174,7 +174,7 @@ def list_teachers_for_parent_student(
             "teacher_user": teacher_user,
             "subjects": subjects,
             "thread": thread,
-            "unread_count": state.unread_post_count if state else 0,
+            "unread_count": state.unread_count_cache if state else 0,
         })
 
     _sort_discussion_list(result, sort, user_key="teacher_user")
@@ -224,13 +224,13 @@ def list_parents_for_teacher_student(
     thread_by_parent: dict[int, DiscussionThread] = {t.parent_user_id: t for t in threads}
 
     thread_ids = [t.id for t in threads]
-    state_by_thread: dict[int, DiscussionParticipantState] = {}
+    state_by_thread: dict[int, ThreadUserState] = {}
     if thread_ids:
         states = (
-            db.query(DiscussionParticipantState)
+            db.query(ThreadUserState)
             .filter(
-                DiscussionParticipantState.thread_id.in_(thread_ids),
-                DiscussionParticipantState.user_id == teacher_user_id,
+                ThreadUserState.thread_id.in_(thread_ids),
+                ThreadUserState.user_id == teacher_user_id,
             )
             .all()
         )
@@ -243,7 +243,7 @@ def list_parents_for_teacher_student(
         result.append({
             "parent_user": parent_user,
             "thread": thread,
-            "unread_count": state.unread_post_count if state else 0,
+            "unread_count": state.unread_count_cache if state else 0,
         })
 
     _sort_discussion_list(result, sort, user_key="parent_user")
@@ -318,27 +318,27 @@ def mark_thread_read(
     db: Session,
     thread_id: int,
     user_id: int,
-) -> DiscussionParticipantState:
-    """将当前用户在此 thread 的 unread_post_count 归零，并更新 last_read_at。"""
+) -> ThreadUserState:
+    """将当前用户在此 thread 的 unread_count_cache 归零，并更新 last_read_at。"""
     now = datetime.now(timezone.utc)
     state = (
-        db.query(DiscussionParticipantState)
+        db.query(ThreadUserState)
         .filter(
-            DiscussionParticipantState.thread_id == thread_id,
-            DiscussionParticipantState.user_id == user_id,
+            ThreadUserState.thread_id == thread_id,
+            ThreadUserState.user_id == user_id,
         )
         .first()
     )
     if state is None:
-        state = DiscussionParticipantState(
+        state = ThreadUserState(
             thread_id=thread_id,
             user_id=user_id,
-            unread_post_count=0,
+            unread_count_cache=0,
             last_read_at=now,
         )
         db.add(state)
     else:
-        state.unread_post_count = 0
+        state.unread_count_cache = 0
         state.last_read_at = now
     db.flush()
     return state
@@ -364,7 +364,7 @@ def list_posts_in_thread(
         db.query(Post)
         .options(
             joinedload(Post.author_user),
-            joinedload(Post.post_tags).joinedload(PostTagBinding.tag),
+            joinedload(Post.post_tags).joinedload(PostTag.tag),
             joinedload(Post.reply_to_post),
         )
         .filter(Post.thread_id == thread_id)
@@ -372,8 +372,8 @@ def list_posts_in_thread(
 
     if tag_name:
         q = (
-            q.join(PostTagBinding, PostTagBinding.post_id == Post.id)
-            .join(Tag, Tag.id == PostTagBinding.tag_id)
+            q.join(PostTag, PostTag.post_id == Post.id)
+            .join(Tag, Tag.id == PostTag.tag_id)
             .filter(Tag.name == tag_name)
         )
 
@@ -395,7 +395,7 @@ def get_post_by_uuid(db: Session, post_uuid: UUID) -> Post | None:
         db.query(Post)
         .options(
             joinedload(Post.author_user),
-            joinedload(Post.post_tags).joinedload(PostTagBinding.tag),
+            joinedload(Post.post_tags).joinedload(PostTag.tag),
             joinedload(Post.reply_to_post),
             joinedload(Post.thread),
         )
@@ -453,7 +453,7 @@ def create_post(
     db.flush()  # 得到 post.id
 
     for tag in tags:
-        db.add(PostTagBinding(post_id=post.id, tag_id=tag.id))
+        db.add(PostTag(post_id=post.id, tag_id=tag.id))
 
     # 更新 thread.last_post_at
     thread.last_post_at = now
@@ -488,17 +488,16 @@ def update_post(
         post.content_markdown = content_markdown
     if tags is not None:
         # 删除现有绑定，重新写入
-        db.query(PostTagBinding).filter(PostTagBinding.post_id == post.id).delete()
+        db.query(PostTag).filter(PostTag.post_id == post.id).delete()
         for tag in tags:
-            db.add(PostTagBinding(post_id=post.id, tag_id=tag.id))
+            db.add(PostTag(post_id=post.id, tag_id=tag.id))
     db.flush()
     return post
 
 
 def soft_delete_post(db: Session, post: Post) -> Post:
-    """软删除帖子（is_deleted=True，deleted_at=now）。"""
+    """软删除帖子（deleted_at=now）。"""
     now = datetime.now(timezone.utc)
-    post.is_deleted = True
     post.deleted_at = now
     db.flush()
     return post
@@ -507,24 +506,24 @@ def soft_delete_post(db: Session, post: Post) -> Post:
 # ── 内部辅助 ─────────────────────────────────────────────────────────────────
 
 def _increment_unread(db: Session, thread_id: int, user_id: int) -> None:
-    """为指定用户在指定 thread 的 unread_post_count + 1（upsert）。"""
+    """为指定用户在指定 thread 的 unread_count_cache + 1（upsert）。"""
     state = (
-        db.query(DiscussionParticipantState)
+        db.query(ThreadUserState)
         .filter(
-            DiscussionParticipantState.thread_id == thread_id,
-            DiscussionParticipantState.user_id == user_id,
+            ThreadUserState.thread_id == thread_id,
+            ThreadUserState.user_id == user_id,
         )
         .first()
     )
     if state is None:
-        state = DiscussionParticipantState(
+        state = ThreadUserState(
             thread_id=thread_id,
             user_id=user_id,
-            unread_post_count=1,
+            unread_count_cache=1,
         )
         db.add(state)
     else:
-        state.unread_post_count = (state.unread_post_count or 0) + 1
+        state.unread_count_cache = (state.unread_count_cache or 0) + 1
 
 
 # ── Tag CRUD（教师私有 tag 管理）──────────────────────────────────────────────
@@ -555,13 +554,13 @@ def list_tags_for_teacher(
     elif scope == "teacher_private":
         q = q.filter(
             Tag.scope == TagScope.TEACHER_PRIVATE,
-            Tag.owner_user_id == teacher_user_id,
+            Tag.owner_teacher_user_id == teacher_user_id,
         )
     else:  # "all"
         q = q.filter(
             or_(
                 (Tag.scope == TagScope.SYSTEM) & (Tag.is_selectable_by_teacher == True),  # noqa: E712
-                (Tag.scope == TagScope.TEACHER_PRIVATE) & (Tag.owner_user_id == teacher_user_id),
+                (Tag.scope == TagScope.TEACHER_PRIVATE) & (Tag.owner_teacher_user_id == teacher_user_id),
             )
         )
 
@@ -588,7 +587,7 @@ def create_teacher_tag(
     existing = (
         db.query(Tag)
         .filter(
-            Tag.owner_user_id == teacher_user_id,
+            Tag.owner_teacher_user_id == teacher_user_id,
             Tag.scope == TagScope.TEACHER_PRIVATE,
             Tag.name == name,
             Tag.is_active == True,  # noqa: E712
@@ -601,7 +600,7 @@ def create_teacher_tag(
     tag = Tag(
         name=name,
         scope=TagScope.TEACHER_PRIVATE,
-        owner_user_id=teacher_user_id,
+        owner_teacher_user_id=teacher_user_id,
         is_selectable_by_parent=True,
         is_selectable_by_teacher=True,
         affects_business_logic=False,
@@ -626,14 +625,14 @@ def update_teacher_tag(
     """
     from ac_link.db.orm.enums import TagScope
 
-    if tag.scope != TagScope.TEACHER_PRIVATE or tag.owner_user_id != teacher_user_id:
+    if tag.scope != TagScope.TEACHER_PRIVATE or tag.owner_teacher_user_id != teacher_user_id:
         raise Errors.forbidden("只能修改自己的私有 tag")
 
     if tag.name != name:
         conflict = (
             db.query(Tag)
             .filter(
-                Tag.owner_user_id == teacher_user_id,
+                Tag.owner_teacher_user_id == teacher_user_id,
                 Tag.scope == TagScope.TEACHER_PRIVATE,
                 Tag.name == name,
                 Tag.is_active == True,  # noqa: E712
@@ -660,7 +659,7 @@ def soft_delete_teacher_tag(
     """
     from ac_link.db.orm.enums import TagScope
 
-    if tag.scope != TagScope.TEACHER_PRIVATE or tag.owner_user_id != teacher_user_id:
+    if tag.scope != TagScope.TEACHER_PRIVATE or tag.owner_teacher_user_id != teacher_user_id:
         raise Errors.forbidden("只能删除自己的私有 tag")
 
     tag.is_active = False

@@ -14,7 +14,7 @@ from sqlalchemy import and_, func, nullslast, or_
 from sqlalchemy.orm import Session, joinedload
 
 from ac_link.db.orm.academic import ParentStudentBinding, Student, Subject, TeachingAssignment
-from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, PostTagBinding, Tag
+from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, PostTag, Tag
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 from ac_link.db.orm.user import User
 
@@ -161,11 +161,11 @@ def get_unread_post_count(
 ) -> int:
     """汇总该用户在该学生所有 discussion thread 中的未读帖子数。"""
     result = (
-        db.query(func.sum(DiscussionParticipantState.unread_post_count))
-        .join(DiscussionThread, DiscussionThread.id == DiscussionParticipantState.thread_id)
+        db.query(func.sum(ThreadUserState.unread_count_cache))
+        .join(DiscussionThread, DiscussionThread.id == ThreadUserState.thread_id)
         .filter(
             DiscussionThread.student_id == student_id,
-            DiscussionParticipantState.user_id == user_id,
+            ThreadUserState.user_id == user_id,
         )
         .scalar()
     )
@@ -183,13 +183,13 @@ def get_important_post_banners(
         db.query(Post)
         .options(joinedload(Post.author_user))
         .join(DiscussionThread, DiscussionThread.id == Post.thread_id)
-        .join(PostTagBinding, PostTagBinding.post_id == Post.id)
-        .join(Tag, Tag.id == PostTagBinding.tag_id)
+        .join(PostTag, PostTag.post_id == Post.id)
+        .join(Tag, Tag.id == PostTag.tag_id)
         .filter(
             DiscussionThread.student_id == student_id,
             DiscussionThread.parent_user_id == parent_user_id,
             Tag.name == "important",
-            Post.is_deleted == False,  # noqa: E712
+            Post.deleted_at.is_(None),
         )
         .order_by(Post.created_at.desc())
         .limit(limit)

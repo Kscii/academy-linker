@@ -187,6 +187,7 @@ def build_post_item(post: object) -> PostItem:  # type: ignore[type-arg]
     from ac_link.db.orm.communication import Post as PostORM  # 局部导入避免循环
 
     p: PostORM = post  # type: ignore[assignment]
+    is_deleted = p.deleted_at is not None
     return PostItem(
         uuid=p.uuid,
         author=AuthorBrief(
@@ -195,8 +196,8 @@ def build_post_item(post: object) -> PostItem:  # type: ignore[type-arg]
             role=str(p.author_user.role),
         ),
         title=p.title,
-        content_markdown=_DELETED_PLACEHOLDER if p.is_deleted else p.content_markdown,
-        is_deleted=p.is_deleted,
+        content_markdown=_DELETED_PLACEHOLDER if is_deleted else p.content_markdown,
+        is_deleted=is_deleted,
         reply_to_post_uuid=p.reply_to_post.uuid if p.reply_to_post else None,
         tags=[
             TagBrief(uuid=bt.tag.uuid, name=bt.tag.name, scope=str(bt.tag.scope))

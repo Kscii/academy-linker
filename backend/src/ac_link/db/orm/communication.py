@@ -39,21 +39,21 @@ class DiscussionThread(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     parent_user: Mapped['User'] = relationship(back_populates='parent_threads', foreign_keys=[parent_user_id])
     teacher_user: Mapped['User'] = relationship(back_populates='teacher_threads', foreign_keys=[teacher_user_id])
     posts: Mapped[list['Post']] = relationship(back_populates='thread', cascade='all, delete-orphan')
-    participant_states: Mapped[list['DiscussionParticipantState']] = relationship(back_populates='thread', cascade='all, delete-orphan')
+    participant_states: Mapped[list['ThreadUserState']] = relationship(back_populates='thread', cascade='all, delete-orphan')
 
 
-class DiscussionParticipantState(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
-    __tablename__ = 'discussion_participant_states'
+class ThreadUserState(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
+    __tablename__ = 'thread_user_states'
     __table_args__ = (
-        UniqueConstraint('thread_id', 'user_id', name=uq('discussion_participant_states', 'thread_id', 'user_id')),
-        Index('ix_discussion_participant_states_user_unread', 'user_id', 'unread_post_count'),
+        UniqueConstraint('thread_id', 'user_id', name=uq('thread_user_states', 'thread_id', 'user_id')),
+        Index('ix_thread_user_states_user_unread', 'user_id', 'unread_count_cache'),
     )
 
     thread_id: Mapped[int] = mapped_column(ForeignKey('discussion_threads.id', ondelete='CASCADE'), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     last_read_post_id: Mapped[int | None] = mapped_column(ForeignKey('posts.id', ondelete='SET NULL'), nullable=True)
     last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    unread_post_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    unread_count_cache: Mapped[int] = mapped_column(nullable=False, default=0)
 
     thread: Mapped['DiscussionThread'] = relationship(back_populates='participant_states')
     user: Mapped['User'] = relationship(back_populates='discussion_states')
@@ -73,44 +73,43 @@ class Post(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     content_markdown: Mapped[str] = mapped_column(Text, nullable=False)
     reply_to_post_id: Mapped[int | None] = mapped_column(ForeignKey('posts.id', ondelete='SET NULL'), nullable=True)
-    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     thread: Mapped['DiscussionThread'] = relationship(back_populates='posts')
     author_user: Mapped['User'] = relationship(back_populates='posts')
     reply_to_post: Mapped['Post | None'] = relationship(remote_side='Post.id')
-    post_tags: Mapped[list['PostTagBinding']] = relationship(back_populates='post', cascade='all, delete-orphan')
+    post_tags: Mapped[list['PostTag']] = relationship(back_populates='post', cascade='all, delete-orphan')
 
 
 class Tag(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     __tablename__ = 'tags'
     __table_args__ = (
-        UniqueConstraint('owner_user_id', 'name', 'scope', name=uq('tags', 'owner_user_id', 'name', 'scope')),
+        UniqueConstraint('owner_teacher_user_id', 'name', 'scope', name=uq('tags', 'owner_teacher_user_id', 'name', 'scope')),
         Index('uq_system_tags_name', 'name', unique=True, postgresql_where=text("scope = 'system'")),
-        Index('ix_tags_scope_owner_user_id', 'scope', 'owner_user_id'),
+        Index('ix_tags_scope_owner_teacher_user_id', 'scope', 'owner_teacher_user_id'),
     )
 
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     scope: Mapped[TagScope] = mapped_column(enum_column(TagScope, 'tag_scope'), nullable=False)
-    owner_user_id: Mapped[int | None] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    owner_teacher_user_id: Mapped[int | None] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     is_selectable_by_parent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_selectable_by_teacher: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     affects_business_logic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    owner_user: Mapped['User | None'] = relationship(back_populates='owned_tags')
-    post_bindings: Mapped[list['PostTagBinding']] = relationship(back_populates='tag', cascade='all, delete-orphan')
+    owner_user: Mapped['User | None'] = relationship(back_populates='owned_tags', foreign_keys=[owner_teacher_user_id])
+    post_bindings: Mapped[list['PostTag']] = relationship(back_populates='tag', cascade='all, delete-orphan')
 
 
-class PostTagBinding(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
-    __tablename__ = 'post_tag_bindings'
+class PostTag(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
+    __tablename__ = 'post_tags'
     __table_args__ = (
-        UniqueConstraint('post_id', 'tag_id', name=uq('post_tag_bindings', 'post_id', 'tag_id')),
-        Index('ix_post_tag_bindings_tag_id_post_id', 'tag_id', 'post_id'),
+        UniqueConstraint('post_id', 'tag_id', name=uq('post_tags', 'post_id', 'tag_id')),
+        Index('ix_post_tags_tag_id_post_id', 'tag_id', 'post_id'),
     )
 
     post_id: Mapped[int] = mapped_column(ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
     tag_id: Mapped[int] = mapped_column(ForeignKey('tags.id', ondelete='CASCADE'), nullable=False)
 
-    post: Mapped['Post'] = relationship(back_populates='post_tags')
-    tag: Mapped['Tag'] = relationship(back_populates='post_bindings')
+    post: Mapped['Post'] = relationship(back_populates='post_tags', foreign_keys=[post_id])
+    tag: Mapped['Tag'] = relationship(back_populates='post_bindings', foreign_keys=[tag_id])

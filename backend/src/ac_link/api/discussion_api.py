@@ -89,7 +89,7 @@ def update_post(
     _require_parent_or_teacher(current_user)
 
     post = discussion_crud.get_post_by_uuid(db, post_uuid)
-    if post is None or post.is_deleted:
+    if post is None or post.deleted_at is not None:
         raise Errors.not_found("帖子不存在")
 
     if post.author_user_id != current_user.id:
@@ -125,7 +125,7 @@ def delete_post(
     _require_parent_or_teacher(current_user)
 
     post = discussion_crud.get_post_by_uuid(db, post_uuid)
-    if post is None or post.is_deleted:
+    if post is None or post.deleted_at is not None:
         raise Errors.not_found("帖子不存在")
 
     if post.author_user_id != current_user.id:
@@ -157,9 +157,9 @@ def _validate_tags_for_role(user: User, tags: list[Tag], thread: object) -> None
 
     if user.role == UserRole.PARENT:
         for tag in tags:
-            if tag.scope == TagScope.TEACHER_PRIVATE and tag.owner_user_id != t.teacher_user_id:
+            if tag.scope == TagScope.TEACHER_PRIVATE and tag.owner_teacher_user_id != t.teacher_user_id:
                 raise AppError(403, "forbidden", f"Tag「{tag.name}」不是此讨论教师的私有 tag")
     elif user.role == UserRole.TEACHER:
         for tag in tags:
-            if tag.scope == TagScope.TEACHER_PRIVATE and tag.owner_user_id != user.id:
+            if tag.scope == TagScope.TEACHER_PRIVATE and tag.owner_teacher_user_id != user.id:
                 raise AppError(403, "forbidden", f"Tag「{tag.name}」不是你的私有 tag")

@@ -1,6 +1,6 @@
 from ac_link.db.orm.academic import Class, ParentStudentBinding, Student, StudentExamScore, StudentPeriodMetric, Subject, TeachingAssignment
 from ac_link.db.orm.base import Base
-from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, PostTagBinding, Tag
+from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, PostTag, Tag
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 from ac_link.db.orm.enums import (
     AnnouncementCategory,
@@ -37,10 +37,10 @@ __all__ = [
     'StudentExamScore',
     'StudentPeriodMetric',
     'DiscussionThread',
-    'DiscussionParticipantState',
+    'ThreadUserState',
     'Post',
     'Tag',
-    'PostTagBinding',
+    'PostTag',
     'Report',
     'ReportUserState',
     'Announcement',

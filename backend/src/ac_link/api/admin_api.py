@@ -563,7 +563,7 @@ def create_system_tag(
             db,
             name=body.name,
             scope=TagScope.SYSTEM,
-            owner_user_id=None,
+            owner_teacher_user_id=None,
             is_selectable_by_parent=body.is_selectable_by_parent,
             is_selectable_by_teacher=body.is_selectable_by_teacher,
             affects_business_logic=body.affects_business_logic,

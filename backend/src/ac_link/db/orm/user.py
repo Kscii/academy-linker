@@ -13,7 +13,7 @@ from ac_link.db.orm.sqltypes import enum_column
 
 if TYPE_CHECKING:
     from ac_link.db.orm.academic import Class, ParentStudentBinding, StudentExamScore, StudentPeriodMetric, TeachingAssignment
-    from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post, Tag
+    from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, Tag
     from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 
 
@@ -52,7 +52,7 @@ class User(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     )
     posts: Mapped[list['Post']] = relationship(back_populates='author_user')
     owned_tags: Mapped[list['Tag']] = relationship(back_populates='owner_user')
-    discussion_states: Mapped[list['DiscussionParticipantState']] = relationship(back_populates='user')
+    discussion_states: Mapped[list['ThreadUserState']] = relationship(back_populates='user')
 
     authored_reports: Mapped[list['Report']] = relationship(back_populates='author_user')
     report_states: Mapped[list['ReportUserState']] = relationship(back_populates='user')

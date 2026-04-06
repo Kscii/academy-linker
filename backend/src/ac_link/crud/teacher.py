@@ -26,7 +26,7 @@ from sqlalchemy import func, nullslast, select
 from sqlalchemy.orm import Session, joinedload
 
 from ac_link.db.orm.academic import Class, Student, Subject, TeachingAssignment
-from ac_link.db.orm.communication import DiscussionParticipantState, DiscussionThread, Post
+from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post
 from ac_link.db.orm.content import Announcement, Report
 from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType, TranslationStatus
 
@@ -83,7 +83,7 @@ def list_teacher_students(
         .filter(
             DiscussionThread.teacher_user_id == teacher_user_id,
             DiscussionThread.student_id == Student.id,
-            Post.is_deleted == False,  # noqa: E712
+            Post.deleted_at.is_(None),
         )
         .correlate(Student)
         .scalar_subquery()
@@ -179,12 +179,12 @@ def get_teacher_unread_post_count(
 ) -> int:
     """汇总该教师在该学生所有 thread 中的未读帖子缓存数。"""
     result = (
-        db.query(func.sum(DiscussionParticipantState.unread_post_count))
-        .join(DiscussionThread, DiscussionThread.id == DiscussionParticipantState.thread_id)
+        db.query(func.sum(ThreadUserState.unread_count_cache))
+        .join(DiscussionThread, DiscussionThread.id == ThreadUserState.thread_id)
         .filter(
             DiscussionThread.student_id == student_id,
             DiscussionThread.teacher_user_id == teacher_user_id,
-            DiscussionParticipantState.user_id == teacher_user_id,
+            ThreadUserState.user_id == teacher_user_id,
         )
         .scalar()
     )
