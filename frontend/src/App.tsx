@@ -13,6 +13,7 @@ import {
 } from 'react-router-dom';
 
 import { AppProvider, useApp } from '@/contexts/AppContext';
+import { LandingPage } from '@/screens/LandingPage';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { AIPanel } from '@/components/AIPanel';
@@ -56,7 +57,7 @@ function ProtectedRoute() {
 function RootRedirect() {
   const { isLoggedIn, authChecked, role, firstStudentUuid } = useApp();
   if (!authChecked) return null;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  if (!isLoggedIn) return <Navigate to="/home" replace />;
   if (role === 'parent') return <Navigate to={`/parent/students/${firstStudentUuid}/dashboard`} replace />;
   if (role === 'admin')  return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/teacher/dashboard" replace />;
@@ -100,6 +101,7 @@ function AppLayout() {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/home" element={<LandingPage />} />
       <Route path="/login" element={<LoginScreen />} />
 
       <Route element={<ProtectedRoute />}>
