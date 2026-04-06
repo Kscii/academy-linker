@@ -5,7 +5,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
-import { mockAnnouncements } from '@/lib/mock-data';
 import { parent as parentApi } from '@/lib/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 import type { Announcement } from '@/types/api';
@@ -42,9 +41,8 @@ export function AnnouncementsScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const readSet = readAnnouncementIds;
 
-  // Initialize with mock data; replaced by API data when available
-  const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements);
-  const [txAnn, setTxAnn] = useState(mockAnnouncements);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [txAnn, setTxAnn] = useState<Announcement[]>([]);
 
   // Fetch real announcements from API
   useEffect(() => {
@@ -52,7 +50,9 @@ export function AnnouncementsScreen() {
     parentApi.getAnnouncements(studentUuid).then(res => {
       setAnnouncements(res.data);
       setAnnouncementUuids(res.data.map(a => a.uuid));
-    }).catch(() => { /* keep mock */ });
+      // Sync server-side is_read to local state
+      res.data.filter(a => a.is_read).forEach(a => markAnnouncementRead(a.uuid));
+    }).catch(() => {});
   }, [studentUuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export function AnnouncementsScreen() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 20 }}>
         <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 6 }}>
           {txTitle}
         </div>
@@ -151,6 +151,18 @@ export function AnnouncementsScreen() {
           {txSubtitle}
         </div>
       </div>
+
+      {/* Unread count banner — directly under title */}
+      {announcements.filter(a => !readSet.has(a.uuid)).length > 0 && (
+        <div style={{
+          background: 'rgba(232,97,78,0.08)', border: '1px solid rgba(232,97,78,0.2)',
+          borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--a1)',
+        }}>
+          <span style={{ fontSize: 16 }}>📢</span>
+          <strong>{announcements.filter(a => !readSet.has(a.uuid)).length} {txUnread}</strong>
+        </div>
+      )}
 
       {/* ── Teacher class posts ── */}
       {myTeacherPosts.length > 0 && (
@@ -234,18 +246,6 @@ export function AnnouncementsScreen() {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* Unread count banner */}
-      {announcements.filter(a => !readSet.has(a.uuid)).length > 0 && (
-        <div style={{
-          background: 'rgba(232,97,78,0.08)', border: '1px solid rgba(232,97,78,0.2)',
-          borderRadius: 10, padding: '12px 16px', marginBottom: 20,
-          display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--a1)',
-        }}>
-          <span style={{ fontSize: 16 }}>📢</span>
-          <strong>{announcements.filter(a => !readSet.has(a.uuid)).length} {txUnread}</strong>
         </div>
       )}
 

@@ -9,4 +9,8 @@
   "parentConversations": "家长对话",
   "language": "语言",
   "posts": "班级帖子"
+,
+  "teachers": "教师", "classes": "班级", "students": "学生", "parents": "家长"
+,
+  "grades": "成绩"
 }

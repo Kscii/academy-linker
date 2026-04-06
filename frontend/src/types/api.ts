@@ -40,7 +40,7 @@ export interface TranslationBlock {
 
 // ── Users ────────────────────────────────────────────────────
 
-export type UserRole = 'parent' | 'teacher';
+export type UserRole = 'parent' | 'teacher' | 'admin';
 
 export interface UserSummary {
   uuid: string;
@@ -60,6 +60,40 @@ export interface StudentSummary {
   grade?: string;
   class_name?: string;
   overall_score?: number;
+  birthday?: string;    // ISO date string "YYYY-MM-DD"
+}
+
+// ── Leave Requests ───────────────────────────────────────────
+
+export type LeaveRequestType = 'sick' | 'personal' | 'family' | 'other';
+export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LeaveRequest {
+  uuid: string;
+  student_uuid: string;
+  type: LeaveRequestType;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: LeaveRequestStatus;
+  submitted_at: string;
+}
+
+export interface CreateLeaveRequest {
+  type: LeaveRequestType;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+}
+
+// ── Incident Reports ─────────────────────────────────────────
+
+export type IncidentType = 'bullying' | 'drugs' | 'misconduct' | 'other';
+
+export interface CreateIncidentReport {
+  type: IncidentType;
+  description: string;
+  is_anonymous: boolean;
 }
 
 // ── Teachers ─────────────────────────────────────────────────
@@ -295,4 +329,85 @@ export interface UpdatePostRequest {
   title?: string;
   content_markdown?: string;
   tag_uuids?: string[];
+}
+
+// ── Admin ────────────────────────────────────────────────────
+
+export interface AdminOverview {
+  teacher_count: number;
+  student_count: number;
+  parent_count: number;
+  class_count: number;
+}
+
+export interface AdminTeacher {
+  uuid: string;
+  display_name: string;
+  email: string;
+  phone_number?: string | null;
+  subjects: string[];
+  student_count: number;
+}
+
+export interface AdminClassStudent {
+  uuid: string;
+  display_name: string;
+  full_name: string;
+  sid: string;
+}
+
+export interface AdminClass {
+  uuid: string;
+  name: string;
+  grade_level: string;
+  homeroom_teacher_uuid?: string | null;
+  homeroom_teacher_name?: string | null;
+  student_count: number;
+  students: AdminClassStudent[];
+}
+
+export interface AdminStudent {
+  uuid: string;
+  sid: string;
+  full_name: string;
+  preferred_name: string;
+  class_name: string;
+  grade_level: string;
+  parents: { uuid: string; display_name: string }[];
+}
+
+export interface AdminParent {
+  uuid: string;
+  display_name: string;
+  email: string;
+  phone_number?: string | null;
+  students: AdminClassStudent[];
+}
+
+export interface CreateTeacherRequest {
+  display_name: string;
+  email: string;
+  password?: string;
+  phone_number?: string;
+}
+
+export interface CreateClassRequest {
+  name: string;
+  grade_level: string;
+  homeroom_teacher_uuid?: string;
+}
+
+export interface CreateStudentRequest {
+  full_name: string;
+  preferred_name?: string;
+  sid?: string;
+  class_name?: string;
+  grade_level?: string;
+}
+
+export interface CreateParentRequest {
+  display_name: string;
+  email: string;
+  password?: string;
+  phone_number?: string;
 }

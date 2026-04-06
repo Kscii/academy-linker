@@ -9,4 +9,8 @@
   "parentConversations": "अभिभावक वार्तालाप",
   "language": "भाषा",
   "posts": "कक्षा पोस्ट"
+,
+  "teachers": "शिक्षक", "classes": "कक्षाएं", "students": "छात्र", "parents": "अभिभावक"
+,
+  "grades": "ग्रेड"
 }
