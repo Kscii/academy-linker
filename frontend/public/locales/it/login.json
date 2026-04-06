@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "Piattaforma di comunicazione scolastica",
+  "emailLabel": "Indirizzo e-mail",
+  "emailPlaceholder": "tuo@email.com",
+  "passwordLabel": "Password",
+  "passwordPlaceholder": "Inserisci la password",
+  "rememberMe": "Ricordami",
+  "signIn": "Accedi",
+  "signingIn": "Accesso in corso…",
+  "invalidCredentials": "E-mail o password non validi",
+  "selectRole": "Seleziona il tuo ruolo",
+  "parentRole": "Genitore",
+  "teacherRole": "Insegnante",
+  "parentDesc": "Visualizza i progressi di tuo figlio",
+  "teacherDesc": "Gestisci le tue classi"
+}

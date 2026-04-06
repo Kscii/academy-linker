@@ -1,0 +1,21 @@
+{
+  "save": "I-save",
+  "cancel": "Kanselahin",
+  "close": "Isara",
+  "back": "Bumalik",
+  "send": "Ipadala",
+  "delete": "Burahin",
+  "edit": "I-edit",
+  "loading": "Naglo-load…",
+  "error": "May nangyaring mali",
+  "signOut": "Mag-sign out",
+  "signedInAs": "Naka-sign in bilang",
+  "dayMode": "Day Mode",
+  "nightMode": "Night Mode",
+  "parent": "Magulang",
+  "teacher": "Guro",
+  "settings": "Mga Setting",
+  "viewAll": "Tingnan lahat →",
+  "search": "Maghanap…",
+  "noResults": "Walang resulta"
+}

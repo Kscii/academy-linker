@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "Nền tảng giao tiếp học đường",
+  "emailLabel": "Địa chỉ email",
+  "emailPlaceholder": "email@cua.ban.com",
+  "passwordLabel": "Mật khẩu",
+  "passwordPlaceholder": "Nhập mật khẩu của bạn",
+  "rememberMe": "Ghi nhớ tôi",
+  "signIn": "Đăng nhập",
+  "signingIn": "Đang đăng nhập…",
+  "invalidCredentials": "Email hoặc mật khẩu không hợp lệ",
+  "selectRole": "Chọn vai trò của bạn",
+  "parentRole": "Phụ huynh",
+  "teacherRole": "Giáo viên",
+  "parentDesc": "Xem tiến độ học tập của con",
+  "teacherDesc": "Quản lý lớp học của bạn"
+}

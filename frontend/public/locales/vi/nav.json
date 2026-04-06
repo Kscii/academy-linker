@@ -1,0 +1,16 @@
+{
+  "dashboard": "Trang chủ",
+  "messages": "Tin nhắn",
+  "reports": "Báo cáo",
+  "notices": "Thông báo",
+  "resources": "Tài liệu",
+  "findStudent": "Tìm học sinh",
+  "settings": "Cài đặt",
+  "parentConversations": "Cuộc hội thoại với phụ huynh",
+  "language": "Ngôn ngữ",
+  "posts": "Bài đăng lớp"
+,
+  "teachers": "Giáo viên", "classes": "Lớp học", "students": "Học sinh", "parents": "Phụ huynh"
+,
+  "grades": "Điểm số"
+}

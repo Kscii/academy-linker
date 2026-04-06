@@ -1,0 +1,21 @@
+{
+  "save": "Lưu",
+  "cancel": "Hủy",
+  "close": "Đóng",
+  "back": "Quay lại",
+  "send": "Gửi",
+  "delete": "Xóa",
+  "edit": "Chỉnh sửa",
+  "loading": "Đang tải…",
+  "error": "Đã xảy ra lỗi",
+  "signOut": "Đăng xuất",
+  "signedInAs": "Đăng nhập với tư cách",
+  "dayMode": "Chế độ ban ngày",
+  "nightMode": "Chế độ ban đêm",
+  "parent": "Phụ huynh",
+  "teacher": "Giáo viên",
+  "settings": "Cài đặt",
+  "viewAll": "Xem tất cả →",
+  "search": "Tìm kiếm…",
+  "noResults": "Không có kết quả"
+}

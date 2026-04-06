@@ -1,0 +1,16 @@
+{
+  "dashboard": "대시보드",
+  "messages": "메시지",
+  "reports": "보고서",
+  "notices": "공지",
+  "resources": "학습 자료",
+  "findStudent": "학생 찾기",
+  "settings": "설정",
+  "parentConversations": "학부모 대화",
+  "language": "언어",
+  "posts": "수업 게시물"
+,
+  "teachers": "교사", "classes": "학급", "students": "학생", "parents": "학부모"
+,
+  "grades": "성적"
+}

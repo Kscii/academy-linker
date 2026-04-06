@@ -1,0 +1,16 @@
+{
+  "dashboard": "لوحة التحكم",
+  "messages": "الرسائل",
+  "reports": "التقارير",
+  "notices": "الإشعارات",
+  "resources": "الموارد",
+  "findStudent": "البحث عن طالب",
+  "settings": "الإعدادات",
+  "parentConversations": "محادثات أولياء الأمور",
+  "language": "اللغة",
+  "posts": "مشاركات الفصل"
+,
+  "teachers": "المعلمون", "classes": "الفصول", "students": "الطلاب", "parents": "أولياء الأمور"
+,
+  "grades": "الدرجات"
+}

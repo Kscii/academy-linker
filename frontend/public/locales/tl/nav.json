@@ -1,0 +1,16 @@
+{
+  "dashboard": "Dashboard",
+  "messages": "Mga Mensahe",
+  "reports": "Mga Ulat",
+  "notices": "Mga Abiso",
+  "resources": "Mga Mapagkukunan",
+  "findStudent": "Hanapin ang Mag-aaral",
+  "settings": "Mga Setting",
+  "parentConversations": "Mga Pag-uusap ng Magulang",
+  "language": "Wika",
+  "posts": "Mga Post ng Klase"
+,
+  "teachers": "Mga Guro", "classes": "Mga Klase", "students": "Mga Mag-aaral", "parents": "Mga Magulang"
+,
+  "grades": "Mga Marka"
+}

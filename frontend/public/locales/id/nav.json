@@ -1,0 +1,16 @@
+{
+  "dashboard": "Dasbor",
+  "messages": "Pesan",
+  "reports": "Laporan",
+  "notices": "Pengumuman",
+  "resources": "Sumber Belajar",
+  "findStudent": "Cari Siswa",
+  "settings": "Pengaturan",
+  "parentConversations": "Percakapan Orang Tua",
+  "language": "Bahasa",
+  "posts": "Postingan Kelas"
+,
+  "teachers": "Guru", "classes": "Kelas", "students": "Siswa", "parents": "Orang Tua"
+,
+  "grades": "Nilai"
+}
