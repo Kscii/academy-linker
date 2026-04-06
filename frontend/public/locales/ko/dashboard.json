@@ -19,5 +19,7 @@
   "newPosts": "새 게시물",
   "totalStudents": "전체 학생 수",
   "averageScore": "평균 점수",
-  "unreadMsgs": "읽지 않은 메시지"
+  "unreadMsgs": "읽지 않은 메시지",
+  "overallScore": "종합 점수",
+  "assignments": "과제"
 }

@@ -31,6 +31,7 @@ const PARENT_NAV: NavItem[] = [
 const TEACHER_NAV: NavItem[] = [
   { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '⊞', path: '/teacher/dashboard' },
   { id: 'messages',     labelKey: 'nav:messages',     icon: '✉', path: '/teacher/messages' },
+  { id: 'posts',        labelKey: 'nav:posts',        icon: '📝', path: '/teacher/posts' },
   { id: 'find-student', labelKey: 'nav:findStudent',  icon: '🔍', path: '/teacher/find-student' },
 ];
 
@@ -132,7 +133,7 @@ function UserProfile() {
 // ── AppShell ──────────────────────────────────────────────────
 
 export function AppShell() {
-  const { role, toggleTheme, theme, language, setLanguage, unreadMessageCount } = useApp();
+  const { role, toggleTheme, theme, language, setLanguage, unreadMessageCount, unreadNoticeCount } = useApp();
   const { t } = useTranslation(['common', 'nav']);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -172,6 +173,13 @@ export function AppShell() {
               <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
               {t(item.labelKey)}
               {item.id === 'messages' && unreadMessageCount > 0 && (
+                <span style={{
+                  marginLeft: 'auto',
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--a1)', flexShrink: 0,
+                }} />
+              )}
+              {item.id === 'notices' && unreadNoticeCount > 0 && (
                 <span style={{
                   marginLeft: 'auto',
                   width: 8, height: 8, borderRadius: '50%',

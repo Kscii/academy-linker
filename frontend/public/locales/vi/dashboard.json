@@ -19,5 +19,7 @@
   "newPosts": "Bài viết mới",
   "totalStudents": "Tổng số học sinh",
   "averageScore": "Điểm trung bình",
-  "unreadMsgs": "Tin nhắn chưa đọc"
+  "unreadMsgs": "Tin nhắn chưa đọc",
+  "overallScore": "Điểm tổng thể",
+  "assignments": "Bài tập"
 }

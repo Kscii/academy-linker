@@ -143,6 +143,12 @@ export const parent = {
   markReportRead: (reportUuid: string) =>
     apiFetch<void>(`/reports/${reportUuid}/read`, { method: 'POST' }),
 
+  generateReport: (reportUuid: string, language: string) =>
+    apiFetch<ApiResponse<{ content_markdown: string; cached: boolean }>>(
+      `/reports/${reportUuid}/generate`,
+      { method: 'POST', body: JSON.stringify({ language }) },
+    ),
+
   getAnnouncements: (studentUuid: string, page = 1) =>
     apiFetch<ApiListResponse<Announcement>>(
       `/parents/me/students/${studentUuid}/announcements?page=${page}`
@@ -155,6 +161,9 @@ export const parent = {
 
   markAnnouncementRead: (announcementUuid: string) =>
     apiFetch<void>(`/announcements/${announcementUuid}/read`, { method: 'POST' }),
+
+  markThreadRead: (threadUuid: string) =>
+    apiFetch<void>(`/threads/${threadUuid}/read`, { method: 'POST' }),
 
   getDiscussionTeachers: (studentUuid: string) =>
     apiFetch<ApiResponse<DiscussionTeacherItem[]>>(
@@ -179,6 +188,9 @@ export const teacher = {
     apiFetch<ApiResponse<TeacherDashboardResponse>>(
       `/teachers/me/students/${studentUuid}/dashboard`
     ),
+
+  markThreadRead: (threadUuid: string) =>
+    apiFetch<void>(`/threads/${threadUuid}/read`, { method: 'POST' }),
 
   getDiscussionParents: (studentUuid: string) =>
     apiFetch<ApiResponse<DiscussionTeacherItem[]>>(

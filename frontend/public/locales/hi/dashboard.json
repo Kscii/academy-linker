@@ -19,5 +19,7 @@
   "newPosts": "नई पोस्ट",
   "totalStudents": "कुल छात्र",
   "averageScore": "औसत अंक",
-  "unreadMsgs": "अपठित संदेश"
+  "unreadMsgs": "अपठित संदेश",
+  "overallScore": "कुल अंक",
+  "assignments": "असाइनमेंट"
 }

@@ -42,8 +42,8 @@ export const mockTeacherUser: UserSummary = {
 
 export const mockStudents: StudentSummary[] = [
   {
-    uuid: 'student-001',
-    display_name: 'Emily Wei',
+    uuid: 's-aiden-01',   // matches backend UUID (preferred name "Aiden", full name "Aiden Wei")
+    display_name: 'Aiden Wei',
     grade: 'Year 7',
     class_name: '7A',
     overall_score: 78,
@@ -134,11 +134,37 @@ export const mockSubjectPosts: Record<string, ThreadPost[]> = {
     makePost('post-e1', 'teacher-eng-001', 'Ms. Thompson', 'eng',
       'Creative Writing Assignment Feedback',
       "Emily's short story submission was creative and well-structured. She received **75/100**. The narrative voice was distinctive — her main growth area is varied sentence structure to improve flow. Encourage her to read widely this term.",
-      1),
+      1, [
+        {
+          uuid: 'reply-e1-1',
+          author: { uuid: 'parent-001', role: 'parent', display_name: 'Li Wei', email: 'li.wei@email.com' },
+          content_markdown: "Thank you so much, Ms. Thompson! We'll encourage Emily to read more novels this month. Are there any specific genres you'd recommend?",
+          created_at: new Date(Date.now() - 20 * 3600_000).toISOString(),
+          reply_to_post_uuid: 'post-e1',
+          replies: [], tags: [],
+        },
+      ]),
     makePost('post-e2', 'teacher-eng-001', 'Ms. Thompson', 'eng',
       'Reading Log Reminder',
       "A gentle reminder that **reading logs** are due every Friday. Emily has been consistent — keep it up! The next comprehension task covers persuasive texts, so non-fiction reading at home is especially helpful.",
-      5),
+      5, [
+        {
+          uuid: 'reply-e2-1',
+          author: { uuid: 'parent-001', role: 'parent', display_name: 'Li Wei', email: 'li.wei@email.com' },
+          content_markdown: "Noted! We've been reading a newspaper together on weekends — would that count as non-fiction practice?",
+          created_at: new Date(Date.now() - 4 * 86400_000).toISOString(),
+          reply_to_post_uuid: 'post-e2',
+          replies: [], tags: [],
+        },
+        {
+          uuid: 'reply-e2-2',
+          author: { uuid: 'teacher-eng-001', role: 'teacher', display_name: 'Ms. Thompson', email: 'thompson@westside.edu.au' },
+          content_markdown: "Absolutely! Newspaper articles are excellent for persuasive text comprehension. Keep it up!",
+          created_at: new Date(Date.now() - 3 * 86400_000 - 12 * 3600_000).toISOString(),
+          reply_to_post_uuid: 'post-e2',
+          replies: [], tags: [],
+        },
+      ]),
   ],
   'sub-sci': [
     makePost('post-s1', 'teacher-sci-001', 'Dr. Chen', 'sci',
@@ -448,23 +474,78 @@ export const mockAnnouncements: Announcement[] = [
   },
 ];
 
+// ── Direct Messages (parent ↔ teacher 1-on-1) ────────────────
+
+export interface DirectMessage {
+  uuid: string;
+  sender: 'parent' | 'teacher';
+  text: string;
+  sent_at: string;
+}
+
+const dm = (uuid: string, sender: 'parent' | 'teacher', text: string, hoursAgo: number): DirectMessage => ({
+  uuid, sender, text, sent_at: new Date(Date.now() - hoursAgo * 3600_000).toISOString(),
+});
+
+export const mockDirectMessages: Record<string, DirectMessage[]> = {
+  // Real backend thread UUID → same messages as thread-sub-eng (Ms. Thompson English thread)
+  'thread-parent01-teacher01-aiden': [
+    dm('dm-e1r', 'teacher', "Hello Li Wei! I wanted to follow up on Aiden's persuasive essay — the argument structure was solid but the conclusion needs more punch.", 96),
+    dm('dm-e2r', 'parent',  "Thanks Ms. Thompson. Is there a resource you'd recommend for strengthening conclusions?", 94),
+    dm('dm-e3r', 'teacher', "The BBC Bitesize writing guides are fantastic for this age group. I'll also run a small workshop next Tuesday.", 93),
+    dm('dm-e4r', 'parent',  "Hi Ms. Thompson, could you recommend any specific books that might help with sentence variety?", 48),
+    dm('dm-e5r', 'teacher', "Hi Li Wei! I'd recommend The Curious Incident by Mark Haddon for varied narrative voice. Aiden is doing really well overall!", 24),
+  ],
+  'thread-sub-math': [
+    dm('dm-m1', 'teacher', "Hi! Just wanted to let you know that Emily did really well on last week's algebra quiz — scored 91%. Keep encouraging that practice at home!", 72),
+    dm('dm-m2', 'parent',  "That's great to hear, thank you Mr. Roberts! She's been using Khan Academy in the evenings.", 71),
+    dm('dm-m3', 'teacher', "Excellent — that's exactly the kind of supplementary work that makes a difference. The next unit is quadratic expressions, starting Week 9.", 70),
+    dm('dm-m4', 'parent',  "Is there anything specific we should focus on to prepare?", 48),
+    dm('dm-m5', 'teacher', "Factoring and expanding brackets. I'll send a practice sheet via the school portal this Friday.", 47),
+    dm('dm-m6', 'parent',  "Perfect, we'll look out for it. Thanks!", 46),
+  ],
+  'thread-sub-eng': [
+    dm('dm-e1', 'teacher', "Hello Li Wei! I wanted to follow up on Emily's persuasive essay — the argument structure was solid but the conclusion needs more punch.", 96),
+    dm('dm-e2', 'parent',  "Thanks Ms. Thompson. Is there a resource you'd recommend for strengthening conclusions?", 94),
+    dm('dm-e3', 'teacher', "The BBC Bitesize writing guides are fantastic for this age group. I'll also run a small workshop next Tuesday if Emily would like to join.", 93),
+    dm('dm-e4', 'parent',  "Hi Ms. Thompson, thank you for the feedback on Emily's creative writing. Could you recommend any specific books that might help with sentence variety?", 48),
+    dm('dm-e5', 'teacher', "Hi Li Wei! Great question. I'd recommend The Curious Incident of the Dog in the Night-Time by Mark Haddon for varied narrative voice, and any Roald Dahl for punchy, varied sentence rhythms. Emily is doing really well overall!", 24),
+  ],
+  'thread-sub-sci': [
+    dm('dm-s1', 'teacher', "Emily's science fair project proposal has been approved! She chose water filtration — a great topic.", 120),
+    dm('dm-s2', 'parent',  "She's very excited about it! What materials will she need?", 118),
+    dm('dm-s3', 'teacher', "Mostly household items — sand, gravel, activated charcoal, plastic bottles. I've sent a full list to the school email.", 117),
+  ],
+};
+
+// Maps teacher-side studentUuid → threadUuid (for Ms. Thompson's parent conversations)
+export const mockTeacherStudentThreads: Record<string, string> = {
+  'student-001':  'thread-sub-eng',                      // offline mock fallback
+  's-aiden-01':   'thread-parent01-teacher01-aiden',     // real backend thread UUID
+};
+
 // ── Discussion Teachers ───────────────────────────────────────
 
-export const mockDiscussionTeachers: DiscussionTeacherItem[] = mockSubjects.map((sub, i) => ({
-  teacher: mockTeachers[sub.code],
-  thread_uuid: `thread-${sub.uuid}`,
-  last_post_at: new Date(Date.now() - i * 2 * 86400_000).toISOString(),
-  unread_count: i === 0 ? 1 : i === 1 ? 2 : 0,
-  subject: sub,
-  latest_message_preview: Object.values(mockSubjectPosts)[i]?.[0]?.content_markdown?.slice(0, 80) ?? '',
-}));
+export const mockDiscussionTeachers: DiscussionTeacherItem[] = mockSubjects.map((sub, i) => {
+  const threadUuid = `thread-${sub.uuid}`;
+  const dms = mockDirectMessages[threadUuid] ?? [];
+  const lastMsg = dms[dms.length - 1];
+  return {
+    teacher: mockTeachers[sub.code],
+    thread_uuid: threadUuid,
+    last_post_at: lastMsg?.sent_at ?? new Date(Date.now() - i * 2 * 86400_000).toISOString(),
+    unread_count: i === 0 ? 1 : i === 1 ? 2 : 0,
+    subject: sub,
+    latest_message_preview: lastMsg?.text ?? '',
+  };
+});
 
 // ── Teacher Students ──────────────────────────────────────────
 
 export const mockTeacherStudents: TeacherStudentItem[] = [
-  { student: { uuid: 'student-001', display_name: 'Emily Wei',      grade: 'Year 7', class_name: '7A', overall_score: 78 }, overall_score: 78, at_risk: false, unread_messages: 1, subjects: mockSubjects },
-  { student: { uuid: 'student-002', display_name: 'James Nguyen',   grade: 'Year 7', class_name: '7A', overall_score: 62 }, overall_score: 62, at_risk: true,  unread_messages: 3, subjects: mockSubjects },
-  { student: { uuid: 'student-003', display_name: 'Aisha Patel',    grade: 'Year 7', class_name: '7A', overall_score: 85 }, overall_score: 85, at_risk: false, unread_messages: 0, subjects: mockSubjects },
+  { student: { uuid: 's-aiden-01', display_name: 'Aiden Wei',       grade: 'Year 7', class_name: '7A', overall_score: 78 }, overall_score: 78, at_risk: false, unread_messages: 1, subjects: mockSubjects },
+  { student: { uuid: 's-priya-01', display_name: 'Priya Sharma',    grade: 'Year 7', class_name: '7A', overall_score: 90 }, overall_score: 90, at_risk: false, unread_messages: 0, subjects: mockSubjects },
+  { student: { uuid: 's-james-01', display_name: "James O'Brien",   grade: 'Year 7', class_name: '7A', overall_score: 66 }, overall_score: 66, at_risk: false, unread_messages: 0, subjects: mockSubjects },
   { student: { uuid: 'student-004', display_name: 'Luca Romano',    grade: 'Year 7', class_name: '7B', overall_score: 55 }, overall_score: 55, at_risk: true,  unread_messages: 2, subjects: mockSubjects },
   { student: { uuid: 'student-005', display_name: 'Sophie Chen',    grade: 'Year 7', class_name: '7B', overall_score: 91 }, overall_score: 91, at_risk: false, unread_messages: 0, subjects: mockSubjects },
   { student: { uuid: 'student-006', display_name: 'Marcus Johnson', grade: 'Year 7', class_name: '7B', overall_score: 73 }, overall_score: 73, at_risk: false, unread_messages: 1, subjects: mockSubjects },

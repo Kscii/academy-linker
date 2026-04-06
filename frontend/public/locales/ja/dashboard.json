@@ -19,5 +19,7 @@
   "newPosts": "新着投稿",
   "totalStudents": "生徒総数",
   "averageScore": "平均点",
-  "unreadMsgs": "未読メッセージ"
+  "unreadMsgs": "未読メッセージ",
+  "overallScore": "総合スコア",
+  "assignments": "課題"
 }

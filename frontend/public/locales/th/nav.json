@@ -7,5 +7,6 @@
   "findStudent": "ค้นหานักเรียน",
   "settings": "การตั้งค่า",
   "parentConversations": "การสนทนากับผู้ปกครอง",
-  "language": "ภาษา"
+  "language": "ภาษา",
+  "posts": "โพสต์ชั้นเรียน"
 }

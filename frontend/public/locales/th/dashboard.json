@@ -19,5 +19,7 @@
   "newPosts": "โพสต์ใหม่",
   "totalStudents": "นักเรียนทั้งหมด",
   "averageScore": "คะแนนเฉลี่ย",
-  "unreadMsgs": "ข้อความที่ยังไม่ได้อ่าน"
+  "unreadMsgs": "ข้อความที่ยังไม่ได้อ่าน",
+  "overallScore": "คะแนนรวม",
+  "assignments": "งานมอบหมาย"
 }

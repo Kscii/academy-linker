@@ -19,5 +19,7 @@
   "newPosts": "Catatan Baharu",
   "totalStudents": "Jumlah Pelajar",
   "averageScore": "Markah Purata",
-  "unreadMsgs": "Mesej Belum Dibaca"
+  "unreadMsgs": "Mesej Belum Dibaca",
+  "overallScore": "Jumlah Markah",
+  "assignments": "Tugasan"
 }

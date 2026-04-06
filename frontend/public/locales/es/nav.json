@@ -7,5 +7,6 @@
   "findStudent": "Buscar alumno",
   "settings": "Configuración",
   "parentConversations": "Conversaciones con padres",
-  "language": "Idioma"
+  "language": "Idioma",
+  "posts": "Publicaciones"
 }

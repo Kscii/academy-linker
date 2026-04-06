@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
+import { parent as parentApi } from '@/lib/api';
+import type { DashboardResponse } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
 
@@ -29,8 +31,20 @@ export function DashboardScreen() {
   const { sid } = useParams<{ sid: string }>();
   const { user, language } = useApp();
   const { t } = useTranslation('dashboard');
-  const student = mockStudents[0];
-  const dashboard = mockParentDashboard;
+
+  // Initialize with mock data so offline / pre-fetch renders correctly
+  const [dashboard, setDashboard] = useState<DashboardResponse>(mockParentDashboard);
+  const [studentName, setStudentName] = useState(mockStudents[0].display_name);
+
+  // Fetch real dashboard data
+  useEffect(() => {
+    if (!sid) return;
+    parentApi.getDashboard(sid).then(res => {
+      setDashboard(res.data);
+      if (res.data.student?.display_name) setStudentName(res.data.student.display_name);
+    }).catch(() => { /* keep mock fallback */ });
+  }, [sid]);
+
   const banner = dashboard.important_post_banners[0];
 
   // Trigger progress bar entrance animation after mount
@@ -48,14 +62,11 @@ export function DashboardScreen() {
     setTxChartData(dashboard.subject_chart);
     if (language === 'en') return;
     const names = dashboard.subjects.map(s => s.name);
-    const chartLabels = dashboard.subject_chart.map(d => d.label);
-    translateBatch([...names, ...chartLabels], language).then(results => {
-      const nameResults = results.slice(0, names.length);
-      const labelResults = results.slice(names.length);
-      setTxSubjects(dashboard.subjects.map((s, i) => ({ ...s, name: nameResults[i] || s.name })));
-      setTxChartData(dashboard.subject_chart.map((d, i) => ({ ...d, label: labelResults[i] || d.label })));
+    translateBatch(names, language).then(results => {
+      setTxSubjects(dashboard.subjects.map((s, i) => ({ ...s, name: results[i] || s.name })));
+      setTxChartData(dashboard.subject_chart.map((d, i) => ({ ...d, label: results[i] || d.label })));
     });
-  }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [language, dashboard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Translate banner content
   const txBannerSubject = useTranslatedText(banner?.subject ?? '', language);
@@ -69,7 +80,7 @@ export function DashboardScreen() {
           {t('goodMorning', { name: user?.display_name?.split(' ')[0] ?? 'Parent' })}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {t('studentUpdateToday', { student: student.display_name })} — <strong>Week 8, Term 2</strong>
+          {t('studentUpdateToday', { student: studentName })} — <strong>Week 8, Term 2</strong>
         </div>
       </div>
 
@@ -125,7 +136,7 @@ export function DashboardScreen() {
             <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--tx3)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 4, borderRadius: 2, background: 'var(--a1)', display: 'inline-block' }} />
-                {student.display_name.split(' ')[0]}
+                {studentName.split(' ')[0]}
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 4, borderRadius: 2, background: 'rgba(232,97,78,0.35)', display: 'inline-block' }} />

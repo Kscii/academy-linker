@@ -8,8 +8,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { mockSubjectDetails } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch } from '@/lib/translate';
-import type { ThreadPost } from '@/types/api';
+import { translateBatch, useTranslatedText, apiFetch } from '@/lib/translate';
+import { parent as parentApi } from '@/lib/api';
+import type { SubjectDetailResponse, ThreadPost } from '@/types/api';
 
 // ── Post board ────────────────────────────────────────────────
 
@@ -157,38 +158,85 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 export function SubjectDetailScreen() {
   const navigate = useNavigate();
   const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
-  const { language } = useApp();
+  const { language, classPosts, markPostRead } = useApp();
+  const txBack = useTranslatedText('← Back', language);
   const [showAvg, setShowAvg] = useState(false);
   const [period, setPeriod] = useState<'term' | 'year'>('term');
 
   const subjectUuid = subjectId ?? 'sub-math';
-  const detail = mockSubjectDetails[subjectUuid] ?? mockSubjectDetails['sub-math'];
+
+  // Initialize with mock data (offline fallback); replaced by API data when available
+  const [detail, setDetail] = useState<SubjectDetailResponse>(
+    mockSubjectDetails[subjectUuid] ?? mockSubjectDetails['sub-math']
+  );
+
+  // Mark class posts for this subject as read when entering the page
+  useEffect(() => {
+    classPosts
+      .filter(p => p.subject_name === detail.subject.name || p.target?.includes(subjectUuid))
+      .forEach(p => markPostRead(p.uuid));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectUuid]);
+
+  // Fetch real subject detail from API
+  useEffect(() => {
+    if (!sid) return;
+    parentApi.getSubjectDetail(sid, subjectUuid)
+      .then(res => setDetail(res.data))
+      .catch(() => { /* keep mock fallback */ });
+  }, [sid, subjectUuid]);
+
   const subject = detail.subject;
   const subjectColor = subject.color ?? 'var(--a1)';
 
   // ── Translated content state ──────────────────────────────────
   const [txPosts, setTxPosts] = useState(detail.posts);
   const [txSubjectName, setTxSubjectName] = useState(subject.name);
-  const [txAiSummary, setTxAiSummary] = useState(detail.ai_summary?.summary ?? '');
-  const [txSuggestions, setTxSuggestions] = useState(detail.ai_summary?.suggestions ?? []);
   const [txTimeline, setTxTimeline] = useState(detail.timeline);
+
+  // ── Live AI Insight ───────────────────────────────────────────
+  interface LiveInsight { summary: string; suggestions: string[] }
+  const [liveInsight, setLiveInsight] = useState<LiveInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  useEffect(() => {
+    setLiveInsight(null);
+    setInsightLoading(true);
+    apiFetch('/api/ai/insight', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject_name: detail.subject.name,
+        current_score: detail.overview.current_score,
+        term_avg: detail.overview.term_avg,
+        student_uuid: sid,
+        ui_language: language,
+      }),
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        const d = data.data;
+        if (d && typeof d.summary === 'string') {
+          setLiveInsight({ summary: d.summary, suggestions: Array.isArray(d.suggestions) ? d.suggestions : [] });
+        }
+      })
+      .catch(() => setLiveInsight(null))
+      .finally(() => setInsightLoading(false));
+  }, [subjectUuid, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setTxPosts(detail.posts);
     setTxSubjectName(subject.name);
-    setTxAiSummary(detail.ai_summary?.summary ?? '');
-    setTxSuggestions(detail.ai_summary?.suggestions ?? []);
     setTxTimeline(detail.timeline);
 
     if (language === 'en') return;
 
     const postTexts = detail.posts.flatMap(p => [p.title ?? '', p.content_markdown]);
-    const metaTexts = [
-      subject.name,
-      detail.ai_summary?.summary ?? '',
-      ...(detail.ai_summary?.suggestions ?? []),
-      ...detail.timeline.map(n => n.title),
-    ];
+    const metaTexts = [subject.name, ...detail.timeline.map(n => n.title)];
 
     translateBatch([...postTexts, ...metaTexts], language).then(results => {
       const postCount = postTexts.length;
@@ -203,22 +251,16 @@ export function SubjectDetailScreen() {
 
       let m = 0;
       setTxSubjectName(metaResults[m++] || subject.name);
-      setTxAiSummary(metaResults[m++] || (detail.ai_summary?.summary ?? ''));
-      const suggCount = detail.ai_summary?.suggestions?.length ?? 0;
-      setTxSuggestions(
-        (detail.ai_summary?.suggestions ?? []).map((s, i) => metaResults[m + i] || s)
-      );
-      m += suggCount;
       setTxTimeline(
         detail.timeline.map((n, i) => ({ ...n, title: metaResults[m + i] || n.title }))
       );
     });
-  }, [language, subjectUuid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [language, detail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
       <button
-        onClick={() => navigate(`/parent/students/${sid}/dashboard`)}
+        onClick={() => navigate(-1)}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -226,7 +268,7 @@ export function SubjectDetailScreen() {
           fontFamily: 'var(--font-body)',
         }}
       >
-        ← Back to Dashboard
+        {txBack}
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
@@ -342,28 +384,34 @@ export function SubjectDetailScreen() {
             ))}
           </div>
 
-          {detail.ai_summary && (
-            <div style={{
-              marginTop: 20, padding: '14px', borderRadius: 10,
-              background: 'linear-gradient(135deg, rgba(232,97,78,0.06), rgba(74,144,217,0.06))',
-              border: '1px solid var(--bd)',
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>✦</span> AI Insight
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 10 }}>
-                {txAiSummary}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {txSuggestions.map((s, i) => (
-                  <div key={i} style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 6 }}>
-                    <span style={{ color: subjectColor }}>→</span>
-                    {s}
-                  </div>
-                ))}
-              </div>
+          <div style={{
+            marginTop: 20, padding: '14px', borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(232,97,78,0.06), rgba(74,144,217,0.06))',
+            border: '1px solid var(--bd)',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>✦</span> AI Insight
             </div>
-          )}
+            {insightLoading ? (
+              <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>Generating insight…</div>
+            ) : liveInsight ? (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 10 }}>
+                  {liveInsight.summary}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {liveInsight.suggestions.map((s: string, i: number) => (
+                    <div key={i} style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 6 }}>
+                      <span style={{ color: subjectColor }}>→</span>
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>Unable to load insight.</div>
+            )}
+          </div>
         </div>
 
         <div className="card" style={{ overflowY: 'auto', maxHeight: 600 }}>

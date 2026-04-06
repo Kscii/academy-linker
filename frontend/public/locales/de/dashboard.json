@@ -19,5 +19,7 @@
   "newPosts": "Neue Beiträge",
   "totalStudents": "Schüler gesamt",
   "averageScore": "Durchschnittsnote",
-  "unreadMsgs": "Ungelesene Msgs"
+  "unreadMsgs": "Ungelesene Msgs",
+  "overallScore": "Gesamtpunktzahl",
+  "assignments": "Aufgaben"
 }

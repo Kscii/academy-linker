@@ -7,5 +7,6 @@
   "findStudent": "학생 찾기",
   "settings": "설정",
   "parentConversations": "학부모 대화",
-  "language": "언어"
+  "language": "언어",
+  "posts": "수업 게시물"
 }

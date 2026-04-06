@@ -1,9 +1,10 @@
 // ============================================================
-// AIPanel — Floating AI assistant (bottom-right FAB)
+// AIPanel — Floating AI assistant (bottom-right FAB, draggable)
 // Calls /api/ai/chat (DeepSeek backend)
 // ============================================================
 
 import { useState, useRef, useEffect } from 'react';
+import { apiFetch, translateBatch, useTranslatedText } from '@/lib/translate';
 
 interface Message {
   id: string;
@@ -12,9 +13,9 @@ interface Message {
 }
 
 interface AIPanelProps {
-  studentUuid?: string;  // 注入学生真实数据
-  reportUuid?: string;   // 当前简报页时注入简报内容
-  uiLanguage?: string;   // AI 默认回复语言
+  studentUuid?: string;
+  reportUuid?: string;
+  uiLanguage?: string;
 }
 
 let msgIdCounter = 0;
@@ -24,7 +25,7 @@ async function callAIChat(
   messages: { role: 'user' | 'assistant'; content: string }[],
   opts: { studentUuid?: string; reportUuid?: string; uiLanguage?: string } = {},
 ): Promise<string> {
-  const res = await fetch('/api/ai/chat', {
+  const res = await apiFetch('/api/ai/chat', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -44,7 +45,7 @@ async function callAIChat(
 
 async function loadChatHistory(): Promise<Message[]> {
   try {
-    const res = await fetch('/api/ai/chat/history', { credentials: 'include' });
+    const res = await apiFetch('/api/ai/chat/history');
     if (!res.ok) return [];
     const data = await res.json();
     return (data.data as { role: string; content: string }[]).map(m => ({
@@ -59,6 +60,7 @@ async function loadChatHistory(): Promise<Message[]> {
 
 export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelProps) {
   const [open, setOpen] = useState(false);
+
   const defaultGreeting = reportUuid
     ? 'Hi! I have read this report. Ask me anything about it, or I can summarise it for you.'
     : "Hi! I'm your AI assistant. Ask me anything about your student's progress.";
@@ -67,26 +69,47 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
     { id: genId(), role: 'assistant', text: defaultGreeting },
   ]);
 
-  // Translate greeting when language changes
+  // ── Translated static UI ──────────────────────────────────────
+  const txPlaceholder = useTranslatedText('Ask anything…', uiLanguage);
+  const txSend        = useTranslatedText('Send', uiLanguage);
+  const txTitle       = useTranslatedText('AI Assistant', uiLanguage);
+
+  // ── Translated greeting ───────────────────────────────────────
   useEffect(() => {
-    if (uiLanguage === 'en') return;
+    if (uiLanguage === 'en') {
+      setMessages(prev => [{ ...prev[0], text: defaultGreeting }, ...prev.slice(1)]);
+      return;
+    }
     import('@/lib/translate').then(({ translateText }) =>
       translateText(defaultGreeting, uiLanguage)
     ).then(translated => {
       setMessages(prev => {
-        if (prev.length === 1 && prev[0].role === 'assistant') {
-          return [{ ...prev[0], text: translated }];
+        if (prev[0]?.role === 'assistant') {
+          return [{ ...prev[0], text: translated }, ...prev.slice(1)];
         }
         return prev;
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiLanguage]);
+
+  // ── Translated quick chips ────────────────────────────────────
+  const baseChips = reportUuid
+    ? ['Summarise this report', 'What needs attention?', 'Action items for this week']
+    : ['Overall performance?', 'Which subject needs focus?', 'Tips to improve'];
+  const [chips, setChips] = useState(baseChips);
+
+  useEffect(() => {
+    if (uiLanguage === 'en') { setChips(baseChips); return; }
+    translateBatch(baseChips, uiLanguage).then(setChips);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiLanguage]);
+
+  // ── Chat state ────────────────────────────────────────────────
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 加载历史记录
   useEffect(() => {
     loadChatHistory().then(hist => {
       if (hist.length > 0) setMessages(prev => [...prev, ...hist]);
@@ -124,19 +147,92 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
     }
   };
 
+  // ── Draggable ─────────────────────────────────────────────────
+  // pos = {x, y} in viewport pixels (top-left of the panel).
+  // null = use default CSS (bottom: 24px, right: 24px).
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const panelRef  = useRef<HTMLDivElement>(null);
+  const hasMoved  = useRef(false);
+  const isDragging = useRef(false);
+
+  const startDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    // Only left-button for mouse
+    if ('button' in e && e.button !== 0) return;
+    e.stopPropagation();
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const rect = panelRef.current!.getBoundingClientRect();
+    const startPosX = rect.left;
+    const startPosY = rect.top;
+
+    isDragging.current = true;
+    hasMoved.current = false;
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      if (!isDragging.current) return;
+      const cx = 'touches' in ev ? (ev as TouchEvent).touches[0].clientX : (ev as MouseEvent).clientX;
+      const cy = 'touches' in ev ? (ev as TouchEvent).touches[0].clientY : (ev as MouseEvent).clientY;
+      const dx = cx - clientX;
+      const dy = cy - clientY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasMoved.current = true;
+      if (!hasMoved.current) return;
+      const panel = panelRef.current;
+      const pw = panel?.offsetWidth  ?? 52;
+      const ph = panel?.offsetHeight ?? 52;
+      setPos({
+        x: Math.max(0, Math.min(window.innerWidth  - pw, startPosX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - ph, startPosY + dy)),
+      });
+    };
+
+    const onUp = () => {
+      isDragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      document.removeEventListener('touchend',  onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('touchend',  onUp);
+  };
+
+  // FAB: toggle only if user didn't drag
+  const handleFabClick = () => {
+    if (hasMoved.current) return;
+    setOpen(o => !o);
+  };
+
+  const panelStyle: React.CSSProperties = pos
+    ? { position: 'fixed', left: pos.x, top: pos.y, bottom: 'auto', right: 'auto', zIndex: 200 }
+    : {};
+
   return (
-    <div className="ai-panel">
+    <div
+      ref={panelRef}
+      className="ai-panel"
+      style={panelStyle}
+    >
       {open && (
         <div className="ai-window">
-          {/* Header */}
-          <div style={{
-            padding: '14px 16px',
-            borderBottom: '1px solid var(--bd)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'var(--card)',
-          }}>
+          {/* Header — drag handle */}
+          <div
+            onMouseDown={startDrag}
+            onTouchStart={startDrag}
+            style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid var(--bd)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--card)',
+              cursor: 'grab',
+              userSelect: 'none',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 28, height: 28, borderRadius: '50%',
@@ -145,11 +241,12 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
                 fontSize: 14,
               }}>✦</div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>AI Assistant</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{txTitle}</div>
                 <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Powered by DeepSeek</div>
               </div>
             </div>
             <button
+              onMouseDown={e => e.stopPropagation()}
               onClick={() => setOpen(false)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx3)', fontSize: 18, lineHeight: 1 }}
             >×</button>
@@ -170,18 +267,15 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick chips — only when no conversation yet */}
+          {/* Quick chips */}
           {messages.length <= 1 && (
             <div className="ai-preset-chips">
-              {(reportUuid
-                ? ['Summarise this report', 'What needs attention?', 'Action items for this week']
-                : ['Overall performance?', 'Which subject needs focus?', 'Tips to improve']
-              ).map(chip => (
+              {chips.map((chip, i) => (
                 <button
-                  key={chip}
+                  key={i}
                   className="chip"
                   style={{ fontSize: 11 }}
-                  onClick={() => sendMessage(chip)}
+                  onClick={() => sendMessage(baseChips[i])}
                   disabled={thinking}
                 >{chip}</button>
               ))}
@@ -193,7 +287,7 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
             <input
               className="input-field"
               style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-              placeholder="Ask anything…"
+              placeholder={txPlaceholder}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') sendMessage(input); }}
@@ -204,13 +298,20 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
               style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}
               onClick={() => sendMessage(input)}
               disabled={thinking || !input.trim()}
-            >Send</button>
+            >{txSend}</button>
           </div>
         </div>
       )}
 
-      {/* FAB */}
-      <button className="ai-fab" onClick={() => setOpen(o => !o)} title="AI Assistant">
+      {/* FAB — also a drag handle when window is closed */}
+      <button
+        className="ai-fab"
+        onMouseDown={startDrag}
+        onTouchStart={startDrag}
+        onClick={handleFabClick}
+        title="AI Assistant"
+        style={{ cursor: 'grab' }}
+      >
         <span style={{ fontSize: 20 }}>✦</span>
       </button>
     </div>

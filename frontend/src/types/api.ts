@@ -110,6 +110,7 @@ export interface ImportantPostBanner {
 }
 
 export interface DashboardResponse {
+  student?: StudentSummary;          // returned by the real API
   summary_cards: SummaryCard[];
   subject_chart: ChartDataPoint[];   // bar chart data per subject
   trend_chart: ChartDataPoint[];     // line chart data over time
@@ -249,6 +250,33 @@ export interface TeacherDashboardResponse {
 }
 
 // ── Request bodies ───────────────────────────────────────────
+
+// ── Personalized class posts ─────────────────────────────────
+
+export interface PostReply {
+  uuid: string;
+  author_name: string;
+  role: 'parent' | 'teacher';
+  text: string;
+  sent_at: string;
+}
+
+/** A post published by a teacher to a class.
+ *  Each student in the class gets their own AI-personalized version. */
+export interface PersonalizedPost {
+  uuid: string;
+  title: string;
+  original_content: string;
+  target: 'all' | string;       // 'all' | classUuid
+  target_label: string;
+  subject_name?: string;
+  subject_color?: string;
+  created_at: string;
+  /** studentUuid → personalized content */
+  versions: Record<string, string>;
+  /** studentUuid → reply list */
+  replies: Record<string, PostReply[]>;
+}
 
 export interface LoginRequest {
   email: string;
