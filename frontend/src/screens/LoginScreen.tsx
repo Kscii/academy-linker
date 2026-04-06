@@ -262,12 +262,18 @@ export function LoginScreen() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '24px 32px 0',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => navigate('/home')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}
+          >
             <LogoMark size={28} />
             <span className="font-serif" style={{ fontSize: 14, color: 'var(--tx)', fontWeight: 400 }}>
               Academy Linker
             </span>
-          </div>
+          </button>
           <button
             onClick={toggleTheme}
             style={{
