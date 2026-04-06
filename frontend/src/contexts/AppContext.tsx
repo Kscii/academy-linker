@@ -15,7 +15,7 @@ import {
 import i18n from '@/i18n';
 import type { UserSummary, PersonalizedPost, PostReply } from '@/types/api';
 import { auth, parent as parentApi } from '@/lib/api';
-import { mockParentUser, mockTeacherUser, mockDiscussionTeachers, mockTeacherStudents, mockAnnouncements, mockDirectMessages, SUBJECT_COLORS } from '@/lib/mock-data';
+import { mockParentUser, mockTeacherUser, mockAnnouncements, mockDirectMessages, SUBJECT_COLORS } from '@/lib/mock-data';
 import type { DirectMessage } from '@/lib/mock-data';
 
 // Hardcoded demo credentials for fallback when backend is offline
@@ -56,8 +56,8 @@ interface AppContextValue {
 
   /* Role — kept in context so sidebar can determine which nav to show.
      Synced from URL by AppLayout (in App.tsx). */
-  role: 'parent' | 'teacher';
-  setRole: (r: 'parent' | 'teacher') => void;
+  role: 'parent' | 'teacher' | 'admin';
+  setRole: (r: 'parent' | 'teacher' | 'admin') => void;
 
   /* Auth */
   user: UserSummary | null;
@@ -68,7 +68,7 @@ interface AppContextValue {
     email: string,
     password: string,
     rememberMe: boolean
-  ) => Promise<{ role: 'parent' | 'teacher'; firstStudentUuid: string }>;
+  ) => Promise<{ role: 'parent' | 'teacher' | 'admin'; firstStudentUuid: string }>;
   logout: () => void;
 
   /* Language */
@@ -105,42 +105,83 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+// ── localStorage persistence keys ────────────────────────────
+const LS_READ_ANN    = 'al_read_ann_v2';
+const LS_READ_POSTS  = 'al_read_posts_v2';
+const LS_THREAD_CNTS = 'al_thread_counts_v2';
+
+function lsLoadSet(key: string, defaults: string[]): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch { /* ignore */ }
+  return new Set(defaults);
+}
+
+function lsLoadRecord(key: string, defaults: Record<string, number>): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as Record<string, number>;
+  } catch { /* ignore */ }
+  return defaults;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<'day' | 'night'>('day');
-  const [role, setRoleState] = useState<'parent' | 'teacher'>('parent');
+  const [theme, setTheme] = useState<'day' | 'night'>(() => {
+    const saved = localStorage.getItem('al_theme');
+    if (saved === 'night' || saved === 'day') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day';
+  });
+  const [role, setRoleState] = useState<'parent' | 'teacher' | 'admin'>('parent');
   const [user, setUser] = useState<UserSummary | null>(null);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [firstStudentUuid, setFirstStudentUuid] = useState('');
   const [language, setLanguageState] = useState(i18n.language?.slice(0, 2) || 'en');
-  // Thread unread counts: thread_uuid (parent) or student.uuid (teacher) → count
-  const [threadUnreadCounts, setThreadUnreadCounts] = useState<Record<string, number>>(() => ({
-    ...Object.fromEntries(mockDiscussionTeachers.map(t => [t.thread_uuid, t.unread_count])),
-    ...Object.fromEntries(mockTeacherStudents.map(s => [s.student.uuid, s.unread_messages])),
-  }));
+
+  // Thread unread counts — persisted so read state survives refresh
+  // Default is empty: real counts come from the API (MessagesScreen)
+  const [threadUnreadCounts, setThreadUnreadCounts] = useState<Record<string, number>>(() =>
+    lsLoadRecord(LS_THREAD_CNTS, {})
+  );
+  useEffect(() => {
+    localStorage.setItem(LS_THREAD_CNTS, JSON.stringify(threadUnreadCounts));
+  }, [threadUnreadCounts]);
 
   const markThreadRead = useCallback((key: string) => {
     setThreadUnreadCounts(prev => ({ ...prev, [key]: 0 }));
-    // Best-effort backend sync
     fetch(`/api/threads/${key}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
   }, []);
 
   const updateThreadUnreadCounts = useCallback((counts: Record<string, number>) => {
-    setThreadUnreadCounts(prev => ({ ...prev, ...counts }));
+    setThreadUnreadCounts(prev => {
+      const next = { ...prev };
+      for (const [key, count] of Object.entries(counts)) {
+        // Only raise the count — never override a locally-cleared (0) entry with stale server data
+        if (count > (prev[key] ?? 0)) next[key] = count;
+      }
+      return next;
+    });
   }, []);
 
-  const [readAnnouncementIds, setReadAnnouncementIds] = useState<Set<string>>(
-    new Set(mockAnnouncements.filter(a => a.is_read).map(a => a.uuid).concat(['ann-003']))
+  // Read announcement IDs — persisted
+  const [readAnnouncementIds, setReadAnnouncementIds] = useState<Set<string>>(() =>
+    lsLoadSet(LS_READ_ANN, mockAnnouncements.filter(a => a.is_read).map(a => a.uuid).concat(['ann-003']))
   );
+  useEffect(() => {
+    localStorage.setItem(LS_READ_ANN, JSON.stringify([...readAnnouncementIds]));
+  }, [readAnnouncementIds]);
 
   const markAnnouncementRead = useCallback((id: string) => {
     setReadAnnouncementIds(prev => new Set([...prev, id]));
   }, []);
 
-  // Class posts read tracking (frontend-only, no backend needed)
-  const [readPostIds, setReadPostIds] = useState<Set<string>>(
-    // Seed posts that already have parent replies are considered read
-    new Set(['cp-seed-1', 'cp-seed-2'])
+  // Class post read IDs — persisted
+  const [readPostIds, setReadPostIds] = useState<Set<string>>(() =>
+    lsLoadSet(LS_READ_POSTS, ['cp-seed-1', 'cp-seed-2'])
   );
+  useEffect(() => {
+    localStorage.setItem(LS_READ_POSTS, JSON.stringify([...readPostIds]));
+  }, [readPostIds]);
 
   const markPostRead = useCallback((id: string) => {
     setReadPostIds(prev => new Set([...prev, id]));
@@ -228,10 +269,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  // Total unread = sum from dynamic threadUnreadCounts map
-  const unreadMessageCount = role === 'parent'
-    ? mockDiscussionTeachers.reduce((sum, t) => sum + (threadUnreadCounts[t.thread_uuid] ?? 0), 0)
-    : mockTeacherStudents.reduce((sum, s) => sum + (threadUnreadCounts[s.student.uuid] ?? 0), 0);
+  // Total unread = sum of all persisted counts (populated by MessagesScreen API call)
+  const unreadMessageCount = Object.values(threadUnreadCounts).reduce((sum, c) => sum + c, 0);
 
   // Restore session on page load:
   // 1. Immediately restore from localStorage (works offline, no flash)
@@ -240,7 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const stored = loadSession();
     if (stored) {
       setUser(stored.user);
-      setRoleState(stored.user.role as 'parent' | 'teacher');
+      setRoleState(stored.user.role as 'parent' | 'teacher' | 'admin');
       setFirstStudentUuid(stored.firstStudentUuid);
       setInitialCheckDone(true);   // show app immediately
     }
@@ -252,7 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     Promise.race([auth.getMe(), timeout]).then(async (res) => {
       const u = res.data.user;
       setUser(u);
-      setRoleState(u.role as 'parent' | 'teacher');
+      setRoleState(u.role as 'parent' | 'teacher' | 'admin');
       let sid = stored?.firstStudentUuid ?? '';
       if (u.role === 'parent') {
         try {
@@ -267,7 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Apply theme class to <html>
+  // Apply theme class to <html> and persist
   useEffect(() => {
     const html = document.documentElement;
     if (theme === 'night') {
@@ -275,13 +314,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       html.classList.remove('night');
     }
+    localStorage.setItem('al_theme', theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'day' ? 'night' : 'day'));
   }, []);
 
-  const setRole = useCallback((r: 'parent' | 'teacher') => {
+  const setRole = useCallback((r: 'parent' | 'teacher' | 'admin') => {
     setRoleState(r);
   }, []);
 
@@ -294,13 +334,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     rememberMe: boolean,
-  ): Promise<{ role: 'parent' | 'teacher'; firstStudentUuid: string }> => {
+  ): Promise<{ role: 'parent' | 'teacher' | 'admin'; firstStudentUuid: string }> => {
     // Try real backend first
     try {
       const res = await auth.login({ email, password, remember_me: rememberMe });
       const userFromApi = res.data.user;
       setUser(userFromApi);
-      const apiRole = userFromApi.role as 'parent' | 'teacher';
+      const apiRole = userFromApi.role as 'parent' | 'teacher' | 'admin';
       setRoleState(apiRole);
       let sid = '';
       if (apiRole === 'parent') {

@@ -148,8 +148,11 @@ vite.config.ts.timestamp-*
 .agents/
 .cursor/
 
-# Mock backend — dev only, not for production
-mock_server.py
 __pycache__/
 *.pyc
+
+# Environment secrets — never commit
+.env
+.env.local
+.env.*.local
 

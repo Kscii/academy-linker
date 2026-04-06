@@ -233,6 +233,8 @@ export function LoginScreen() {
       const result = await login(email, password, rememberMe);
       if (result.role === 'parent') {
         navigate(`/parent/students/${result.firstStudentUuid}/dashboard`, { replace: true });
+      } else if (result.role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/teacher/dashboard', { replace: true });
       }

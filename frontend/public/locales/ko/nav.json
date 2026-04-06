@@ -9,4 +9,8 @@
   "parentConversations": "학부모 대화",
   "language": "언어",
   "posts": "수업 게시물"
+,
+  "teachers": "교사", "classes": "학급", "students": "학생", "parents": "학부모"
+,
+  "grades": "성적"
 }

@@ -21,11 +21,19 @@ import { SettingsScreen } from '@/screens/SettingsScreen';
 // Parent screens
 import { DashboardScreen as ParentDashboard } from '@/screens/parent/DashboardScreen';
 import { SubjectDetailScreen } from '@/screens/parent/SubjectDetailScreen';
+import { GradesScreen } from '@/screens/parent/GradesScreen';
 import { ReportScreen } from '@/screens/parent/ReportScreen';
 import { MessagesScreen as ParentMessages } from '@/screens/parent/MessagesScreen';
 import { ConversationScreen } from '@/screens/parent/ConversationScreen';
 import { ResourcesScreen } from '@/screens/parent/ResourcesScreen';
 import { AnnouncementsScreen } from '@/screens/parent/AnnouncementsScreen';
+
+// Admin screens
+import { AdminOverviewScreen }  from '@/screens/admin/OverviewScreen';
+import { AdminTeachersScreen }  from '@/screens/admin/TeachersScreen';
+import { AdminClassesScreen }   from '@/screens/admin/ClassesScreen';
+import { AdminStudentsScreen }  from '@/screens/admin/StudentsScreen';
+import { AdminParentsScreen }   from '@/screens/admin/ParentsScreen';
 
 // Teacher screens
 import { TeacherDashboardScreen } from '@/screens/teacher/DashboardScreen';
@@ -49,9 +57,8 @@ function RootRedirect() {
   const { isLoggedIn, authChecked, role, firstStudentUuid } = useApp();
   if (!authChecked) return null;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
-  if (role === 'parent') {
-    return <Navigate to={`/parent/students/${firstStudentUuid}/dashboard`} replace />;
-  }
+  if (role === 'parent') return <Navigate to={`/parent/students/${firstStudentUuid}/dashboard`} replace />;
+  if (role === 'admin')  return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/teacher/dashboard" replace />;
 }
 
@@ -65,6 +72,7 @@ function AppLayout() {
   useEffect(() => {
     if (pathname.startsWith('/parent')) setRole('parent');
     else if (pathname.startsWith('/teacher')) setRole('teacher');
+    else if (pathname.startsWith('/admin')) setRole('admin');
   }, [pathname, setRole]);
 
   // Extract student UUID from URL: /parent/students/:sid/...
@@ -101,11 +109,19 @@ function AppRoutes() {
           {/* Parent routes */}
           <Route path="/parent/students/:sid/dashboard"            element={<ParentDashboard />} />
           <Route path="/parent/students/:sid/subjects/:subjectId"  element={<SubjectDetailScreen />} />
+          <Route path="/parent/students/:sid/grades"               element={<GradesScreen />} />
           <Route path="/parent/students/:sid/reports"              element={<ReportScreen />} />
           <Route path="/parent/students/:sid/discussions"                          element={<ParentMessages />} />
           <Route path="/parent/students/:sid/conversations/:threadUuid"           element={<ConversationScreen />} />
           <Route path="/parent/students/:sid/tasks"                element={<AnnouncementsScreen />} />
           <Route path="/parent/students/:sid/resources"            element={<ResourcesScreen />} />
+
+          {/* Admin routes */}
+          <Route path="/admin/dashboard" element={<AdminOverviewScreen />} />
+          <Route path="/admin/teachers"  element={<AdminTeachersScreen />} />
+          <Route path="/admin/classes"   element={<AdminClassesScreen />} />
+          <Route path="/admin/students"  element={<AdminStudentsScreen />} />
+          <Route path="/admin/parents"   element={<AdminParentsScreen />} />
 
           {/* Teacher routes */}
           <Route path="/teacher/dashboard"                         element={<TeacherDashboardScreen />} />

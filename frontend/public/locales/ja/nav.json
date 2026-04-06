@@ -9,4 +9,8 @@
   "parentConversations": "保護者との会話",
   "language": "言語",
   "posts": "クラス投稿"
+,
+  "teachers": "教師", "classes": "クラス", "students": "生徒", "parents": "保護者"
+,
+  "grades": "成績"
 }
