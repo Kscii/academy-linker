@@ -903,7 +903,7 @@ def update_student_exam_score(
     if final_score > final_full:
         raise AppError(422, "validation_error", "score 不得超过 full_score")
 
-    updated = score_crud.update_exam_score(db, score_obj, **updates)
+    updated = score_crud.update_exam_score(db, score_obj=score_obj, **updates)
     db.commit()
     db.refresh(updated)
     _load_score_relations(updated)

@@ -62,10 +62,18 @@ def create_post(
             raise Errors.not_found("回复的帖子不存在或不属于此 thread")
         reply_to_post_id = reply_post.id
 
+    # original_language: 优先使用请求体中的值，否则回退到用户语言设置，再回退到默认值
+    original_language = (
+        body.original_language
+        or (current_user.settings.language if current_user.settings else None)
+        or "en"
+    )
+
     post = discussion_crud.create_post(
         db, thread, current_user.id,
         title=body.title,
         content_markdown=body.content_markdown,
+        original_language=original_language,
         tags=tags,
         reply_to_post_id=reply_to_post_id,
     )
@@ -132,6 +140,26 @@ def delete_post(
         raise Errors.forbidden("只允许作者删除自己的帖子")
 
     discussion_crud.soft_delete_post(db, post)
+    db.commit()
+    return ApiResponse(data=SuccessResponse())
+
+
+# ── POST /api/threads/{thread_uuid}/read ─────────────────────────────────────
+
+@router.post("/api/threads/{thread_uuid}/read", response_model=ApiResponse[SuccessResponse])
+def mark_thread_read(
+    thread_uuid: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApiResponse[SuccessResponse]:
+    """将指定 thread 标记为当前用户已读（§9.20 / §10.20）。"""
+    _require_parent_or_teacher(current_user)
+
+    thread = discussion_crud.get_thread_by_uuid_for_user(db, thread_uuid, current_user.id)
+    if thread is None:
+        raise Errors.not_found("Thread 不存在或无权访问")
+
+    discussion_crud.mark_thread_read(db, thread.id, current_user.id)
     db.commit()
     return ApiResponse(data=SuccessResponse())
 

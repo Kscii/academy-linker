@@ -59,11 +59,11 @@ def create_exam_score(db: Session, **fields: object) -> StudentExamScore:
     return score
 
 
-def update_exam_score(db: Session, score: StudentExamScore, **fields: object) -> StudentExamScore:
+def update_exam_score(db: Session, score_obj: StudentExamScore, **fields: object) -> StudentExamScore:
     for k, v in fields.items():
-        setattr(score, k, v)
+        setattr(score_obj, k, v)
     db.flush()
-    return score
+    return score_obj
 
 
 def delete_exam_score(db: Session, score: StudentExamScore) -> None:

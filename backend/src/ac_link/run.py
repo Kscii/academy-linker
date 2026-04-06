@@ -130,13 +130,28 @@ async def validation_error_handler(
     Pydantic 请求校验失败时统一返回 422 validation_error。
     details 中包含具体的字段错误信息，方便前端展示。
     """
+    def _serialize_errors(errors: list) -> list:
+        """将 Pydantic v2 errors() 中不可 JSON 序列化的字段（如 ctx.error）转为字符串。"""
+        result = []
+        for err in errors:
+            e = dict(err)
+            if "ctx" in e:
+                ctx = dict(e["ctx"])
+                for k, v in ctx.items():
+                    if isinstance(v, Exception):
+                        ctx[k] = str(v)
+                e["ctx"] = ctx
+            e.pop("url", None)
+            result.append(e)
+        return result
+
     return JSONResponse(
         status_code=422,
         content={
             "error": {
                 "code": "validation_error",
                 "message": "请求参数校验失败",
-                "details": {"errors": exc.errors()},
+                "details": {"errors": _serialize_errors(exc.errors())},
             }
         },
     )

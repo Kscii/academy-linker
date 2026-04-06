@@ -432,6 +432,7 @@ def create_post(
     *,
     title: str | None,
     content_markdown: str,
+    original_language: str,
     tags: list[Tag],
     reply_to_post_id: int | None,
 ) -> Post:
@@ -447,6 +448,7 @@ def create_post(
         author_user_id=author_user_id,
         title=title,
         content_markdown=content_markdown,
+        original_language=original_language,
         reply_to_post_id=reply_to_post_id,
     )
     db.add(post)
