@@ -1196,6 +1196,18 @@ export function LandingPage() {
               delay="4"
               body="Consistent with findings by Kraft et al. (2020) that unsupported communication mandates — where schools require frequent parent contact without providing tools or time — are a documented contributor to teacher burnout, Academy Linker positions its AI layer explicitly as a workload-reduction instrument. Features were designed by starting from the teacher's existing workflow and identifying where AI can absorb routine cognitive labour (drafting, personalising, translating), rather than by designing AI features first and asking teachers to adapt."
             />
+            <PrincipleCard
+              number="05"
+              title="Aggregation of Distributed Teacher Observation"
+              delay="5"
+              body="A well-documented limitation of formative assessment in practice is the fragmentation of teacher observation: insights accumulated across daily interactions, marking, and informal monitoring rarely reach parents in a coherent, longitudinal form (Wyatt-Smith & Cumming, 2009). Academy Linker treats each teacher post, subject update, and performance record as a discrete observational data point that is automatically aggregated into a unified student profile. Drawing on Stiggins' (2005) argument that assessment for learning requires that information be communicated in ways that build a shared understanding between educator and family, the platform synthesises these distributed observations — via the CurricuLLM API — into coherent narrative summaries. This architectural decision reflects Vygotsky's (1978) social constructivist principle that meaningful learning is supported by informed, responsive adults across all of a child's developmental contexts, not only within the classroom."
+            />
+            <PrincipleCard
+              number="06"
+              title="Personalised Reporting as Pedagogical Scaffolding"
+              delay="6"
+              body="Generic progress reports — standardised across a class cohort — have long been criticised for failing to scaffold meaningful parental action (Hargreaves et al., 2002). Academy Linker operationalises Tomlinson's (2001) framework of differentiated instruction at the communication layer: each report generated via the CurricuLLM API is individualised to the student's performance band, subject trajectory, and learning context, producing recommendations that are specific rather than normative. This approach is consistent with the Response to Intervention (RTI) literature, which identifies early, individualised communication as a prerequisite for timely support. Furthermore, Bandura's (1997) self-efficacy theory suggests that when parents receive specific, credible information about how they can support their child's learning — rather than generic encouragement — their confidence and engagement increase substantially. The platform therefore treats personalised reporting not as an enhancement but as a core pedagogical function: the mechanism through which assessment data is translated into parental agency."
+            />
           </div>
         </Section>
 
@@ -1331,8 +1343,8 @@ export function LandingPage() {
           </div>
         </Section>
 
-        {/* ── 9. Technical Architecture ───────────────────────── */}
-        <Section bg={T.surf2}>
+        {/* ── 9. Technical Architecture — removed ─────────────── */}
+        {false && <Section bg={T.surf2}>
           <Eyebrow>Technical Implementation</Eyebrow>
           <div className="al-fade-up">
             <SectionTitle>Technical Architecture</SectionTitle>
@@ -1459,7 +1471,7 @@ export function LandingPage() {
               </p>
             </div>
           </div>
-        </Section>
+        </Section>}
 
         {/* ── 10. Footer ──────────────────────────────────────── */}
         <footer style={{
