@@ -13,6 +13,107 @@
 
 ---
 
+## 接口索引
+
+> 开发状态：**（已完成）** = 已完成开发；**（未完成）** = 尚未开发；**（变更）** = 接口定义相对初始版本发生了变更。
+
+### 认证与账户 (§7)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| POST | `/api/auth/login` | 登录 | 已完成 |
+| POST | `/api/auth/refresh` | 刷新 Access Token | 已完成 |
+| POST | `/api/auth/logout` | 登出当前设备 | 已完成 |
+| POST | `/api/auth/logout_all` | 登出所有设备 | 已完成 |
+| GET | `/api/me` | 获取当前用户信息 | 已完成 |
+| PATCH | `/api/me` | 更新当前用户资料 | 已完成 |
+| POST | `/api/me/change_password` | 修改密码 | 已完成 |
+| GET | `/api/me/sessions` | 获取当前登录会话列表 | 已完成 |
+| DELETE | `/api/me/sessions/{session_uuid}` | 删除指定会话 | 已完成 |
+
+### 设置 (§8)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/settings` | 获取当前用户设置 | 已完成 |
+| PATCH | `/api/settings` | 更新当前用户设置 | 已完成 |
+
+### 家长端 (§9)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/parents/me/students` | 获取绑定的学生列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/dashboard` | 学生 Dashboard 聚合数据 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/subjects` | 学生学科列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/subjects/{subject_uuid}` | 某学科详情聚合数据 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/reports` | 报告列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/reports/{report_uuid}` | 报告详情 | 已完成 |
+| POST | `/api/reports/{report_uuid}/read` | 标记报告为已读 | 已完成 |
+| POST | `/api/reports/{report_uuid}/archive` | 归档报告 | 已完成 |
+| POST | `/api/reports/{report_uuid}/unarchive` | 取消归档报告 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/announcements` | 公告/任务列表 | 已完成 |
+| GET | `/api/announcements/{announcement_uuid}` | 公告/任务详情 | 已完成 |
+| POST | `/api/announcements/{announcement_uuid}/read` | 标记公告为已读 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/discussions/teachers` | 学生讨论教师列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}` | 与某老师的讨论页 | 已完成 |
+| POST | `/api/threads/{thread_uuid}/posts` | 创建帖子（家长/老师共用） | 已完成 |
+| PATCH | `/api/posts/{post_uuid}` | 编辑帖子（家长/老师共用） | 已完成 |
+| DELETE | `/api/posts/{post_uuid}` | 删除帖子（家长/老师共用） | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（家长视角） | 未完成 |
+| GET | `/api/parents/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（家长视角） | 未完成 |
+
+### 老师端 (§10)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/teachers/me/students` | 老师负责的学生列表 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/dashboard` | 老师视角学生 Dashboard | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/discussions/parents` | 学生讨论家长列表 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}` | 与某家长讨论页 | 已完成 |
+| GET | `/api/teachers/me/tags` | 获取可用 Tag 列表 | 未完成 |
+| POST | `/api/teachers/me/tags` | 创建私有 Tag | 未完成 |
+| PATCH | `/api/teachers/me/tags/{tag_uuid}` | 更新私有 Tag | 未完成 |
+| DELETE | `/api/teachers/me/tags/{tag_uuid}` | 删除私有 Tag | 未完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/reports` | 创建报告 | 已完成 |
+| PATCH | `/api/reports/{report_uuid}` | 更新报告（老师/admin 共用） | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/announcements` | 创建公告/任务 | 已完成 |
+| PATCH | `/api/announcements/{announcement_uuid}` | 更新公告/任务（老师/admin 共用） | 已完成 |
+| GET | `/api/teachers/me/classes` | 老师负责的班级列表 | 未完成 |
+| GET | `/api/teachers/me/classes/{class_uuid}/students` | 班级学生列表 | 未完成 |
+| GET | `/api/teachers/me/classes/{class_uuid}/grade-stats` | 班级成绩统计 | 未完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（老师视角） | 未完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/exam-scores` | 创建考试成绩 | 未完成 |
+| PATCH | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 更新考试成绩 | 未完成 |
+| DELETE | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 删除考试成绩 | 未完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（老师视角） | 未完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/period-metrics` | 创建/更新周期指标 | 未完成 |
+
+### Admin 端 (§11)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/admin/users` | 获取用户列表 | 已完成 |
+| POST | `/api/admin/users` | 创建用户 | 已完成 |
+| PATCH | `/api/admin/users/{user_uuid}` | 更新用户 | 已完成 |
+| GET | `/api/admin/students` | 获取学生列表 | 已完成 |
+| POST | `/api/admin/students` | 创建学生 | 已完成 |
+| PATCH | `/api/admin/students/{student_uuid}` | 更新学生 | 已完成 |
+| GET | `/api/admin/bindings/parent_student` | Parent-Student 绑定列表 | 已完成 |
+| POST | `/api/admin/bindings/parent_student` | 创建 Parent-Student 绑定 | 已完成 |
+| PATCH | `/api/admin/bindings/parent_student/{binding_uuid}` | 更新 Parent-Student 绑定 | 已完成 |
+| GET | `/api/admin/assignments/teaching` | Teaching Assignment 列表 | 已完成 |
+| POST | `/api/admin/assignments/teaching` | 创建 Teaching Assignment | 已完成 |
+| PATCH | `/api/admin/assignments/teaching/{assignment_uuid}` | 更新 Teaching Assignment | 已完成 |
+| GET | `/api/admin/tags/system` | 获取系统 Tag 列表 | 已完成 |
+| POST | `/api/admin/tags/system` | 创建系统 Tag | 已完成 |
+| PATCH | `/api/admin/tags/system/{tag_uuid}` | 更新系统 Tag | 已完成 |
+| GET | `/api/admin/classes` | 获取班级列表 | 未完成 |
+| POST | `/api/admin/classes` | 创建班级 | 未完成 |
+| PATCH | `/api/admin/classes/{class_uuid}` | 更新班级 | 未完成 |
+| POST | `/api/admin/students/{student_uuid}/transfer-class` | 学生换班（原子操作） | 未完成 |
+
+---
+
 ## 2. 系统固定前提
 
 ### 2.1 鉴权方案
@@ -166,7 +267,18 @@
 
 ---
 
-## 4. 统一错误码
+## 4. 错误设计原则
+
+### 4.1 原则
+
+- **`code` 优先，HTTP 状态码为辅**：HTTP 状态码表达错误类别（4xx/5xx），`code` 字段表达具体原因；前端应以 `code` 作为程序逻辑判断的依据。
+- **接口文档不维护 Error 条目**：通用的权限、参数校验、资源不存在等错误遵循本节全局约定，无需在各接口中逐一列出。接口文档仅在存在不明显的业务规则（如特殊状态冲突、条件权限）时，在 `规则` 节中描述，不重复列出 error code。
+- **401 与 403 明确分层**：`401` = 未认证（无身份）；`403` = 已认证但无权（有身份、缺权限）。任何需要登录的接口均可能返回 `401` 系列，任何有角色或资源权限限制的接口均可能返回 `403`。
+- **403 不伪装成 404**：v1 不做防枚举策略。资源不存在始终返回 `404`，权限不足始终返回 `403`。
+- **409 用于状态冲突，422 用于参数校验**：`409` 表示请求在逻辑上引发了资源状态冲突（如重复绑定、已归档）；`422` 表示请求体字段不符合格式或约束。
+- **500 不暴露内部细节**：服务端内部错误统一使用 `internal_error`，不向客户端泄露 stack trace 或数据库错误信息。
+
+### 4.2 错误码一览表
 
 | HTTP | code | 说明 |
 |---:|---|---|
@@ -215,11 +327,14 @@
   "sid": "string | null",
   "full_name": "string",
   "preferred_name": "string | null",
+  "class_uuid": "string | null",
   "class_name": "string | null",
   "grade_level": "string | null",
   "avatar_url": "string | null"
 }
 ```
+
+> 注：`class_name` 与 `grade_level` 从 `classes` 表 JOIN 后平铺返回，前端无需额外请求。
 
 ### 5.3 `teacher_summary`
 
@@ -277,61 +392,13 @@
 
 ---
 
-## 6. Cookie、Path、SameSite、Origin 说明
+## 6. Cookie 与安全传输约定
 
-### 6.1 Cookie 是什么
-
-Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie` 响应头让浏览器保存它，之后浏览器会在满足条件的请求中自动带上它。
-
-本项目中：
-
-- `access_token` 使用 Cookie 传递
-- `refresh_token` 使用 Cookie 传递
-- 前端不直接读取 token，而是让浏览器自动携带
-
-### 6.2 Cookie 的 `Path` 是什么
-
-`Path` 表示该 Cookie 会在访问哪些路径时自动携带。
-
-推荐配置：
-
-- `access_token` 的 `Path=/`
-- `refresh_token` 的 `Path=/api/auth/refresh`
-
-含义：
-
-- `access_token` 可以被所有业务接口使用
-- `refresh_token` 只会在刷新接口中自动携带，减少暴露面
-
-### 6.3 `SameSite` 是什么
-
-`SameSite` 是 Cookie 的安全属性，用于限制浏览器在跨站请求中是否自动带上 Cookie。
-
-本项目使用：
-
-- `SameSite=Lax`
-
-意义：
-
-- 在大多数跨站子请求中不会自动带 Cookie
-- 能降低 CSRF 风险
-- 同时兼顾正常导航场景的可用性
-
-### 6.4 校验 `Origin` 是什么
-
-`Origin` 是浏览器请求头，用于表示请求发起的源（协议 + 域名 + 端口）。
-
-由于本项目使用 Cookie 鉴权，而 Cookie 会自动携带，因此对写操作需要额外检查：
-
-- 请求是否确实来自受信任的前端页面
-- 防止第三方恶意网站借浏览器自动携带 Cookie 发起伪造请求
-
-推荐对所有写操作校验 `Origin`：
-
-- `POST`
-- `PATCH`
-- `PUT`
-- `DELETE`
+- Token 通过 **HttpOnly Cookie** 传递，前端不直接读取
+- `access_token`：`Path=/`，随所有业务请求自动携带
+- `refresh_token`：`Path=/api/auth/refresh`，仅在刷新接口携带，减少暴露面
+- `SameSite=Lax`：降低 CSRF 风险，同时兼顾正常导航
+- 所有写操作（`POST` / `PATCH` / `PUT` / `DELETE`）后端校验 `Origin` 白名单，防止 CSRF
 
 ---
 
@@ -347,7 +414,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "email": "string",
   "password": "string",
-  // 增加rt的有效时长, 从3天增加到7天
   "remember_me": false
 }
 ```
@@ -370,17 +436,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
-
-#### Error
-
-- `401 unauthenticated`
-- `422 validation_error`
-- `429 rate_limited`
-
-#### 注释
-
-- Postman 测试时需要保留 cookie jar
-- 浏览器端登录后前端不需要自行保存 token
 
 ---
 
@@ -408,12 +463,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
-
-#### Error
-
-- `401 refresh_token_expired`
-- `401 invalid_token`
-- `403 origin_not_allowed`
 
 #### 注释
 
@@ -444,11 +493,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-
 #### 注释
 
 - 旧 AT 若已被其他地方拿到，理论上最多仍可在剩余 15 分钟内使用
@@ -475,11 +519,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
-
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
 
 #### 注释
 
@@ -508,11 +547,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
-
-#### Error
-
-- `401 unauthenticated`
-- `401 access_token_expired`
 
 ---
 
@@ -547,12 +581,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-- `422 validation_error`
-
 ---
 
 ### 7.7 修改密码（已完成）
@@ -578,12 +606,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-- `422 validation_error`
-
 ---
 
 ### 7.8 获取当前登录会话列表（已完成）
@@ -608,10 +630,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-
 ---
 
 ### 7.9 删除指定会话（已完成）
@@ -627,12 +645,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
-
-#### Error
-
-- `401 unauthenticated`
-- `404 not_found`
-- `403 forbidden`
 
 ---
 
@@ -711,6 +723,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null"
@@ -747,6 +760,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null"
@@ -1396,6 +1410,97 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
+### 9.18 获取学生考试成绩列表（家长视角）
+
+**GET** `/api/parents/me/students/{student_uuid}/exam-scores`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `exam_date_from` | string | 否 | 考试日期起 |
+| `exam_date_to` | string | 否 | 考试日期止 |
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+
+#### 规则
+
+- 仅允许查看自己绑定的学生（`parent_student_bindings` 存在且 `is_active=true`），否则返回 `403 forbidden`。
+- 返回该学生所有科目的考试成绩，老师端与 admin 端写入的都会出现。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "exam_name": "string | null",
+      "exam_date": "string",
+      "score": 88.5,
+      "full_score": 100.0,
+      "note": "string | null",
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 9.19 获取学生周期指标列表（家长视角）
+
+**GET** `/api/parents/me/students/{student_uuid}/period-metrics`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `term` | string | 否 | 学期过滤，如 `2025-T1` |
+
+#### 规则
+
+- 仅允许查看自己绑定的学生（`parent_student_bindings` 存在且 `is_active=true`），否则返回 `403 forbidden`。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "term": "string | null",
+      "snapshot_date": "string",
+      "progress": 0.75,
+      "assignment_completion_rate": 0.90,
+      "attendance_rate": 0.95,
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string"
+    }
+  ]
+}
+```
+
+---
+
 ## 10. 老师端接口
 
 ### 10.1 获取老师负责的学生列表（已完成）
@@ -1408,8 +1513,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 |---|---|---:|---|
 | `page` | int | 否 | 默认 1 |
 | `page_size` | int | 否 | 默认 20，最大 100 |
-| `class_name` | string | 否 | 班级精确匹配 |
-| `grade_level` | string | 否 | 年级精确匹配 |
+| `class_uuid` | string | 否 | 班级过滤（UUID） |
 | `subject_uuid` | string | 否 | 学科过滤 |
 | `keyword` | string | 否 | `sid` / 姓名模糊匹配 |
 | `sort` | enum | 否 | `full_name_asc`, `full_name_desc`, `sid_asc`, `sid_desc`, `score_desc`, `score_asc`, `last_activity_at_desc` |
@@ -1426,6 +1530,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null",
@@ -1441,12 +1546,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   }
 }
 ```
-
-#### Error
-
-- `400 invalid_sort`
-- `401 unauthenticated`
-- `403 role_not_allowed`
 
 ---
 
@@ -1470,6 +1569,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null"
@@ -1500,12 +1600,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 > - `unread_post_count` = 当前教师在该学生所有 thread 中的未读帖子缓存总数。
 > - `summary` 取该学生**所有来源**的最近一条 `is_published=true` 报告，若无报告则为 `null`。
 > - 聚合指标（`overall_performance_index` 等）待 `student_metrics` 表建好后填充，当前始终为 `null`。
-
-#### Error
-
-- `401 unauthenticated`
-- `403 role_not_allowed`
-- `404 not_found`
 
 ---
 
@@ -1854,14 +1948,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 role_not_allowed`
-- `403 forbidden`（subject 未分配给该教师）
-- `404 not_found`（学生或学科不存在）
-- `422 validation_error`
-
 ---
 
 ### 10.13 老师更新报告（已完成）
@@ -1897,13 +1983,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 #### Success 200
 
 返回更新后的完整报告，结构与 §10.12 Success 201 一致。
-
-#### Error
-
-- `401 unauthenticated`
-- `403 forbidden`
-- `404 not_found`
-- `422 validation_error`
 
 ---
 
@@ -1971,14 +2050,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 role_not_allowed`
-- `403 forbidden`（subject 未分配）
-- `404 not_found`
-- `422 validation_error`
-
 ---
 
 ### 10.15 老师更新公告/任务（已完成）
@@ -2017,12 +2088,324 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 返回更新后的完整公告，结构与 §10.14 Success 201 一致。
 
-#### Error
+---
 
-- `401 unauthenticated`
-- `403 forbidden`
-- `404 not_found`
-- `422 validation_error`
+
+### 10.16 获取老师负责的班级列表
+
+**GET** `/api/teachers/me/classes`
+
+#### 规则
+
+- 返回当前老师在 `teaching_assignments` 中有 active 记录的所有不重复班级。
+- 若老师同时是某班班主任（`classes.homeroom_teacher_user_id`），响应中 `is_homeroom` 为 `true`。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "name": "string",
+      "grade_level": "string | null",
+      "academic_year": "string | null",
+      "is_homeroom": false,
+      "student_count": 12
+    }
+  ]
+}
+```
+
+---
+
+### 10.17 获取班级学生列表（老师视角）
+
+**GET** `/api/teachers/me/classes/{class_uuid}/students`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 50 |
+| `subject_uuid` | string | 否 | 进一步过滤：只返回该老师同时教该科目的学生 |
+| `keyword` | string | 否 | `sid` / 姓名模糊匹配 |
+
+#### 规则
+
+- 只返回该老师在此班有 active `teaching_assignment` 的学生。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string",
+      "preferred_name": "string | null",
+      "avatar_url": "string | null",
+      "subjects": [
+        {
+          "uuid": "string",
+          "name": "string"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 50,
+    "total": 30,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 10.18 获取班级成绩统计（老师视角）
+
+**GET** `/api/teachers/me/classes/{class_uuid}/grade-stats`
+
+按班级汇总该老师负责科目的考试成绩统计，可用于成绩排行和班级横向对比。
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 限定科目；不传则汇总该老师在此班所有科目 |
+| `exam_date_from` | string | 否 | 考试日期起（ISO 8601 date） |
+| `exam_date_to` | string | 否 | 考试日期止 |
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class": {
+      "uuid": "string",
+      "name": "string",
+      "grade_level": "string | null"
+    },
+    "summary": {
+      "student_count": 12,
+      "avg_score": 82.5,
+      "max_score": 98.0,
+      "min_score": 61.0,
+      "exam_count": 3
+    },
+    "students": [
+      {
+        "student_uuid": "string",
+        "full_name": "string",
+        "sid": "string | null",
+        "subject_scores": [
+          {
+            "subject_uuid": "string",
+            "subject_name": "string",
+            "avg_score": 88.5,
+            "latest_score": 90.0,
+            "exam_count": 3
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 10.19 获取学生考试成绩列表（老师视角）
+
+**GET** `/api/teachers/me/students/{student_uuid}/exam-scores`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `exam_date_from` | string | 否 | 考试日期起 |
+| `exam_date_to` | string | 否 | 考试日期止 |
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "exam_name": "string | null",
+      "exam_date": "string",
+      "score": 88.5,
+      "full_score": 100.0,
+      "note": "string | null",
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string",
+      "updated_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 10.20 创建学生考试成绩（老师视角）
+
+**POST** `/api/teachers/me/students/{student_uuid}/exam-scores`
+
+#### Body
+
+```json
+{
+  "subject_uuid": "string",
+  "exam_name": "string | null",
+  "exam_date": "string",
+  "score": 88.5,
+  "full_score": 100.0,
+  "note": "string | null"
+}
+```
+
+#### 规则
+
+- 后端验证 `teaching_assignment(teacher, student, subject)` 三元组存在且 active，否则返回 `403 forbidden`。
+- `exam_date` 为必填，格式 ISO 8601 date（`YYYY-MM-DD`）。
+- `score` 必须 <= `full_score`；`full_score` 默认 100，必须 > 0。
+
+#### Success 201
+
+返回创建的成绩条目，结构与 §10.19 Success 200 中的单条记录一致。
+
+---
+
+### 10.21 更新考试成绩（老师视角）
+
+**PATCH** `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}`
+
+#### Body
+
+所有字段均为可选。
+
+```json
+{
+  "exam_name": "string | null",
+  "exam_date": "string | null",
+  "score": "number | null",
+  "full_score": "number | null",
+  "note": "string | null"
+}
+```
+
+#### 规则
+
+- 只有创建者（teacher）或 admin 可修改。
+- 不允许修改 `subject_uuid`（科目不可变）。
+
+#### Success 200
+
+返回更新后的完整成绩条目。
+
+---
+
+### 10.22 删除考试成绩（老师视角）
+
+**DELETE** `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}`
+
+#### 规则
+
+- 只有创建者（teacher）或 admin 可删除（物理删除）。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+### 10.23 获取学生周期指标列表（老师视角）
+
+**GET** `/api/teachers/me/students/{student_uuid}/period-metrics`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `term` | string | 否 | 学期过滤，如 `2025-T1` |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "term": "string | null",
+      "snapshot_date": "string",
+      "progress": 0.75,
+      "assignment_completion_rate": 0.90,
+      "attendance_rate": 0.95,
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string"
+    }
+  ]
+}
+```
+
+---
+
+### 10.24 创建/更新学生周期指标（老师视角）
+
+**POST** `/api/teachers/me/students/{student_uuid}/period-metrics`
+
+#### Body
+
+```json
+{
+  "subject_uuid": "string",
+  "term": "string | null",
+  "snapshot_date": "string",
+  "progress": "number | null",
+  "assignment_completion_rate": "number | null",
+  "attendance_rate": "number | null"
+}
+```
+
+#### 规则
+
+- UPSERT 语义：`(student_id, subject_id, snapshot_date)` 已存在则更新，否则新建。
+- 后端验证 `teaching_assignment(teacher, student, subject)` 三元组存在且 active。
+- 所有比率字段须在 `[0.0, 1.0]` 范围内；`progress` 同上。
+
+#### Success 200/201
+
+返回创建或更新后的指标条目，结构与 §10.23 Success 200 中的单条一致。
 
 ---
 
@@ -2117,8 +2500,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 - `page`
 - `page_size`
 - `keyword`（模糊匹配 `full_name`、`preferred_name`、`sid`）
-- `class_name`
-- `grade_level`
+- `class_uuid`
 - `is_active`
 - `sort=created_at_desc|created_at_asc|full_name_asc`
 
@@ -2132,6 +2514,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null",
@@ -2156,9 +2539,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "sid": "string | null",
   "full_name": "string",
   "preferred_name": "string | null",
-  "class_name": "string | null",
-  "grade_level": "string | null",
-  "avatar_url": "string | null"
+  "class_uuid": "string | null",
+  "avatar_url": "string | null",
+  "date_of_birth": "string | null"
 }
 ```
 
@@ -2175,12 +2558,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "sid": "string | null",
   "full_name": "string | null",
   "preferred_name": "string | null",
-  "class_name": "string | null",
-  "grade_level": "string | null",
+  "class_uuid": "string | null",
   "avatar_url": "string | null",
+  "date_of_birth": "string | null",
   "is_active": "boolean | null"
 }
 ```
+
+> **注：** 若需要"换班"操作（修改 `class_uuid`），请使用专用的 `POST /api/admin/students/{student_uuid}/transfer-class` 接口，该接口会原子性地更新学生班级并重建 `teaching_assignments`（见 §11.19）。直接 PATCH `class_uuid` 仅适用于初始分班或纠错，不会自动处理 `teaching_assignments`。
 
 ---
 
@@ -2298,7 +2683,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "teacher_uuid": "string",
       "student_uuid": "string",
       "subject_uuid": "string",
-      "is_homeroom": false,
       "is_active": true,
       "created_at": "string"
     }
@@ -2319,8 +2703,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "teacher_uuid": "string",
   "student_uuid": "string",
-  "subject_uuid": "string",
-  "is_homeroom": false
+  "subject_uuid": "string"
 }
 ```
 
@@ -2338,7 +2721,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "teacher_uuid": "string",
     "student_uuid": "string",
     "subject_uuid": "string",
-    "is_homeroom": false,
     "is_active": true,
     "created_at": "string"
   }
@@ -2355,7 +2737,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ```json
 {
-  "is_homeroom": "boolean | null",
   "is_active": "boolean | null"
 }
 ```
@@ -2401,6 +2782,150 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "is_selectable_by_parent": "boolean | null",
   "is_selectable_by_teacher": "boolean | null",
   "affects_business_logic": "boolean | null"
+}
+```
+
+---
+
+
+### 11.16 获取班级列表
+
+**GET** `/api/admin/classes`
+
+#### Query
+
+- `page`
+- `page_size`
+- `grade_level`
+- `academic_year`
+- `homeroom_teacher_uuid`
+- `is_active`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "name": "string",
+      "grade_level": "string | null",
+      "academic_year": "string | null",
+      "homeroom_teacher": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "student_count": 12,
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.17 创建班级
+
+**POST** `/api/admin/classes`
+
+#### Body
+
+```json
+{
+  "name": "string",
+  "grade_level": "string | null",
+  "academic_year": "string | null",
+  "homeroom_teacher_uuid": "string | null"
+}
+```
+
+#### 规则
+
+- `homeroom_teacher_uuid` 若提供，必须指向 role=`teacher` 的 active 用户。
+- `name` 不可为空字符串，最长 100 字符。
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "name": "string",
+    "grade_level": "string | null",
+    "academic_year": "string | null",
+    "homeroom_teacher": {
+      "uuid": "string",
+      "display_name": "string"
+    },
+    "is_active": true,
+    "created_at": "string"
+  }
+}
+```
+
+---
+
+### 11.18 更新班级
+
+**PATCH** `/api/admin/classes/{class_uuid}`
+
+#### Body
+
+```json
+{
+  "name": "string | null",
+  "grade_level": "string | null",
+  "academic_year": "string | null",
+  "homeroom_teacher_uuid": "string | null",
+  "is_active": "boolean | null"
+}
+```
+
+#### 规则
+
+- `homeroom_teacher_uuid` 若提供，必须指向 role=`teacher` 的 active 用户；传 `null` 则清除班主任。
+- 停用班级（`is_active=false`）不自动级联处理 `teaching_assignments` 或 `students`。
+
+#### Success 200
+
+返回更新后的完整班级对象，结构与 §11.17 Success 201 一致。
+
+---
+
+### 11.19 学生换班（原子操作）
+
+**POST** `/api/admin/students/{student_uuid}/transfer-class`
+
+将学生迁移至新班级，并原子性地完成以下三个操作：
+1. 更新 `students.class_id` 到新班级
+2. 将该学生的所有旧 `teaching_assignments` 设置 `is_active = false`
+3. 为新班级对应的 active 老师（通过 `teaching_assignments` 推断）重新创建 `teaching_assignments`
+
+#### Body
+
+```json
+{
+  "new_class_uuid": "string"
+}
+```
+
+#### 规则
+
+- 新班级必须存在且 `is_active=true`。
+- 若新班级的老师 `teaching_assignments` 无法推断（新班级还没有老师），则只执行步骤 1/2，步骤 3 跳过；调用者须手动补充 `teaching_assignments`。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "student_uuid": "string",
+    "new_class_uuid": "string",
+    "deactivated_assignment_count": 5,
+    "created_assignment_count": 4
+  }
 }
 ```
 
@@ -2458,214 +2983,3 @@ v1 推荐：**懒创建**
 - 不由前端显式调用创建 thread 接口
 
 ---
-
-## 13. 推荐实现顺序
-
-这一部分是前后端都应参考的推荐开发顺序。
-
-目标：
-
-- 先打通最小闭环
-- 再逐步叠加页面与管理能力
-- 尽量避免一开始就实现全部接口导致开发失控
-
-### 阶段 1：认证与全局基础设施
-
-推荐优先实现：
-
-1. `POST /api/auth/login`
-2. `POST /api/auth/refresh`
-3. `POST /api/auth/logout`
-4. `POST /api/auth/logout_all`
-5. `GET /api/me`
-6. `GET /api/settings`
-7. `PATCH /api/settings`
-
-同时完成：
-
-- Cookie 配置
-- CORS + `credentials: include`
-- `Origin` 校验中间件
-- JWT 生成与验证
-- refresh token 持久化
-- 会话表设计
-- 统一错误码与错误响应中间件
-
-这是整个项目的底座，必须最先稳定。
-
----
-
-### 阶段 2：家长主流程闭环
-
-推荐实现：
-
-1. `GET /api/parents/me/students`
-2. `GET /api/parents/me/students/{student_uuid}/dashboard`
-3. `GET /api/parents/me/students/{student_uuid}/subjects`
-4. `GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid}`
-5. `GET /api/parents/me/students/{student_uuid}/reports`
-6. `GET /api/parents/me/students/{student_uuid}/reports/{report_uuid}`
-7. `POST /api/reports/{report_uuid}/read`
-8. `POST /api/reports/{report_uuid}/archive`
-9. `POST /api/reports/{report_uuid}/unarchive`
-10. `GET /api/parents/me/students/{student_uuid}/announcements`
-11. `GET /api/announcements/{announcement_uuid}`
-12. `POST /api/announcements/{announcement_uuid}/read`
-
-完成这一阶段后，家长端至少可以：
-
-- 登录
-- 看到自己的学生
-- 打开 dashboard
-- 看学科详情
-- 看报告
-- 看公告/任务
-- 标记已读与归档
-
-这是第一个可展示的 MVP 主闭环。
-
----
-
-### 阶段 3：讨论区闭环
-
-推荐实现：
-
-1. `GET /api/parents/me/students/{student_uuid}/discussions/teachers`
-2. `GET /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}`
-3. `POST /api/threads/{thread_uuid}/posts`
-4. `PATCH /api/posts/{post_uuid}`
-5. `DELETE /api/posts/{post_uuid}`
-6. `GET /api/teachers/me/students/{student_uuid}/discussions/parents`
-7. `GET /api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}`
-
-这一阶段重点是：
-
-- thread 懒创建逻辑
-- post 权限控制
-- tag 过滤、排序、搜索
-- 家长与老师都能在同一 thread 容器下交流
-
-完成这一阶段后，家校沟通主功能基本成立。
-
----
-
-### 阶段 4：老师内容生产能力
-
-推荐实现：
-
-1. `GET /api/teachers/me/students`
-2. `GET /api/teachers/me/students/{student_uuid}/dashboard`
-3. `GET /api/teachers/me/tags`
-4. `POST /api/teachers/me/tags`
-5. `PATCH /api/teachers/me/tags/{tag_uuid}`
-6. `DELETE /api/teachers/me/tags/{tag_uuid}`
-7. `POST /api/teachers/me/students/{student_uuid}/reports`
-8. `PATCH /api/reports/{report_uuid}`
-9. `POST /api/teachers/me/students/{student_uuid}/announcements`
-10. `PATCH /api/announcements/{announcement_uuid}`
-
-完成这一阶段后，老师端可以：
-
-- 查看负责的学生
-- 维护自己的私有 tag
-- 发布报告
-- 发布公告/任务
-- 参与讨论区交流
-
----
-
-### 阶段 5：Admin 管理能力
-
-推荐实现：
-
-1. `GET /api/admin/users`
-2. `POST /api/admin/users`
-3. `PATCH /api/admin/users/{user_uuid}`
-4. `POST /api/admin/students`
-5. `PATCH /api/admin/students/{student_uuid}`
-6. `POST /api/admin/bindings/parent_student`
-7. `POST /api/admin/assignments/teaching`
-8. `GET /api/admin/tags/system`
-9. `POST /api/admin/tags/system`
-10. `PATCH /api/admin/tags/system/{tag_uuid}`
-
-这一阶段主要用于支撑：
-
-- 初始化系统数据
-- 管理用户和学生
-- 管理绑定关系与教学关系
-- 管理系统 tag
-
-如果时间紧，这一阶段可以后置。
-
----
-
-### 阶段 6：补充优化项
-
-推荐最后再做：
-
-- `GET /api/me/sessions`
-- `DELETE /api/me/sessions/{session_uuid}`
-- 更完善的 unread 计数
-- 更细粒度的 moderation
-- 更细的语言 fallback 逻辑
-- 更完善的 translation 状态机
-- 更丰富的 dashboard 图表与聚合
-
----
-
-## 14. 建议的开发策略
-
-### 后端建议
-
-- 先把 Schema / DTO 定死
-- 再实现权限中间件
-- 再补 service 层和 repository 层
-- 聚合接口尽量在 service 层封装
-
-### 前端建议
-
-- 先按本文档写 TypeScript 类型
-- 优先开发登录与家长主流程页面
-- 先用 mock 数据对齐字段
-- 再接真实接口
-
-### 联调建议
-
-优先联调顺序：
-
-1. 登录 / `/api/me`
-2. 家长学生列表
-3. dashboard
-4. 报告列表 / 详情
-5. 公告列表 / 详情
-6. 讨论区页面
-7. 老师端
-8. admin 端
-
----
-
-## 15. 本文档的使用方式
-
-本文档应作为：
-
-- 前端实现接口请求的依据
-- 后端实现 DTO 与响应结构的依据
-- 联调阶段验收字段是否对齐的依据
-
-建议后续若有变动：
-
-- 直接维护本文档版本号
-- 明确变更点
-- 不要让口头约定替代文档
-
----
-
-## 16. 当前版本备注
-
-- 当前 thread 为固定会话容器，不支持用户创建新 thread
-- 当前 logout_all 只保证 refresh token 全部失效，不保证旧 access token 立刻失效
-- 当前 parent / student 虽然业务上按 1:1 使用，但结构上保留绑定表
-- 当前 tag 只作用于 post，不作用于 thread
-- `important` 建议作为系统初始化 tag，不通过普通老师私有 tag 流程创建
-
