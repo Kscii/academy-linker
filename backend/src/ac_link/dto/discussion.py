@@ -78,6 +78,13 @@ class PostItem(BaseModel):
     author: AuthorBrief
     title: str | None
     content_markdown: str
+    original_content_markdown: str
+    translated_content_markdown: str | None = None
+    display_language: str
+    original_language: str
+    translated_language: str | None = None
+    translation_status: str | None = None
+    translated_at: datetime | None = None
     is_deleted: bool
     reply_to_post_uuid: UUID | None
     tags: list[TagBrief]
@@ -148,6 +155,7 @@ class TeacherDiscussionPageData(BaseModel):
 class PostCreate(BaseModel):
     title: str | None = None
     content_markdown: str
+    original_language: str | None = None
     tag_uuids: list[UUID] = []
     reply_to_post_uuid: UUID | None = None
 
@@ -163,6 +171,7 @@ class PostUpdate(BaseModel):
     """PATCH 帖子——所有字段均可选。tag_uuids 若提供则整体替换现有标签。"""
     title: str | None = None
     content_markdown: str | None = None
+    original_language: str | None = None
     tag_uuids: list[UUID] | None = None
 
     @field_validator("content_markdown")
@@ -178,16 +187,36 @@ class PostUpdate(BaseModel):
 _DELETED_PLACEHOLDER = "[该帖子已删除]"
 
 
-def build_post_item(post: object) -> PostItem:  # type: ignore[type-arg]
+def build_post_item(post: object, translation: object | None = None) -> PostItem:  # type: ignore[type-arg]
     """将 Post ORM 对象转换为 PostItem DTO。
 
     - is_deleted=True 时 content_markdown 固定替换为占位文本
     - reply_to_post_uuid 取 reply_to_post 关系的 uuid
+    - translation: ResourceTranslation ORM 对象（可选），用于填充翻译字段
     """
     from ac_link.db.orm.communication import Post as PostORM  # 局部导入避免循环
 
     p: PostORM = post  # type: ignore[assignment]
     is_deleted = p.deleted_at is not None
+
+    display_content = _DELETED_PLACEHOLDER if is_deleted else p.content_markdown
+    original_content = _DELETED_PLACEHOLDER if is_deleted else p.content_markdown
+    original_lang = p.original_language or 'en-AU'
+    display_lang = original_lang
+    translated_content: str | None = None
+    translated_lang: str | None = None
+    trans_status: str | None = None
+    translated_at_val: datetime | None = None
+
+    if translation is not None and not is_deleted:
+        translated_content = translation.translated_content_markdown  # type: ignore[attr-defined]
+        translated_lang = translation.language  # type: ignore[attr-defined]
+        trans_status = str(translation.translation_status)  # type: ignore[attr-defined]
+        translated_at_val = translation.translated_at  # type: ignore[attr-defined]
+        if str(translation.translation_status) == 'completed':  # type: ignore[attr-defined]
+            display_content = translated_content  # type: ignore[assignment]
+            display_lang = translated_lang  # type: ignore[assignment]
+
     return PostItem(
         uuid=p.uuid,
         author=AuthorBrief(
@@ -196,7 +225,14 @@ def build_post_item(post: object) -> PostItem:  # type: ignore[type-arg]
             role=str(p.author_user.role),
         ),
         title=p.title,
-        content_markdown=_DELETED_PLACEHOLDER if is_deleted else p.content_markdown,
+        content_markdown=display_content,
+        original_content_markdown=original_content,
+        translated_content_markdown=translated_content,
+        display_language=display_lang,
+        original_language=original_lang,
+        translated_language=translated_lang,
+        translation_status=trans_status,
+        translated_at=translated_at_val,
         is_deleted=is_deleted,
         reply_to_post_uuid=p.reply_to_post.uuid if p.reply_to_post else None,
         tags=[

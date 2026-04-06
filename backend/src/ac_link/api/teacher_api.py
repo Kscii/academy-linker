@@ -44,6 +44,7 @@ from ac_link.dto.discussion import (
 )
 from ac_link.dto.parent import AuthorBrief, StudentBrief, SubjectBrief, SummaryCards
 from ac_link.dto.teacher import (
+    AiReportGenerateRequest,
     AnnouncementCreate,
     ClassStudentItem,
     CreateExamScoreRequest,
@@ -73,12 +74,16 @@ router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
 
 def _build_teacher_report_detail(report: object) -> TeacherReportDetail:
     from ac_link.db.orm.content import Report as ReportORM
+    from ac_link.services.translation_helpers import resolve_translation_fields
     r: ReportORM = report  # type: ignore[assignment]
+    tf = resolve_translation_fields(r.original_content_markdown, r.original_language, None)
     return TeacherReportDetail(
         uuid=r.uuid,
         title=r.title,
         report_type=str(r.report_type),
         source_type=str(r.source_type),
+        period_start=r.period_start,
+        period_end=r.period_end,
         subject=SubjectBrief.model_validate(r.subject) if r.subject else None,
         author=AuthorBrief(
             uuid=r.author_user.uuid,
@@ -87,16 +92,22 @@ def _build_teacher_report_detail(report: object) -> TeacherReportDetail:
         ),
         created_at=r.created_at,
         published_at=r.published_at,
-        display_content_markdown=r.original_content_markdown,
-        original_content_markdown=r.original_content_markdown,
-        display_language=r.original_language,
-        original_language=r.original_language,
+        display_content_markdown=tf['display_content_markdown'],
+        original_content_markdown=tf['original_content_markdown'],
+        translated_content_markdown=tf['translated_content_markdown'],
+        display_language=tf['display_language'],
+        original_language=tf['original_language'],
+        translated_language=tf['translated_language'],
+        translation_status=tf['translation_status'],
+        translated_at=tf['translated_at'],
     )
 
 
 def _build_teacher_announcement_detail(announcement: object) -> TeacherAnnouncementDetail:
     from ac_link.db.orm.content import Announcement as AnnORM
+    from ac_link.services.translation_helpers import resolve_translation_fields
     a: AnnORM = announcement  # type: ignore[assignment]
+    tf = resolve_translation_fields(a.original_content_markdown, a.original_language, None)
     return TeacherAnnouncementDetail(
         uuid=a.uuid,
         category=str(a.category),
@@ -111,10 +122,14 @@ def _build_teacher_announcement_detail(announcement: object) -> TeacherAnnouncem
         published_at=a.published_at,
         due_at=a.due_at,
         created_at=a.created_at,
-        display_content_markdown=a.original_content_markdown,
-        original_content_markdown=a.original_content_markdown,
-        display_language=a.original_language,
-        original_language=a.original_language,
+        display_content_markdown=tf['display_content_markdown'],
+        original_content_markdown=tf['original_content_markdown'],
+        translated_content_markdown=tf['translated_content_markdown'],
+        display_language=tf['display_language'],
+        original_language=tf['original_language'],
+        translated_language=tf['translated_language'],
+        translation_status=tf['translation_status'],
+        translated_at=tf['translated_at'],
     )
 
 
@@ -289,6 +304,19 @@ def create_report(
             raise Errors.forbidden("当前教师未被分配该学生的此学科")
         subject_id = subject.id
 
+    # 解析 period_start / period_end
+    from datetime import date as _date
+    period_start: _date | None = None
+    period_end: _date | None = None
+    if body.period_start is not None or body.period_end is not None:
+        if body.period_start is None or body.period_end is None:
+            raise AppError(422, "validation_error", "period_start 和 period_end 必须同时提供或同时为空")
+        try:
+            period_start = _date.fromisoformat(body.period_start)
+            period_end = _date.fromisoformat(body.period_end)
+        except ValueError:
+            raise AppError(422, "validation_error", "period_start/period_end 格式应为 YYYY-MM-DD")
+
     report = teacher_crud.create_report(
         db, current_user.id, student.id,
         subject_id=subject_id,
@@ -296,6 +324,8 @@ def create_report(
         report_type=ReportType(body.report_type),
         content_markdown=body.content_markdown,
         original_language=body.original_language,
+        period_start=period_start,
+        period_end=period_end,
     )
     db.commit()
     db.refresh(report)
@@ -1016,3 +1046,204 @@ def upsert_student_period_metric(
             status_code=201,
         )
     return result
+
+
+# ── POST /api/teachers/me/students/{student_uuid}/ai-reports ──────────────────
+
+@router.post(
+    "/students/{student_uuid}/ai-reports",
+    response_model=ApiResponse[TeacherReportDetail],
+    status_code=201,
+)
+def generate_ai_report(
+    student_uuid: UUID,
+    body: AiReportGenerateRequest,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[TeacherReportDetail]:
+    """
+    老师手动生成 AI 报告（§12.1）。
+
+    聚合学生数据（exam_scores、最近3条 period_metrics、最近3条 teacher report），
+    调用 OpenAI 生成报告。同一业务键存在时覆盖而非新建。
+    """
+    import logging
+    _logger = logging.getLogger(__name__)
+
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    # 解析 period_start / period_end
+    from datetime import date as _date
+    try:
+        period_start = _date.fromisoformat(body.period_start)
+        period_end = _date.fromisoformat(body.period_end)
+    except ValueError:
+        raise AppError(422, "validation_error", "period_start/period_end 格式应为 YYYY-MM-DD")
+
+    # 解析 subject_uuid
+    subject_id: int | None = None
+    subject_name: str | None = None
+    if body.subject_uuid is not None:
+        subject = teacher_crud.get_subject_by_uuid(db, body.subject_uuid)
+        if subject is None:
+            raise Errors.not_found("学科不存在")
+        if not teacher_crud.verify_teaching_assignment(db, current_user.id, student.id, subject.id):
+            raise Errors.forbidden("当前教师未被分配该学生的此学科")
+        subject_id = subject.id
+        subject_name = subject.name
+
+    # ── 聚合学生数据 ─────────────────────────────────────────────────
+    from ac_link.db.orm.content import Report as ReportORM
+    from ac_link.db.orm.enums import ReportSourceType as RST
+
+    # exam_scores
+    exam_scores, _ = score_crud.list_exam_scores(
+        db, student.id, subject_id=subject_id, page=1, page_size=20,
+    )
+    if exam_scores:
+        exam_lines = []
+        for s in exam_scores:
+            subj = s.subject.name if s.subject else "N/A"
+            exam_lines.append(
+                f"- {s.exam_date} | {subj} | {s.exam_name or 'N/A'} | "
+                f"得分: {s.score}/{s.full_score}"
+            )
+        exam_scores_text = "\n".join(exam_lines)
+    else:
+        exam_scores_text = ""
+
+    # period_metrics（最近3条）
+    metrics = metrics_crud.list_period_metrics(db, student.id, subject_id=subject_id)
+    recent_metrics = metrics[:3]
+    if recent_metrics:
+        metrics_lines = []
+        for m in recent_metrics:
+            subj = m.subject.name if m.subject else "N/A"
+            metrics_lines.append(
+                f"- {m.snapshot_date} | {subj} | 进度: {m.progress} | "
+                f"作业完成率: {m.assignment_completion_rate} | 出勤率: {m.attendance_rate}"
+            )
+        period_metrics_text = "\n".join(metrics_lines)
+    else:
+        period_metrics_text = ""
+
+    # teacher reports（最近3条 source_type=teacher）
+    teacher_reports_q = (
+        db.query(ReportORM)
+        .filter(
+            ReportORM.student_id == student.id,
+            ReportORM.source_type == RST.TEACHER,
+        )
+    )
+    if subject_id is not None:
+        teacher_reports_q = teacher_reports_q.filter(ReportORM.subject_id == subject_id)
+    recent_reports = (
+        teacher_reports_q
+        .order_by(ReportORM.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    if recent_reports:
+        report_lines = []
+        for r in recent_reports:
+            report_lines.append(
+                f"- {r.created_at.date()} | {r.title}\n  {r.original_content_markdown[:500]}"
+            )
+        teacher_reports_text = "\n".join(report_lines)
+    else:
+        teacher_reports_text = ""
+
+    # ── 调用 OpenAI 生成 ─────────────────────────────────────────────
+    try:
+        from ac_link.services.openai_service import generate_ai_report as _gen
+        content = _gen(
+            student_name=student.full_name,
+            report_type=body.report_type,
+            period_start=body.period_start,
+            period_end=body.period_end,
+            subject_name=subject_name,
+            exam_scores_text=exam_scores_text,
+            period_metrics_text=period_metrics_text,
+            teacher_reports_text=teacher_reports_text,
+            extra_instruction=body.extra_instruction,
+        )
+    except Exception:
+        _logger.exception("AI 报告生成失败: student=%s", student_uuid)
+        raise Errors.ai_generation_failed()
+
+    # ── 自动生成标题 ─────────────────────────────────────────────────
+    type_label = {"weekly": "Weekly", "monthly": "Monthly", "custom": "Custom"}
+    title = f"AI {type_label.get(body.report_type, body.report_type)} Report - {student.full_name}"
+    if subject_name:
+        title += f" ({subject_name})"
+
+    # ── UPSERT：同业务键覆盖 ─────────────────────────────────────────
+    from sqlalchemy import and_
+    existing = db.query(ReportORM).filter(and_(
+        ReportORM.student_id == student.id,
+        ReportORM.subject_id == subject_id,
+        ReportORM.period_start == period_start,
+        ReportORM.period_end == period_end,
+        ReportORM.report_type == ReportType(body.report_type),
+        ReportORM.source_type == RST.AI,
+    )).first()
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+
+    if existing is not None:
+        existing.title = title
+        existing.content_markdown = content
+        existing.original_content_markdown = content
+        existing.original_language = "en-AU"
+        existing.author_user_id = current_user.id
+        existing.published_at = now
+        existing.archived_at = None
+        db.flush()
+
+        # 重置所有 user_states
+        from ac_link.db.orm.content import ReportUserState
+        db.query(ReportUserState).filter(
+            ReportUserState.report_id == existing.id
+        ).update({
+            ReportUserState.is_read: False,
+            ReportUserState.read_at: None,
+            ReportUserState.is_archived: False,
+            ReportUserState.archived_at: None,
+        })
+        db.flush()
+
+        # 标记翻译缓存为 stale
+        from ac_link.crud import translation as translation_crud
+        from ac_link.db.orm.enums import TranslationResourceType
+        translation_crud.mark_translations_stale(
+            db, TranslationResourceType.REPORT, existing.id,
+        )
+
+        report = existing
+    else:
+        report = ReportORM(
+            student_id=student.id,
+            subject_id=subject_id,
+            author_user_id=current_user.id,
+            title=title,
+            report_type=ReportType(body.report_type),
+            source_type=RST.AI,
+            period_start=period_start,
+            period_end=period_end,
+            published_at=now,
+            content_markdown=content,
+            original_content_markdown=content,
+            original_language="en-AU",
+        )
+        db.add(report)
+        db.flush()
+
+    db.commit()
+    db.refresh(report)
+    _ = report.subject
+    _ = report.author_user
+
+    return ApiResponse(data=_build_teacher_report_detail(report))

@@ -596,10 +596,15 @@ def list_student_period_metrics(
     return ApiResponse(data=[ParentPeriodMetricItem.from_orm_obj(m) for m in items])
 
 
-def _translation_block(obj: Report | Announcement) -> TranslationBlock:
+def _translation_block(obj: Report | Announcement, translation: object | None = None) -> TranslationBlock:
+    from ac_link.services.translation_helpers import resolve_translation_block
+    fields = resolve_translation_block(obj.original_language, translation)
     return TranslationBlock(
-        display_language=obj.original_language,
-        original_language=obj.original_language,
+        display_language=fields['display_language'],
+        original_language=fields['original_language'],
+        translated_language=fields['translated_language'],
+        translation_status=fields['translation_status'],
+        translated_at=fields['translated_at'],
     )
 
 
@@ -611,6 +616,8 @@ def _build_report_list_item(
         title=report.title,
         report_type=str(report.report_type),
         source_type=str(report.source_type),
+        period_start=report.period_start,
+        period_end=report.period_end,
         subject=SubjectBrief.model_validate(report.subject) if report.subject else None,
         is_read=state.is_read if state else False,
         read_at=state.read_at if state else None,
@@ -623,11 +630,15 @@ def _build_report_list_item(
 
 
 def _build_report_detail(report: Report, state: ReportUserState | None) -> ReportDetail:
+    from ac_link.services.translation_helpers import resolve_translation_fields
+    tf = resolve_translation_fields(report.original_content_markdown, report.original_language, None)
     return ReportDetail(
         uuid=report.uuid,
         title=report.title,
         report_type=str(report.report_type),
         source_type=str(report.source_type),
+        period_start=report.period_start,
+        period_end=report.period_end,
         subject=SubjectBrief.model_validate(report.subject) if report.subject else None,
         is_read=state.is_read if state else False,
         read_at=state.read_at if state else None,
@@ -635,10 +646,14 @@ def _build_report_detail(report: Report, state: ReportUserState | None) -> Repor
         archived_at=state.archived_at if state else None,
         created_at=report.created_at,
         published_at=report.published_at,
-        display_content_markdown=report.original_content_markdown,
-        original_content_markdown=report.original_content_markdown,
-        display_language=report.original_language,
-        original_language=report.original_language,
+        display_content_markdown=tf['display_content_markdown'],
+        original_content_markdown=tf['original_content_markdown'],
+        translated_content_markdown=tf['translated_content_markdown'],
+        display_language=tf['display_language'],
+        original_language=tf['original_language'],
+        translated_language=tf['translated_language'],
+        translation_status=tf['translation_status'],
+        translated_at=tf['translated_at'],
     )
 
 

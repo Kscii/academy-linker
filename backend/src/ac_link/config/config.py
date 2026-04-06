@@ -39,7 +39,13 @@ class Settings(BaseSettings):
     # 前端开发地址，生产环境通过环境变量覆盖（逗号分隔多个）
     # 注意：生产环境务必替换为真实域名，不要保留 localhost
     allowed_origins: list[str] = ["http://localhost:5173"]
-
+    # ── LLM（OpenAI 兼容接口）──────────────────────────────────────
+    # 支持任何兼容 OpenAI API 风格的模型提供商
+    llm_api_key: str = ""
+    llm_base_url: str | None = None      # 留空则使用 OpenAI 官方地址
+    llm_model: str = "gpt-4o"
+    llm_temperature: float = 0.3
+    llm_max_tokens: int = 2048
     @property
     def database_url(self) -> str:
         return PostgresDsn.build(

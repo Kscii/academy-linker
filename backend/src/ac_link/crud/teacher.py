@@ -229,6 +229,8 @@ def create_report(
     report_type: ReportType,
     content_markdown: str,
     original_language: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
 ) -> Report:
     """创建报告，source_type 固定为 teacher，立即发布。"""
     now = datetime.now(timezone.utc)
@@ -239,6 +241,8 @@ def create_report(
         title=title,
         report_type=report_type,
         source_type=ReportSourceType.TEACHER,
+        period_start=period_start,
+        period_end=period_end,
         published_at=now,
         content_markdown=content_markdown,
         original_content_markdown=content_markdown,
@@ -268,10 +272,12 @@ def update_report(
     report_type: ReportType | None = None,
     content_markdown: str | None = None,
     original_language: str | None = None,
+    period_start: date | None | _UnsetType = UNSET,
+    period_end: date | None | _UnsetType = UNSET,
 ) -> Report:
     """
     更新报告可变字段。
-    - subject_id 使用 UNSET 哨兵区分"未提供"和"显式置 null"。
+    - subject_id / period_start / period_end 使用 UNSET 哨兵区分"未提供"和"显式置 null"。
     """
     if title is not None:
         report.title = title
@@ -286,6 +292,11 @@ def update_report(
 
     if not isinstance(subject_id, _UnsetType):
         report.subject_id = subject_id
+
+    if not isinstance(period_start, _UnsetType):
+        report.period_start = period_start
+    if not isinstance(period_end, _UnsetType):
+        report.period_end = period_end
 
     db.flush()
     return report

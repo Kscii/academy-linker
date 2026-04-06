@@ -114,9 +114,12 @@ class ReportSummary(BaseModel):
     report_title: str
     display_text: str
     original_text: str
+    translated_text: str | None = None
     display_language: str
     original_language: str
+    translated_language: str | None = None
     translation_status: str | None = None
+    translated_at: datetime | None = None
 
 
 class SubjectDetailData(BaseModel):
@@ -190,7 +193,9 @@ class DashboardData(BaseModel):
 class TranslationBlock(BaseModel):
     display_language: str
     original_language: str
+    translated_language: str | None = None
     translation_status: str | None = None
+    translated_at: datetime | None = None
 
 
 # ── 学科简要（列表项用）──────────────────────────────────────────────────────────
@@ -211,6 +216,8 @@ class ReportListItem(BaseModel):
     title: str
     report_type: str
     source_type: str
+    period_start: date | None = None
+    period_end: date | None = None
     subject: SubjectBrief | None = None
     is_read: bool
     read_at: datetime | None = None
@@ -232,6 +239,8 @@ class ReportDetail(BaseModel):
     title: str
     report_type: str
     source_type: str
+    period_start: date | None = None
+    period_end: date | None = None
     subject: SubjectBrief | None = None
     is_read: bool
     read_at: datetime | None = None
@@ -241,9 +250,12 @@ class ReportDetail(BaseModel):
     published_at: datetime | None = None
     display_content_markdown: str
     original_content_markdown: str
+    translated_content_markdown: str | None = None
     display_language: str
     original_language: str
+    translated_language: str | None = None
     translation_status: str | None = None
+    translated_at: datetime | None = None
 
 
 # ── §9.10 公告/任务列表 ───────────────────────────────────────────────────────
@@ -353,6 +365,9 @@ class AnnouncementDetail(BaseModel):
     author: AuthorBrief
     display_content_markdown: str
     original_content_markdown: str
+    translated_content_markdown: str | None = None
     display_language: str
     original_language: str
+    translated_language: str | None = None
     translation_status: str | None = None
+    translated_at: datetime | None = None

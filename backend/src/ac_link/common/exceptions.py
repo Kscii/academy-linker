@@ -80,5 +80,25 @@ class Errors:
         return AppError(409, "duplicate_tag_name", f"Tag 名称 '{name}' 已存在")
 
     @staticmethod
+    def conversation_archived() -> AppError:
+        return AppError(409, "conversation_archived", "AI 会话已归档，不允许继续发送消息")
+
+    @staticmethod
+    def auto_translation_disabled() -> AppError:
+        return AppError(403, "auto_translation_disabled", "已关闭自动翻译，且当前请求不允许自动创建译文")
+
+    @staticmethod
+    def ai_generation_failed(message: str = "AI 报告生成失败") -> AppError:
+        return AppError(500, "ai_generation_failed", message)
+
+    @staticmethod
+    def ai_translation_failed(message: str = "AI 翻译失败") -> AppError:
+        return AppError(500, "ai_translation_failed", message)
+
+    @staticmethod
+    def ai_chat_failed(message: str = "AI 对话生成失败") -> AppError:
+        return AppError(500, "ai_chat_failed", message)
+
+    @staticmethod
     def internal_error(message: str = "服务端内部错误") -> AppError:
         return AppError(500, "internal_error", message)

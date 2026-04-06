@@ -84,6 +84,8 @@ class ReportCreate(BaseModel):
     title: str
     subject_uuid: UUID | None = None
     report_type: str
+    period_start: str | None = None
+    period_end: str | None = None
     content_markdown: str
     original_language: str
 
@@ -103,6 +105,8 @@ class ReportUpdate(BaseModel):
     title: str | None = None
     subject_uuid: UUID | None = None
     report_type: str | None = None
+    period_start: str | None = None
+    period_end: str | None = None
     content_markdown: str | None = None
     original_language: str | None = None
 
@@ -123,15 +127,20 @@ class TeacherReportDetail(BaseModel):
     title: str
     report_type: str
     source_type: str
+    period_start: date | None = None
+    period_end: date | None = None
     subject: SubjectBrief | None = None
     author: AuthorBrief
     created_at: datetime
     published_at: datetime | None = None
     display_content_markdown: str
     original_content_markdown: str
+    translated_content_markdown: str | None = None
     display_language: str
     original_language: str
+    translated_language: str | None = None
     translation_status: str | None = None
+    translated_at: datetime | None = None
 
 
 # ── §10.14 / §10.15 公告/任务 ────────────────────────────────────────────────
@@ -195,9 +204,12 @@ class TeacherAnnouncementDetail(BaseModel):
     created_at: datetime
     display_content_markdown: str
     original_content_markdown: str
+    translated_content_markdown: str | None = None
     display_language: str
     original_language: str
+    translated_language: str | None = None
     translation_status: str | None = None
+    translated_at: datetime | None = None
 
 
 # ── §10.16 老师班级列表 ────────────────────────────────────────────────────────
@@ -350,3 +362,20 @@ class UpsertPeriodMetricRequest(BaseModel):
     progress: float | None = None
     assignment_completion_rate: float | None = None
     attendance_rate: float | None = None
+
+
+# ── §12.1 AI 报告生成 ─────────────────────────────────────────────────────────
+
+class AiReportGenerateRequest(BaseModel):
+    report_type: str
+    subject_uuid: UUID | None = None
+    period_start: str  # YYYY-MM-DD
+    period_end: str    # YYYY-MM-DD
+    extra_instruction: str | None = None
+
+    @field_validator("report_type")
+    @classmethod
+    def validate_report_type(cls, v: str) -> str:
+        if v not in _VALID_REPORT_TYPES:
+            raise ValueError(f"report_type 必须为 {_VALID_REPORT_TYPES}")
+        return v

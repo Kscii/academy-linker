@@ -58,6 +58,7 @@ class TranslationResourceType(StrEnum):
 
 
 class AiConversationContextType(StrEnum):
+    GLOBAL = 'global'
     STUDENT = 'student'
     SUBJECT = 'subject'
 

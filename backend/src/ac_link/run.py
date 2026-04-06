@@ -27,6 +27,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from ac_link.api.admin_api import router as admin_router
+from ac_link.api.ai_api import router as ai_router
 from ac_link.api.announcement_api import router as announcement_router
 from ac_link.api.auth_api import router as auth_router
 from ac_link.api.discussion_api import router as discussion_router
@@ -35,6 +36,7 @@ from ac_link.api.parent_api import router as parent_router
 from ac_link.api.report_api import router as report_router
 from ac_link.api.settings_api import router as settings_router
 from ac_link.api.teacher_api import router as teacher_router
+from ac_link.api.translation_api import router as translation_router
 from ac_link.common.exceptions import AppError
 from ac_link.config.config import settings
 
@@ -151,3 +153,5 @@ app.include_router(report_router)
 app.include_router(announcement_router)
 app.include_router(teacher_router)
 app.include_router(discussion_router)
+app.include_router(translation_router)
+app.include_router(ai_router)
