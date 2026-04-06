@@ -95,7 +95,6 @@ class Subject(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     code: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     teaching_assignments: Mapped[list['TeachingAssignment']] = relationship(back_populates='subject', cascade='all, delete-orphan')

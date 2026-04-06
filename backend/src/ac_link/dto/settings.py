@@ -23,6 +23,8 @@ class SettingsOut(BaseModel):
     email_post_notification_enabled: bool
     default_report_time_range: str
     default_announcement_time_range: str
+    ai_chat_style: str | None = None
+    ai_auto_translate_enabled: bool
 
     class Config:
         from_attributes = True
@@ -44,3 +46,5 @@ class SettingsPatchRequest(BaseModel):
     email_post_notification_enabled: bool | None = None
     default_report_time_range: Literal["all_time", "7d", "30d", "90d"] | None = None
     default_announcement_time_range: Literal["all_time", "7d", "30d", "90d"] | None = None
+    ai_chat_style: str | None = None
+    ai_auto_translate_enabled: bool | None = None

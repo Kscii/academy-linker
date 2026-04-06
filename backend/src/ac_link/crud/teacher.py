@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session, joinedload
 from ac_link.db.orm.academic import Class, Student, Subject, TeachingAssignment
 from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post
 from ac_link.db.orm.content import Announcement, Report
-from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType, TranslationStatus
+from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType
 
 
 class _UnsetType:
@@ -229,10 +229,6 @@ def create_report(
     report_type: ReportType,
     content_markdown: str,
     original_language: str,
-    translation_status: TranslationStatus = TranslationStatus.NOT_REQUIRED,
-    translated_content_markdown: str | None = None,
-    translated_language: str | None = None,
-    translated_at: datetime | None = None,
 ) -> Report:
     """创建报告，source_type 固定为 teacher，立即发布。"""
     now = datetime.now(timezone.utc)
@@ -243,15 +239,10 @@ def create_report(
         title=title,
         report_type=report_type,
         source_type=ReportSourceType.TEACHER,
-        is_published=True,
         published_at=now,
         content_markdown=content_markdown,
         original_content_markdown=content_markdown,
         original_language=original_language,
-        translation_status=translation_status,
-        translated_content_markdown=translated_content_markdown,
-        translated_language=translated_language,
-        translated_at=translated_at,
     )
     db.add(report)
     db.flush()
@@ -277,15 +268,10 @@ def update_report(
     report_type: ReportType | None = None,
     content_markdown: str | None = None,
     original_language: str | None = None,
-    translation_status: TranslationStatus | None = None,
-    translated_content_markdown: str | None | _UnsetType = UNSET,
-    translated_language: str | None | _UnsetType = UNSET,
-    translated_at: datetime | None | _UnsetType = UNSET,
 ) -> Report:
     """
     更新报告可变字段。
-    - subject_id / translated_* 使用 UNSET 哨兵区分"未提供"和"显式置 null"。
-    - 若 content_markdown 有变化且原 translation_status == completed，自动置 stale。
+    - subject_id 使用 UNSET 哨兵区分"未提供"和"显式置 null"。
     """
     if title is not None:
         report.title = title
@@ -297,22 +283,9 @@ def update_report(
     if content_markdown is not None:
         report.content_markdown = content_markdown
         report.original_content_markdown = content_markdown
-        # 原文变化，已完成的翻译自动标为 stale
-        if report.translation_status == TranslationStatus.COMPLETED:
-            report.translation_status = TranslationStatus.STALE
-
-    # 显式传入 translation_status 时（包括 stale 已自动设置后再覆盖的场景）
-    if translation_status is not None:
-        report.translation_status = translation_status
 
     if not isinstance(subject_id, _UnsetType):
         report.subject_id = subject_id
-    if not isinstance(translated_content_markdown, _UnsetType):
-        report.translated_content_markdown = translated_content_markdown
-    if not isinstance(translated_language, _UnsetType):
-        report.translated_language = translated_language
-    if not isinstance(translated_at, _UnsetType):
-        report.translated_at = translated_at
 
     db.flush()
     return report
@@ -330,10 +303,6 @@ def create_announcement(
     title: str,
     content_markdown: str,
     original_language: str,
-    translation_status: TranslationStatus = TranslationStatus.NOT_REQUIRED,
-    translated_content_markdown: str | None = None,
-    translated_language: str | None = None,
-    translated_at: datetime | None = None,
     published_at: datetime | None = None,
     due_at: datetime | None = None,
     is_important: bool = False,
@@ -346,16 +315,11 @@ def create_announcement(
         category=category,
         title=title,
         is_important=is_important,
-        is_published=True,
         published_at=published_at or datetime.now(timezone.utc),
         due_at=due_at,
         content_markdown=content_markdown,
         original_content_markdown=content_markdown,
         original_language=original_language,
-        translation_status=translation_status,
-        translated_content_markdown=translated_content_markdown,
-        translated_language=translated_language,
-        translated_at=translated_at,
     )
     db.add(announcement)
     db.flush()
@@ -381,18 +345,13 @@ def update_announcement(
     subject_id: int | None | _UnsetType = UNSET,
     content_markdown: str | None = None,
     original_language: str | None = None,
-    translation_status: TranslationStatus | None = None,
-    translated_content_markdown: str | None | _UnsetType = UNSET,
-    translated_language: str | None | _UnsetType = UNSET,
-    translated_at: datetime | None | _UnsetType = UNSET,
     published_at: datetime | None = None,
     due_at: datetime | None | _UnsetType = UNSET,
     is_important: bool | None = None,
 ) -> Announcement:
     """
     更新公告可变字段。
-    - 同 update_report，content_markdown 变化时若已完成翻译则自动置 stale。
-    - subject_id / due_at / translated_* 使用 UNSET 哨兵。
+    - subject_id / due_at 使用 UNSET 哨兵。
     """
     if category is not None:
         announcement.category = category
@@ -408,20 +367,9 @@ def update_announcement(
     if content_markdown is not None:
         announcement.content_markdown = content_markdown
         announcement.original_content_markdown = content_markdown
-        if announcement.translation_status == TranslationStatus.COMPLETED:
-            announcement.translation_status = TranslationStatus.STALE
-
-    if translation_status is not None:
-        announcement.translation_status = translation_status
 
     if not isinstance(subject_id, _UnsetType):
         announcement.subject_id = subject_id
-    if not isinstance(translated_content_markdown, _UnsetType):
-        announcement.translated_content_markdown = translated_content_markdown
-    if not isinstance(translated_language, _UnsetType):
-        announcement.translated_language = translated_language
-    if not isinstance(translated_at, _UnsetType):
-        announcement.translated_at = translated_at
     if not isinstance(due_at, _UnsetType):
         announcement.due_at = due_at
 

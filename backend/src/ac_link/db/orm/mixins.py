@@ -7,9 +7,6 @@ from sqlalchemy import DateTime, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
-from ac_link.db.orm.enums import TranslationStatus
-from ac_link.db.orm.sqltypes import enum_column
-
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -38,25 +35,9 @@ class TimestampMixin:
     )
 
 
-class TranslationFieldsMixin:
-    @declared_attr
-    def original_language(cls) -> Mapped[str]:
-        return mapped_column(String(32), nullable=False)
+class OriginalContentMixin:
+    """资源原文 mixin（报告/公告）。译文统一由 resource_translations 表管理。"""
 
-    @declared_attr
-    def translated_language(cls) -> Mapped[str | None]:
-        return mapped_column(String(32), nullable=True)
-
-    @declared_attr
-    def translation_status(cls) -> Mapped[TranslationStatus]:
-        return mapped_column(enum_column(TranslationStatus, 'translation_status'), nullable=False, default=TranslationStatus.NOT_REQUIRED)
-
-    @declared_attr
-    def translated_at(cls) -> Mapped[datetime | None]:
-        return mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class MarkdownTranslationContentMixin(TranslationFieldsMixin):
     @declared_attr
     def content_markdown(cls) -> Mapped[str]:
         return mapped_column(Text, nullable=False)
@@ -66,5 +47,5 @@ class MarkdownTranslationContentMixin(TranslationFieldsMixin):
         return mapped_column(Text, nullable=False)
 
     @declared_attr
-    def translated_content_markdown(cls) -> Mapped[str | None]:
-        return mapped_column(Text, nullable=True)
+    def original_language(cls) -> Mapped[str]:
+        return mapped_column(String(32), nullable=False)

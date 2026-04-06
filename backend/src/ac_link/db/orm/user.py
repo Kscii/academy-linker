@@ -7,7 +7,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ac_link.db.orm.base import Base
-from ac_link.db.orm.enums import SessionStatus, Theme, TimeRange, UserRole
+from ac_link.db.orm.enums import Theme, TimeRange, UserRole
 from ac_link.db.orm.mixins import IntPrimaryKeyMixin, TimestampMixin, UUIDMixin, utc_now
 from ac_link.db.orm.sqltypes import enum_column
 
@@ -92,6 +92,8 @@ class UserSettings(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
         nullable=False,
         default=TimeRange.ALL_TIME,
     )
+    ai_chat_style: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ai_auto_translate_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     user: Mapped['User'] = relationship(back_populates='settings')
 
@@ -111,10 +113,5 @@ class UserSession(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    status: Mapped[SessionStatus] = mapped_column(
-        enum_column(SessionStatus, 'session_status'),
-        nullable=False,
-        default=SessionStatus.ACTIVE,
-    )
 
     user: Mapped['User'] = relationship(back_populates='sessions')

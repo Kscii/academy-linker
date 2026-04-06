@@ -120,7 +120,7 @@ def get_latest_report_for_student(
     """取最近一条已发布的 report；若给出 subject_id，则只取该学科的。"""
     q = db.query(Report).filter(
         Report.student_id == student_id,
-        Report.is_published == True,  # noqa: E712
+        Report.published_at.isnot(None),
     )
     if subject_id is not None:
         q = q.filter(Report.subject_id == subject_id)
@@ -137,7 +137,7 @@ def get_unread_announcement_count(
         db.query(func.count(Announcement.id))
         .filter(
             Announcement.student_id == student_id,
-            Announcement.is_published == True,  # noqa: E712
+            Announcement.published_at.isnot(None),
         )
         .scalar()
     ) or 0
@@ -218,7 +218,7 @@ def list_reports_for_student(
     """
     base_filters = [
         Report.student_id == student_id,
-        Report.is_published == True,  # noqa: E712
+        Report.published_at.isnot(None),
     ]
 
     if status == "active":
@@ -283,7 +283,7 @@ def get_report_for_student(
         .filter(
             Report.uuid == report_uuid,
             Report.student_id == student_id,
-            Report.is_published == True,  # noqa: E712
+            Report.published_at.isnot(None),
         )
         .first()  # type: ignore[return-value]
     )
@@ -318,7 +318,7 @@ def get_report_for_parent(
         )
         .filter(
             Report.uuid == report_uuid,
-            Report.is_published == True,  # noqa: E712
+            Report.published_at.isnot(None),
             Student.is_active == True,  # noqa: E712
         )
         .first()  # type: ignore[return-value]
@@ -361,12 +361,12 @@ def list_announcements_for_student(
 ) -> tuple[list[tuple[Announcement, AnnouncementUserState | None]], int]:
     """
     左连接 announcement_user_states，返回 (announcement, state_or_none) 列表及总数。
-    active_only=True: is_published=True 且 (due_at IS NULL 或 due_at > now)
+    active_only=True: published_at IS NOT NULL 且 (due_at IS NULL 或 due_at > now)
     sort: published_at_desc / published_at_asc / due_at_asc（null 排最后）
     """
     base_filters = [
         Announcement.student_id == student_id,
-        Announcement.is_published == True,  # noqa: E712
+        Announcement.published_at.isnot(None),
     ]
 
     if active_only:
@@ -443,7 +443,7 @@ def get_announcement_for_parent(
         )
         .filter(
             Announcement.uuid == announcement_uuid,
-            Announcement.is_published == True,  # noqa: E712
+            Announcement.published_at.isnot(None),
             Student.is_active == True,  # noqa: E712
         )
         .first()  # type: ignore[return-value]

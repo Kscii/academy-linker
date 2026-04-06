@@ -32,6 +32,7 @@ _NON_NULLABLE_SETTINGS = frozenset({
     "email_post_notification_enabled",
     "default_report_time_range",
     "default_announcement_time_range",
+    "ai_auto_translate_enabled",
 })
 
 

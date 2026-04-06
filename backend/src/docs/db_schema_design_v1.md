@@ -613,10 +613,13 @@ posts(
 
 ```text
 post_tags(
+  id PK,
+  uuid UNIQUE,
   post_id FK -> posts.id,
   tag_id FK -> tags.id,
   created_at,
-  PRIMARY KEY(post_id, tag_id)
+  updated_at,
+  UNIQUE(post_id, tag_id)
 )
 ```
 
@@ -962,8 +965,8 @@ posts(id PK, uuid UNIQUE, thread_id FK -> discussion_threads.id,
       title NULL, content_markdown, original_language,
       created_at, updated_at NULL, deleted_at NULL)
 
-post_tags(post_id FK -> posts.id, tag_id FK -> tags.id, created_at,
-          PRIMARY KEY(post_id, tag_id))
+post_tags(id PK, uuid UNIQUE, post_id FK -> posts.id, tag_id FK -> tags.id,
+          created_at, updated_at, UNIQUE(post_id, tag_id))
 
 thread_user_states(id PK, thread_id FK -> discussion_threads.id,
                    user_id FK -> users.id, last_read_post_id NULL FK -> posts.id,

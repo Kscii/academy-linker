@@ -3,7 +3,7 @@
 
 设计约定：
   - refresh_token 明文永远不写入数据库，只存 SHA-256 哈希值
-  - "撤销"操作只设置 revoked_at 时间戳与 status=REVOKED，不物理删除记录
+  - "撤销"操作只设置 revoked_at 时间戳，不物理删除记录
     （保留审计轨迹，后续如需清理过期记录可用定时任务）
   - "活跃会话"定义：revoked_at IS NULL AND expires_at > now()
 
@@ -23,7 +23,6 @@ from uuid import UUID
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from ac_link.db.orm.enums import SessionStatus
 from ac_link.db.orm.mixins import utc_now
 from ac_link.db.orm.user import UserSession
 
@@ -56,7 +55,6 @@ def create(
         ip_address=ip_address,
         user_agent=user_agent,
         device_label=device_label,
-        status=SessionStatus.ACTIVE,
     )
     db.add(session)
     db.flush()  # 使 session.id / session.uuid 等字段被填充
@@ -122,10 +120,9 @@ def get_all_active_by_user_id(db: Session, user_id: int) -> list[UserSession]:
 def revoke(db: Session, session: UserSession) -> None:
     """
     撤销单个会话（logout 当前设备）。
-    保留记录不删除，仅标记撤销时间和状态。
+    保留记录不删除，仅标记撤销时间。
     """
     session.revoked_at = utc_now()
-    session.status = SessionStatus.REVOKED
     db.flush()
 
 
@@ -144,7 +141,7 @@ def revoke_all_by_user_id(db: Session, user_id: int) -> None:
             UserSession.revoked_at.is_(None),
         )
     ).update(
-        {"revoked_at": now, "status": SessionStatus.REVOKED},
+        {"revoked_at": now},
         synchronize_session="fetch",  # 同步 SQLAlchemy identity map
     )
     db.flush()

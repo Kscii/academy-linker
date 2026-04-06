@@ -29,7 +29,6 @@ from ac_link.crud import parent as parent_crud
 from ac_link.crud import score as score_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
-from ac_link.db.orm.enums import TranslationStatus
 from ac_link.db.orm.user import User
 from ac_link.dto.auth import ApiResponse
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
@@ -491,27 +490,11 @@ def _build_report_summary(report: Report | None) -> ReportSummary | None:
     return ReportSummary(
         report_uuid=report.uuid,
         report_title=report.title,
-        display_text=_display_content(report),
+        display_text=report.original_content_markdown,
         original_text=report.original_content_markdown,
-        translated_text=report.translated_content_markdown,
-        display_language=_display_language(report),
+        display_language=report.original_language,
         original_language=report.original_language,
-        translated_language=report.translated_language,
-        translation_status=str(report.translation_status),
-        translated_at=report.translated_at,
     )
-
-
-def _display_language(obj: Report | Announcement) -> str:
-    if obj.translation_status == TranslationStatus.COMPLETED and obj.translated_language:
-        return obj.translated_language
-    return obj.original_language
-
-
-def _display_content(obj: Report | Announcement) -> str:
-    if obj.translation_status == TranslationStatus.COMPLETED and obj.translated_content_markdown:
-        return obj.translated_content_markdown
-    return obj.original_content_markdown
 
 
 # ── GET /api/parents/me/students/{student_uuid}/exam-scores ──────────────────────
@@ -615,11 +598,8 @@ def list_student_period_metrics(
 
 def _translation_block(obj: Report | Announcement) -> TranslationBlock:
     return TranslationBlock(
-        display_language=_display_language(obj),
+        display_language=obj.original_language,
         original_language=obj.original_language,
-        translated_language=obj.translated_language,
-        translation_status=str(obj.translation_status),
-        translated_at=obj.translated_at,
     )
 
 
@@ -655,14 +635,10 @@ def _build_report_detail(report: Report, state: ReportUserState | None) -> Repor
         archived_at=state.archived_at if state else None,
         created_at=report.created_at,
         published_at=report.published_at,
-        display_content_markdown=_display_content(report),
+        display_content_markdown=report.original_content_markdown,
         original_content_markdown=report.original_content_markdown,
-        translated_content_markdown=report.translated_content_markdown,
-        display_language=_display_language(report),
+        display_language=report.original_language,
         original_language=report.original_language,
-        translated_language=report.translated_language,
-        translation_status=str(report.translation_status),
-        translated_at=report.translated_at,
     )
 
 

@@ -72,6 +72,7 @@ class Post(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     author_user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     content_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    original_language: Mapped[str] = mapped_column(String(32), nullable=False)
     reply_to_post_id: Mapped[int | None] = mapped_column(ForeignKey('posts.id', ondelete='SET NULL'), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -91,6 +92,8 @@ class Tag(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     scope: Mapped[TagScope] = mapped_column(enum_column(TagScope, 'tag_scope'), nullable=False)
+    color: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     owner_teacher_user_id: Mapped[int | None] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     is_selectable_by_parent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_selectable_by_teacher: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

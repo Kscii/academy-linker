@@ -21,7 +21,7 @@ from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import parent as parent_crud
 from ac_link.crud import teacher as teacher_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.enums import ReportType, TranslationStatus, UserRole
+from ac_link.db.orm.enums import ReportType, UserRole
 from ac_link.db.orm.user import User
 from ac_link.dto.auth import ApiResponse, SuccessResponse
 from ac_link.dto.teacher import ReportUpdate, TeacherReportDetail
@@ -111,21 +111,6 @@ def unarchive_report(
 
 # ── PATCH /api/reports/{report_uuid} ──────────────────────────────────────────
 
-def _display_language_report(report: object) -> str:
-    from ac_link.db.orm.content import Report as ReportORM
-    r: ReportORM = report  # type: ignore[assignment]
-    if r.translation_status == TranslationStatus.COMPLETED and r.translated_language:
-        return r.translated_language
-    return r.original_language
-
-
-def _display_content_report(report: object) -> str:
-    from ac_link.db.orm.content import Report as ReportORM
-    r: ReportORM = report  # type: ignore[assignment]
-    if r.translation_status == TranslationStatus.COMPLETED and r.translated_content_markdown:
-        return r.translated_content_markdown
-    return r.original_content_markdown
-
 
 @router.patch("/{report_uuid}", response_model=ApiResponse[TeacherReportDetail])
 def update_report(
@@ -138,7 +123,6 @@ def update_report(
     更新报告（§10.13）。
     权限：报告创建者（teacher）或 admin。
     禁止修改 student 和 source_type（由创建时确定）。
-    若更新 content_markdown 且原 translation_status 为 completed，自动置 stale。
     subject_uuid 提供时验证 teaching_assignment 三元分配。
     """
     report = teacher_crud.get_report_by_uuid(db, report_uuid)
@@ -182,11 +166,6 @@ def update_report(
         report_type=ReportType(body.report_type) if "report_type" in provided and body.report_type else None,
         content_markdown=body.content_markdown if "content_markdown" in provided else None,
         original_language=body.original_language if "original_language" in provided else None,
-        translation_status=TranslationStatus(body.translation_status)
-            if "translation_status" in provided and body.translation_status else None,
-        translated_content_markdown=_unset_or("translated_content_markdown"),
-        translated_language=_unset_or("translated_language"),
-        translated_at=_unset_or("translated_at"),
     )
     db.commit()
     db.refresh(report)
@@ -207,12 +186,8 @@ def update_report(
         ),
         created_at=report.created_at,
         published_at=report.published_at,
-        display_content_markdown=_display_content_report(report),
+        display_content_markdown=report.original_content_markdown,
         original_content_markdown=report.original_content_markdown,
-        translated_content_markdown=report.translated_content_markdown,
-        display_language=_display_language_report(report),
+        display_language=report.original_language,
         original_language=report.original_language,
-        translated_language=report.translated_language,
-        translation_status=str(report.translation_status),
-        translated_at=report.translated_at,
     ))

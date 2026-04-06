@@ -51,10 +51,21 @@ class TimeRange(StrEnum):
     DAYS_90 = '90d'
 
 
-class SessionStatus(StrEnum):
-    ACTIVE = 'active'
-    REVOKED = 'revoked'
-    EXPIRED = 'expired'
+class TranslationResourceType(StrEnum):
+    REPORT = 'report'
+    ANNOUNCEMENT = 'announcement'
+    POST = 'post'
+
+
+class AiConversationContextType(StrEnum):
+    STUDENT = 'student'
+    SUBJECT = 'subject'
+
+
+class AiMessageRole(StrEnum):
+    USER = 'user'
+    ASSISTANT = 'assistant'
+    SYSTEM = 'system'
 
 
 

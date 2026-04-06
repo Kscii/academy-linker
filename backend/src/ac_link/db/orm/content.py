@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ac_link.db.orm.base import Base, uq
 from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType
 from ac_link.db.orm.mixins import (
     IntPrimaryKeyMixin,
-    MarkdownTranslationContentMixin,
+    OriginalContentMixin,
     TimestampMixin,
     UUIDMixin,
 )
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from ac_link.db.orm.user import User
 
 
-class Report(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, MarkdownTranslationContentMixin):
+class Report(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, OriginalContentMixin):
     __tablename__ = 'reports'
     __table_args__ = (
         Index('ix_reports_student_id_created_at', 'student_id', 'created_at'),
@@ -35,8 +35,10 @@ class Report(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, MarkdownTransl
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     report_type: Mapped[ReportType] = mapped_column(enum_column(ReportType, 'report_type'), nullable=False)
     source_type: Mapped[ReportSourceType] = mapped_column(enum_column(ReportSourceType, 'report_source_type'), nullable=False)
-    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     student: Mapped['Student'] = relationship(back_populates='reports')
     subject: Mapped['Subject | None'] = relationship(back_populates='reports')
@@ -62,7 +64,7 @@ class ReportUserState(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     user: Mapped['User'] = relationship(back_populates='report_states')
 
 
-class Announcement(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, MarkdownTranslationContentMixin):
+class Announcement(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, OriginalContentMixin):
     __tablename__ = 'announcements'
     __table_args__ = (
         Index('ix_announcements_student_id_published_at', 'student_id', 'published_at'),
@@ -79,7 +81,6 @@ class Announcement(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, Markdown
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     is_important: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

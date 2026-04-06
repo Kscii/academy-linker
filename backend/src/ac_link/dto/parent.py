@@ -114,12 +114,9 @@ class ReportSummary(BaseModel):
     report_title: str
     display_text: str
     original_text: str
-    translated_text: str | None = None
     display_language: str
     original_language: str
-    translated_language: str | None = None
-    translation_status: str
-    translated_at: datetime | None = None
+    translation_status: str | None = None
 
 
 class SubjectDetailData(BaseModel):
@@ -193,9 +190,7 @@ class DashboardData(BaseModel):
 class TranslationBlock(BaseModel):
     display_language: str
     original_language: str
-    translated_language: str | None = None
-    translation_status: str
-    translated_at: datetime | None = None
+    translation_status: str | None = None
 
 
 # ── 学科简要（列表项用）──────────────────────────────────────────────────────────
@@ -231,7 +226,7 @@ class ReportListItem(BaseModel):
 class ReportDetail(BaseModel):
     """
     报告完整详情（元信息 + 正文）。
-    display_content_markdown 由后端根据翻译状态选择 original / translated 版本。
+    display_content_markdown 由后端根据 resource_translations 选择 original / translated 版本。
     """
     uuid: UUID
     title: str
@@ -246,12 +241,9 @@ class ReportDetail(BaseModel):
     published_at: datetime | None = None
     display_content_markdown: str
     original_content_markdown: str
-    translated_content_markdown: str | None = None
     display_language: str
     original_language: str
-    translated_language: str | None = None
-    translation_status: str
-    translated_at: datetime | None = None
+    translation_status: str | None = None
 
 
 # ── §9.10 公告/任务列表 ───────────────────────────────────────────────────────
@@ -347,7 +339,7 @@ class ParentPeriodMetricItem(BaseModel):
 class AnnouncementDetail(BaseModel):
     """
     公告完整详情（元信息 + 正文）。
-    display_content_markdown 由后端根据翻译状态计算。
+    display_content_markdown 由后端根据 resource_translations 计算。
     """
     uuid: UUID
     category: str
@@ -361,9 +353,6 @@ class AnnouncementDetail(BaseModel):
     author: AuthorBrief
     display_content_markdown: str
     original_content_markdown: str
-    translated_content_markdown: str | None = None
     display_language: str
     original_language: str
-    translated_language: str | None = None
-    translation_status: str
-    translated_at: datetime | None = None
+    translation_status: str | None = None

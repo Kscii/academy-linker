@@ -29,7 +29,7 @@ from ac_link.crud import metrics as metrics_crud
 from ac_link.crud import score as score_crud
 from ac_link.crud import teacher as teacher_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.enums import AnnouncementCategory, ReportType, TranslationStatus, UserRole
+from ac_link.db.orm.enums import AnnouncementCategory, ReportType, UserRole
 from ac_link.db.orm.user import User
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
 from ac_link.dto.auth import ApiResponse
@@ -70,21 +70,6 @@ router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
 
 # ── 翻译辅助 ──────────────────────────────────────────────────────────────────
 
-def _display_language(obj: object) -> str:
-    from ac_link.db.orm.content import Announcement, Report
-    o: Report | Announcement = obj  # type: ignore[assignment]
-    if o.translation_status == TranslationStatus.COMPLETED and o.translated_language:
-        return o.translated_language
-    return o.original_language
-
-
-def _display_content(obj: object) -> str:
-    from ac_link.db.orm.content import Announcement, Report
-    o: Report | Announcement = obj  # type: ignore[assignment]
-    if o.translation_status == TranslationStatus.COMPLETED and o.translated_content_markdown:
-        return o.translated_content_markdown
-    return o.original_content_markdown
-
 
 def _build_teacher_report_detail(report: object) -> TeacherReportDetail:
     from ac_link.db.orm.content import Report as ReportORM
@@ -102,14 +87,10 @@ def _build_teacher_report_detail(report: object) -> TeacherReportDetail:
         ),
         created_at=r.created_at,
         published_at=r.published_at,
-        display_content_markdown=_display_content(r),
+        display_content_markdown=r.original_content_markdown,
         original_content_markdown=r.original_content_markdown,
-        translated_content_markdown=r.translated_content_markdown,
-        display_language=_display_language(r),
+        display_language=r.original_language,
         original_language=r.original_language,
-        translated_language=r.translated_language,
-        translation_status=str(r.translation_status),
-        translated_at=r.translated_at,
     )
 
 
@@ -130,14 +111,10 @@ def _build_teacher_announcement_detail(announcement: object) -> TeacherAnnouncem
         published_at=a.published_at,
         due_at=a.due_at,
         created_at=a.created_at,
-        display_content_markdown=_display_content(a),
+        display_content_markdown=a.original_content_markdown,
         original_content_markdown=a.original_content_markdown,
-        translated_content_markdown=a.translated_content_markdown,
-        display_language=_display_language(a),
+        display_language=a.original_language,
         original_language=a.original_language,
-        translated_language=a.translated_language,
-        translation_status=str(a.translation_status),
-        translated_at=a.translated_at,
     )
 
 
@@ -250,7 +227,7 @@ def get_student_dashboard(
 ) -> ApiResponse[TeacherDashboardData]:
     """
     获取老师视角学生 Dashboard（§10.2）。
-    summary 取该学生最近一条 is_published=True 的 report（不限作者）。
+    summary 取该学生最近一条已发布的 report（不限作者）。
     score / completion_rate 等聚合字段待 student_metrics 表建好后填充。
     """
     student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
@@ -269,17 +246,10 @@ def get_student_dashboard(
         summary = ReportSummary(
             report_uuid=latest_report.uuid,
             report_title=latest_report.title,
-            display_text=_display_content(latest_report)[:500],
+            display_text=latest_report.original_content_markdown[:500],
             original_text=latest_report.original_content_markdown[:500],
-            translated_text=(
-                latest_report.translated_content_markdown[:500]
-                if latest_report.translated_content_markdown else None
-            ),
-            display_language=_display_language(latest_report),
+            display_language=latest_report.original_language,
             original_language=latest_report.original_language,
-            translated_language=latest_report.translated_language,
-            translation_status=str(latest_report.translation_status),
-            translated_at=latest_report.translated_at,
         )
 
     return ApiResponse(data=TeacherDashboardData(
@@ -326,10 +296,6 @@ def create_report(
         report_type=ReportType(body.report_type),
         content_markdown=body.content_markdown,
         original_language=body.original_language,
-        translation_status=TranslationStatus(body.translation_status),
-        translated_content_markdown=body.translated_content_markdown,
-        translated_language=body.translated_language,
-        translated_at=body.translated_at,
     )
     db.commit()
     db.refresh(report)
@@ -377,10 +343,6 @@ def create_announcement(
         title=body.title,
         content_markdown=body.content_markdown,
         original_language=body.original_language,
-        translation_status=TranslationStatus(body.translation_status),
-        translated_content_markdown=body.translated_content_markdown,
-        translated_language=body.translated_language,
-        translated_at=body.translated_at,
         published_at=body.published_at,
         due_at=body.due_at,
         is_important=body.is_important,
