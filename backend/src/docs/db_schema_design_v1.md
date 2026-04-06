@@ -865,12 +865,9 @@ ai_messages(
 17. `thread_user_states`
 18. `student_exam_scores`
 19. `student_period_metrics`
-20. `student_overall_metrics`
-21. `resource_translations`
-22. `ai_conversations`
-23. `ai_messages`
-24. `audit_logs`
-
+20. `resource_translations`
+21. `ai_conversations`
+22. `ai_messages`
 ---
 
 ## 9. SQLModel 层设计原则

@@ -59,8 +59,8 @@
 | POST | `/api/threads/{thread_uuid}/posts` | 创建帖子（家长/老师共用） | 已完成 |
 | PATCH | `/api/posts/{post_uuid}` | 编辑帖子（家长/老师共用） | 已完成 |
 | DELETE | `/api/posts/{post_uuid}` | 删除帖子（家长/老师共用） | 已完成 |
-| GET | `/api/parents/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（家长视角） | 未完成 |
-| GET | `/api/parents/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（家长视角） | 未完成 |
+| GET | `/api/parents/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（家长视角） | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（家长视角） | 已完成 |
 
 ### 老师端 (§10)
 
@@ -70,23 +70,23 @@
 | GET | `/api/teachers/me/students/{student_uuid}/dashboard` | 老师视角学生 Dashboard | 已完成 |
 | GET | `/api/teachers/me/students/{student_uuid}/discussions/parents` | 学生讨论家长列表 | 已完成 |
 | GET | `/api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}` | 与某家长讨论页 | 已完成 |
-| GET | `/api/teachers/me/tags` | 获取可用 Tag 列表 | 未完成 |
-| POST | `/api/teachers/me/tags` | 创建私有 Tag | 未完成 |
-| PATCH | `/api/teachers/me/tags/{tag_uuid}` | 更新私有 Tag | 未完成 |
-| DELETE | `/api/teachers/me/tags/{tag_uuid}` | 删除私有 Tag | 未完成 |
+| GET | `/api/teachers/me/tags` | 获取可用 Tag 列表 | 已完成 |
+| POST | `/api/teachers/me/tags` | 创建私有 Tag | 已完成 |
+| PATCH | `/api/teachers/me/tags/{tag_uuid}` | 更新私有 Tag | 已完成 |
+| DELETE | `/api/teachers/me/tags/{tag_uuid}` | 删除私有 Tag | 已完成 |
 | POST | `/api/teachers/me/students/{student_uuid}/reports` | 创建报告 | 已完成 |
 | PATCH | `/api/reports/{report_uuid}` | 更新报告（老师/admin 共用） | 已完成 |
 | POST | `/api/teachers/me/students/{student_uuid}/announcements` | 创建公告/任务 | 已完成 |
 | PATCH | `/api/announcements/{announcement_uuid}` | 更新公告/任务（老师/admin 共用） | 已完成 |
-| GET | `/api/teachers/me/classes` | 老师负责的班级列表 | 未完成 |
-| GET | `/api/teachers/me/classes/{class_uuid}/students` | 班级学生列表 | 未完成 |
-| GET | `/api/teachers/me/classes/{class_uuid}/grade-stats` | 班级成绩统计 | 未完成 |
-| GET | `/api/teachers/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（老师视角） | 未完成 |
-| POST | `/api/teachers/me/students/{student_uuid}/exam-scores` | 创建考试成绩 | 未完成 |
-| PATCH | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 更新考试成绩 | 未完成 |
-| DELETE | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 删除考试成绩 | 未完成 |
-| GET | `/api/teachers/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（老师视角） | 未完成 |
-| POST | `/api/teachers/me/students/{student_uuid}/period-metrics` | 创建/更新周期指标 | 未完成 |
+| GET | `/api/teachers/me/classes` | 老师负责的班级列表 | 已完成 |
+| GET | `/api/teachers/me/classes/{class_uuid}/students` | 班级学生列表 | 已完成 |
+| GET | `/api/teachers/me/classes/{class_uuid}/grade-stats` | 班级成绩统计 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（老师视角） | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/exam-scores` | 创建考试成绩 | 已完成 |
+| PATCH | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 更新考试成绩 | 已完成 |
+| DELETE | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 删除考试成绩 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（老师视角） | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/period-metrics` | 创建/更新周期指标 | 已完成 |
 
 ### Admin 端 (§11)
 
@@ -107,24 +107,24 @@
 | GET | `/api/admin/tags/system` | 获取系统 Tag 列表 | 已完成 |
 | POST | `/api/admin/tags/system` | 创建系统 Tag | 已完成 |
 | PATCH | `/api/admin/tags/system/{tag_uuid}` | 更新系统 Tag | 已完成 |
-| GET | `/api/admin/classes` | 获取班级列表 | 未完成 |
-| POST | `/api/admin/classes` | 创建班级 | 未完成 |
-| PATCH | `/api/admin/classes/{class_uuid}` | 更新班级 | 未完成 |
-| POST | `/api/admin/students/{student_uuid}/transfer-class` | 学生换班（原子操作） | 未完成 |
+| GET | `/api/admin/classes` | 获取班级列表 | 已完成 |
+| POST | `/api/admin/classes` | 创建班级 | 已完成 |
+| PATCH | `/api/admin/classes/{class_uuid}` | 更新班级 | 已完成 |
+| POST | `/api/admin/students/{student_uuid}/transfer-class` | 学生换班（原子操作） | 已完成 |
 
 ### AI (§12)
 
 | 方法 | 路径 | 说明 | 状态 |
 |---|---|---|:---:|
-| POST | `/api/teachers/me/students/{student_uuid}/ai-reports` | 手动生成 AI 报告 | 未完成 |
-| POST | `/api/translations/resolve` | 解析/获取资源翻译内容 | 未完成 |
-| GET | `/api/ai/conversations` | 获取 AI 会话列表 | 未完成 |
-| POST | `/api/ai/conversations` | 创建 AI 会话 | 未完成 |
-| GET | `/api/ai/conversations/{conversation_uuid}` | 获取 AI 会话详情 | 未完成 |
-| POST | `/api/ai/conversations/{conversation_uuid}/messages` | 发送 AI 消息 | 未完成 |
-| POST | `/api/ai/conversations/{conversation_uuid}/archive` | 归档 AI 会话 | 未完成 |
-| POST | `/api/ai/conversations/{conversation_uuid}/unarchive` | 取消归档 AI 会话 | 未完成 |
-| DELETE | `/api/ai/conversations/{conversation_uuid}` | 删除 AI 会话 | 未完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/ai-reports` | 手动生成 AI 报告 | 已完成 |
+| POST | `/api/translations/resolve` | 解析/获取资源翻译内容 | 已完成 |
+| GET | `/api/ai/conversations` | 获取 AI 会话列表 | 已完成 |
+| POST | `/api/ai/conversations` | 创建 AI 会话 | 已完成 |
+| GET | `/api/ai/conversations/{conversation_uuid}` | 获取 AI 会话详情 | 已完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/messages` | 发送 AI 消息 | 已完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/archive` | 归档 AI 会话 | 已完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/unarchive` | 取消归档 AI 会话 | 已完成 |
+| DELETE | `/api/ai/conversations/{conversation_uuid}` | 删除 AI 会话 | 已完成 |
 
 ---
 
@@ -3366,5 +3366,37 @@ v1 推荐：**懒创建**
 - `student` 会话必须绑定 `student_uuid`
 - `subject` 会话必须同时绑定 `student_uuid + subject_uuid`
 - AI 会话独立于 discussion thread，不复用 `thread / post` 表结构
+
+---
+
+## 14. 实现差异备注（截至 2026-04）
+
+本节记录当前实现与文档设计之间存在的关键差异，供下阶段迭代参考。
+
+### 14.1 API 层：translation 缓存未在内容变更时置为 stale
+
+设计文档 §4.9 规定：
+
+> 当原文资源内容发生变化时，后端应将对应资源的全部译文缓存标记为 `stale`。
+
+**当前实现存在缺口**：
+
+- `PATCH /api/reports/{report_uuid}` 更新 `content_markdown` 后，**未**将对应 `resource_translations` 记录标记为 `stale`。
+- `PATCH /api/announcements/{announcement_uuid}` 同上。
+
+影响：若老师编辑了报告或公告的正文，前端通过 `POST /api/translations/resolve` 拿到的可能仍是旧版本的译文，直到该译文缓存被其他机制清理前均不会更新。
+
+**建议修复**：在 `teacher_crud.update_report` / `update_announcement` 中，若 `content_markdown` 发生变更，则同步调用 `translation_crud` 将该资源所有 `resource_translations` 的 `translation_status` 置为 `stale`。
+
+### 14.2 ORM 层：content_markdown 与 original_content_markdown 始终同步
+
+在 `teacher_crud.create_report`、`update_report`、`create_announcement`、`update_announcement` 中，`content_markdown` 与 `original_content_markdown` 始终被赋同一值，两个字段当前实际上等价。
+
+设计文档中两个字段的预期语义差异如下：
+
+- `original_content_markdown`：应在创建时固定，后续只作为翻译源使用，不随编辑变动（用于 stale 检测）。
+- `content_markdown`：可随老师编辑更新的"当前正文"。
+
+如果需要精确的翻译 stale 检测（即仅当 `original_content_markdown` 改变时才置 stale），需要拆分这两个字段的写入逻辑。v1 当前两者恒等，stale 检测应以 `content_markdown` 是否变化为触发条件。
 
 ---
