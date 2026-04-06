@@ -29,7 +29,8 @@ services:
     env_file:
       - .env
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres  # 容器间通信走内部网络，用服务名覆盖 .env 中的值
+      POSTGRES_PORT: 5432      # 容器内部 postgres 固定监听 5432，与宿主机映射端口无关
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

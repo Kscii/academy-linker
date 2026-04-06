@@ -5,6 +5,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+# 安装 libpq（psycopg v3 纯 Python 实现依赖的系统库）
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
 # 先复制依赖声明，利用层缓存（依赖未变则不重装）
 COPY pyproject.toml ./
 COPY src/ src/
