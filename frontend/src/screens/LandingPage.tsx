@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LogoMark } from '@/components/LogoMark';
 
 // ── Design tokens (day mode, hardcoded) ───────────────────────
 const T = {
@@ -125,6 +126,25 @@ function useCountUp(target: number, duration = 1200, active = false): number {
 // Sub-components
 // ─────────────────────────────────────────────────────────────
 
+// ── Logo (icon + wordmark) ────────────────────────────────────
+function LogoCombo({ size = 28, light = false }: { size?: number; light?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <LogoMark size={size} />
+      <span style={{
+        fontFamily: T.serif,
+        fontSize: size * 0.64,
+        color: light ? T.bg : T.tx,
+        fontWeight: 400,
+        letterSpacing: '-0.01em',
+        whiteSpace: 'nowrap',
+      }}>
+        Academy Linker
+      </span>
+    </div>
+  );
+}
+
 // ── Section wrapper ───────────────────────────────────────────
 function Section({
   id,
@@ -204,7 +224,7 @@ function BodyP({ children, style }: { children: React.ReactNode; style?: React.C
   );
 }
 
-// ── Academic citation card ─────────────────────────────────────
+// ── Insight card (formerly CitationCard) ──────────────────────
 function CitationCard({
   quote,
   citation,
@@ -222,30 +242,32 @@ function CitationCard({
         border: `1px solid ${T.bd}`,
         borderLeft: `4px solid ${T.pri}`,
         borderRadius: 10,
-        padding: '28px 32px',
+        padding: '22px 24px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
+        gap: 12,
       }}
     >
       <p style={{
-        fontFamily: T.serif,
-        fontStyle: 'italic',
-        fontSize: 16,
-        lineHeight: 1.75,
-        color: T.tx,
+        fontFamily: T.body,
+        fontWeight: 700,
+        fontSize: 11,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: T.pri,
         margin: 0,
       }}>
-        &ldquo;{quote}&rdquo;
+        {citation}
       </p>
       <p style={{
         fontFamily: T.body,
-        fontSize: 13,
-        color: T.tx3,
-        fontWeight: 600,
+        fontSize: 14,
+        fontWeight: 700,
+        lineHeight: 1.7,
+        color: T.tx,
         margin: 0,
       }}>
-        — {citation}
+        {quote}
       </p>
     </div>
   );
@@ -256,14 +278,12 @@ function FeatureBlock({
   icon,
   title,
   description,
-  researchBasis,
   flip,
   accentColor,
 }: {
   icon: string;
   title: string;
   description: string;
-  researchBasis: string;
   flip?: boolean;
   accentColor?: string;
 }) {
@@ -277,22 +297,22 @@ function FeatureBlock({
         flexDirection: flip ? 'row-reverse' : 'row',
         gap: 52,
         alignItems: 'flex-start',
-        padding: '48px 0',
+        padding: '40px 0',
         borderBottom: `1px solid ${T.bd}`,
       }}
     >
       {/* Icon column */}
       <div style={{
         flexShrink: 0,
-        width: 72,
-        height: 72,
-        borderRadius: 18,
+        width: 64,
+        height: 64,
+        borderRadius: 16,
         background: `${accent}18`,
         border: `1.5px solid ${accent}40`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 30,
+        fontSize: 28,
       }}>
         {icon}
       </div>
@@ -300,49 +320,22 @@ function FeatureBlock({
       <div style={{ flex: 1 }}>
         <h3 style={{
           fontFamily: T.serif,
-          fontSize: 24,
+          fontSize: 22,
           fontWeight: 400,
           color: T.tx,
-          marginBottom: 12,
+          marginBottom: 10,
         }}>
           {title}
         </h3>
         <p style={{
           fontFamily: T.body,
-          fontSize: 16,
-          lineHeight: 1.85,
+          fontSize: 15,
+          lineHeight: 1.75,
           color: T.tx2,
-          marginBottom: 20,
+          margin: 0,
         }}>
           {description}
         </p>
-        <div style={{
-          background: `${accent}0D`,
-          border: `1px solid ${accent}30`,
-          borderRadius: 8,
-          padding: '18px 22px',
-        }}>
-          <p style={{
-            fontFamily: T.body,
-            fontWeight: 700,
-            fontSize: 11,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            color: accent,
-            marginBottom: 8,
-          }}>
-            Research Basis
-          </p>
-          <p style={{
-            fontFamily: T.body,
-            fontSize: 14.5,
-            lineHeight: 1.8,
-            color: T.tx2,
-            margin: 0,
-          }}>
-            {researchBasis}
-          </p>
-        </div>
       </div>
     </div>
   );
@@ -426,23 +419,30 @@ function PrincipleCard({
   body: string;
   delay?: string;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <div
       className={`al-fade-up${delay ? ` al-stagger-${delay}` : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        background: T.surf,
-        border: `1px solid ${T.bd}`,
+        background: hovered ? T.surf2 : T.surf,
+        border: `1px solid ${hovered ? T.pri + '40' : T.bd}`,
         borderRadius: 12,
         padding: '30px 28px',
+        cursor: 'default',
+        transition: 'background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease',
+        boxShadow: hovered ? '0 4px 20px rgba(232,97,78,0.1)' : 'none',
       }}
     >
       <div style={{
         fontFamily: T.serif,
         fontSize: 42,
-        color: `${T.pri}28`,
+        color: hovered ? `${T.pri}60` : `${T.pri}28`,
         lineHeight: 1,
         marginBottom: 12,
         fontWeight: 400,
+        transition: 'color 0.25s ease',
       }}>
         {number}
       </div>
@@ -451,19 +451,27 @@ function PrincipleCard({
         fontSize: 20,
         fontWeight: 400,
         color: T.tx,
-        marginBottom: 10,
+        marginBottom: hovered ? 10 : 0,
+        transition: 'margin-bottom 0.3s ease',
       }}>
         {title}
       </h3>
-      <p style={{
-        fontFamily: T.body,
-        fontSize: 14.5,
-        lineHeight: 1.8,
-        color: T.tx2,
-        margin: 0,
+      <div style={{
+        overflow: 'hidden',
+        maxHeight: hovered ? '300px' : '0',
+        opacity: hovered ? 1 : 0,
+        transition: 'max-height 0.4s ease, opacity 0.3s ease',
       }}>
-        {body}
-      </p>
+        <p style={{
+          fontFamily: T.body,
+          fontSize: 14.5,
+          lineHeight: 1.8,
+          color: T.tx2,
+          margin: 0,
+        }}>
+          {body}
+        </p>
+      </div>
     </div>
   );
 }
@@ -642,16 +650,8 @@ export function LandingPage() {
             justifyContent: 'space-between',
           }}>
             {/* Logo */}
-            <a href="#" style={{ textDecoration: 'none' }}>
-              <span style={{
-                fontFamily: T.serif,
-                fontSize: 22,
-                color: T.pri,
-                fontWeight: 400,
-                letterSpacing: '-0.02em',
-              }}>
-                Academy Linker
-              </span>
+            <a href="#" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <LogoCombo size={28} />
             </a>
 
             {/* Nav links */}
@@ -661,7 +661,7 @@ export function LandingPage() {
               alignItems: 'center',
             }}>
               {[
-                { label: 'Research', href: '#research' },
+                { label: 'Overview', href: '#research' },
                 { label: 'Features', href: '#features' },
                 { label: 'Evidence', href: '#evidence' },
                 { label: 'Design Principles', href: '#principles' },
@@ -805,9 +805,9 @@ export function LandingPage() {
               marginBottom: 44,
               animation: 'fade-in-up 0.8s 0.2s ease both',
             }}>
-              Academy Linker operationalises research on parental engagement, linguistic accessibility,
-              and formative feedback loops to create a structured communication ecosystem between
-              educators and families.
+              Academy Linker connects parents and teachers through real-time, AI-translated messaging,
+              automated progress reports, and personalised learning insights — one platform that works
+              in every language a family speaks.
             </p>
 
             {/* CTA buttons */}
@@ -864,7 +864,7 @@ export function LandingPage() {
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = T.tx2)}
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = T.bd)}
               >
-                Read the Research Basis
+                See How It Works
               </a>
             </div>
 
@@ -889,13 +889,13 @@ export function LandingPage() {
                   padding: '24px 26px',
                 }}>
                   <div style={{ fontFamily: T.serif, fontSize: 32, color: T.pri, marginBottom: 6 }}>
-                    d = 0.51<span style={{ fontSize: 18 }}>+</span>
+                    3 Portals
                   </div>
                   <div style={{ fontFamily: T.body, fontWeight: 700, fontSize: 13, color: T.tx, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                    Hattie Effect Size
+                    Role-Specific Design
                   </div>
                   <div style={{ fontFamily: T.body, fontSize: 13.5, color: T.tx2, lineHeight: 1.6 }}>
-                    Parental involvement &amp; academic outcomes — Hattie (2009), synthesis of 800+ meta-analyses
+                    Separate interfaces for parents, teachers, and admins — each optimised for its user's workflow and information needs.
                   </div>
                 </div>
 
@@ -915,7 +915,7 @@ export function LandingPage() {
                     Multilingual Support
                   </div>
                   <div style={{ fontFamily: T.body, fontSize: 13.5, color: T.tx2, lineHeight: 1.6 }}>
-                    Serving EAL/D families per ACARA recommendations — ABS 2021 Census data
+                    Covering the major languages spoken across Australian school communities, with curriculum-aware translation via CurricuLLM.
                   </div>
                 </div>
 
@@ -943,57 +943,45 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* ── 3. Research Foundation ──────────────────────────── */}
+        {/* ── 3. The Problem ──────────────────────────────────── */}
         <Section id="research" bg={T.surf}>
-          <Eyebrow>Research Foundation</Eyebrow>
+          <Eyebrow>The Problem</Eyebrow>
           <div className="al-fade-up">
-            <SectionTitle>Grounded in Learning Science</SectionTitle>
+            <SectionTitle>School Communication Is Fundamentally One-Way</SectionTitle>
           </div>
           <div className="al-fade-up al-stagger-1">
             <BodyP>
-              The design of Academy Linker draws directly from four decades of empirical research on
-              family-school partnerships. John Hattie's landmark Visible Learning synthesis (2009),
-              which aggregated findings from over 800 meta-analyses encompassing more than 80 million
-              students, identified parental involvement as one of the most significant out-of-school
-              influences on academic achievement, yielding an effect size of d = 0.51 — well above the
-              threshold of d = 0.40 that Hattie designates as the "hinge point" of meaningful
-              educational influence. This places family engagement alongside interventions such as
-              formative assessment and teacher feedback in its demonstrated impact on student outcomes.
+              Most school communication systems are built around information delivery, not dialogue.
+              A PDF report emailed once a term, a notice board app that pushes announcements,
+              a parent portal that shows grades but accepts no replies — these tools share a common
+              limitation: they transfer data from school to home, but they don't create a channel
+              back. Parents receive information they can't act on, and teachers receive no signal
+              about whether families understood or engaged with what was sent.
             </BodyP>
             <BodyP>
-              The OECD's PISA 2018 data further corroborates this finding at a systems level, revealing
-              a statistically significant positive correlation between parental awareness of their
-              child's academic standing and student performance in reading literacy across OECD
-              member nations. Critically, however, the OECD's Strength through Diversity report (2019)
-              cautions that this benefit is not uniformly distributed: families from linguistic minority
-              backgrounds — including migrant families and those classified under Australia's
-              EAL/D (English as an Additional Language or Dialect) framework — are structurally
-              excluded from the benefits of parental engagement when school communication systems
-              operate exclusively in the dominant language.
+              The language barrier compounds this problem significantly. Approximately one in five
+              Australian households communicates primarily in a language other than English. When
+              school systems send reports and messages exclusively in English, a substantial portion
+              of families are structurally locked out — not because they're disengaged, but because
+              the infrastructure wasn't designed for them. The problem isn't motivation; it's access.
             </BodyP>
             <BodyP>
-              The Australian Bureau of Statistics 2021 Census recorded that approximately 22% of
-              Australians spoke a language other than English at home, with this proportion
-              significantly higher in metropolitan school catchments. ACARA's EAL/D Learning
-              Progression framework acknowledges that a non-trivial portion of Australia's student
-              population arrives in classrooms where school-family communication is already partially
-              or wholly inaccessible to at least one primary caregiver. This is not a marginal concern;
-              it is a systemic equity issue.
+              Teachers face the inverse problem: they want to communicate meaningfully with families,
+              but personalised outreach at scale is practically unsustainable within a normal teaching
+              workload. Writing individual progress updates for 120+ students, translating them, and
+              following up on replies represents hours of administrative work per week. Without tools
+              that absorb that overhead, the system defaults to the lowest-effort option — which is
+              the one-way broadcast.
             </BodyP>
             <BodyP>
-              Joyce Epstein's Framework of School, Family, and Community Partnerships (2001)
-              provides the theoretical scaffolding for Academy Linker's feature architecture. Epstein
-              identifies six types of family involvement, of which Type 2 (Communicating), Type 4
-              (Learning at Home), and Type 5 (Decision Making) are most predictive of academic
-              benefit. Crucially, Epstein distinguishes between one-directional information delivery —
-              the newsletter, the static parent portal, the term report mailed home — and genuine
-              two-way communication that enables families to respond, query, and participate in their
-              child's learning. Existing school communication infrastructure almost universally falls
-              into the former category. Academy Linker is designed to operationalise the latter.
+              Academy Linker is built to address all three of these failure modes simultaneously:
+              it creates a genuine two-way channel, makes that channel accessible in 17 languages,
+              and reduces the cost of personalised teacher communication to near-zero through
+              AI-assisted drafting and per-student post personalisation via the CurricuLLM API.
             </BodyP>
           </div>
 
-          {/* Citation cards */}
+          {/* Key insight cards */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -1001,18 +989,18 @@ export function LandingPage() {
             marginTop: 12,
           }}>
             <CitationCard
-              quote="Parental involvement ranks among the top influences on student achievement, with an effect size of d = 0.51 in Hattie's synthesis of over 800 meta-analyses."
-              citation="Hattie, J. (2009). Visible Learning: A Synthesis of Over 800 Meta-Analyses Relating to Achievement. Routledge."
+              quote="Most parent portals display data but provide no response mechanism. Parents can see a grade, but can't ask what it means or what to do next."
+              citation="Failure Mode #1 — One-directional information delivery"
               delay="1"
             />
             <CitationCard
-              quote="Students from language-minority families are disproportionately disadvantaged when school communication is delivered only in the dominant language."
-              citation="OECD (2019). Strength through Diversity: The Economic and Social Power of Inclusive Education. OECD Publishing."
+              quote="When school systems operate only in the dominant language, families from linguistic minority backgrounds face a structural access barrier — not a motivation deficit."
+              citation="Failure Mode #2 — Language exclusion"
               delay="2"
             />
             <CitationCard
-              quote="Effective family-school partnerships require two-way communication, not one-directional information delivery."
-              citation="Epstein, J. L. (2001). School, Family, and Community Partnerships: Preparing Educators and Improving Schools. Westview Press."
+              quote="Personalised communication at scale is unsustainable without AI assistance. Without tooling, the system defaults to the lowest-effort option: the broadcast."
+              citation="Failure Mode #3 — Teacher workload ceiling"
               delay="3"
             />
           </div>
@@ -1026,12 +1014,11 @@ export function LandingPage() {
           </div>
           <div className="al-fade-up al-stagger-1">
             <BodyP style={{ maxWidth: 780 }}>
-              Academy Linker implements Epstein's Type 2 (Communicating), Type 4 (Learning at Home),
-              and Type 5 (Decision Making) partnership dimensions through three role-specific portals,
-              each designed around the distinct informational needs and workflow constraints of its
-              primary user. Rather than presenting a single undifferentiated interface, the platform
-              acknowledges that parents, teachers, and administrators operate under different
-              cognitive demands, time pressures, and institutional responsibilities.
+              Three dedicated portals serve the distinct needs of parents, teachers, and administrators.
+              Each interface is purpose-built around its user's workflow: parents get a mobile-optimised
+              dashboard focused on their child's data; teachers get class-level tools with AI drafting
+              built into their posting and messaging workflow; admins get school-wide oversight with
+              account management and engagement tracking.
             </BodyP>
           </div>
 
@@ -1087,15 +1074,14 @@ export function LandingPage() {
         {/* ── 5. Features with Evidence ───────────────────────── */}
         <section id="features" style={{ background: T.surf, padding: '80px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 32px' }}>
-            <Eyebrow>Features &amp; Evidence</Eyebrow>
+            <Eyebrow>Features</Eyebrow>
             <div className="al-fade-up">
-              <SectionTitle>Principled Feature Design</SectionTitle>
+              <SectionTitle>What the Platform Does</SectionTitle>
             </div>
             <div className="al-fade-up al-stagger-1">
               <BodyP style={{ maxWidth: 720 }}>
-                Each feature in Academy Linker was designed in response to a specific, documented
-                failure mode of existing school communication systems. The following sections describe
-                each capability alongside the empirical literature that motivated its inclusion.
+                Each feature addresses a specific failure mode of existing school communication tools.
+                Hover any feature to see its description and the design rationale behind it.
               </BodyP>
             </div>
 
@@ -1103,8 +1089,7 @@ export function LandingPage() {
               icon="🌐"
               title="Multilingual AI Communication"
               accentColor={T.teal}
-              description="Academy Linker integrates the CurricuLLM curriculum-aware API to translate all dynamic content — messages, reports, subject names, AI insights, and system notifications — into 17 languages in real time. Translation is applied at the message level, allowing parents to toggle translations per message while preserving original text for bilingual families who prefer to read both versions. The translation layer is curriculum-aware, ensuring that pedagogical terminology is rendered in contextually appropriate registers rather than producing literal translations that obscure meaning."
-              researchBasis="The Australian Bureau of Statistics (2021 Census) reports that approximately 22% of Australians speak a language other than English at home, with concentrations significantly higher in urban school catchments. Research by Scribner & Reyes (1999) and subsequent work codified in ACARA's EAL/D Learning Progression demonstrates that linguistic accessibility is a prerequisite for meaningful parental engagement — not a supplementary convenience. The UNESCO (2016) report on multilingual education explicitly recommends mother-tongue-based communication for effective family-school partnerships, noting that informational access and comprehension are not equivalent when communication occurs in a language of lower proficiency."
+              description="All content — messages, reports, AI insights, notifications — is translated into 17 languages in real time via CurricuLLM. Parents toggle translation per message. The layer is curriculum-aware: pedagogical terms are rendered meaningfully, not literally."
             />
 
             <FeatureBlock
@@ -1112,16 +1097,14 @@ export function LandingPage() {
               title="AI-Generated Progress Reports"
               flip
               accentColor={T.pri}
-              description="Using the CurricuLLM API, Academy Linker generates structured narrative progress reports per student, per term, per language. Reports are cached by student UUID × language pair to prevent redundant API calls and ensure temporal consistency within a term. Each report includes subject-level scores, trend analysis relative to prior assessment periods, and specific actionable recommendations framed for a parent audience — deliberately avoiding curriculum jargon in favour of concrete, accessible language. The generation prompt is calibrated against Australian Curriculum Achievement Standards to ensure that narratives reflect the actual progression framework against which students are assessed."
-              researchBasis="Black & Wiliam's (1998) foundational meta-analysis on formative assessment established that timely, specific feedback significantly improves learning outcomes, with effect sizes reaching d = 0.70 under optimal conditions. However, translating teacher assessment data into parent-legible formats remains a documented challenge: Wyatt-Smith & Cumming (2009) identify a persistent gap between teacher assessment literacy and parental comprehension of formal reports. Narrative AI reports bridge this gap by contextualising raw scores within curriculum progression frameworks. Importantly, this approach aligns with the Australian Curriculum's emphasis on standards-referenced reporting rather than norm-referenced grading."
+              description="CurricuLLM generates per-student, per-term narrative reports cached by student UUID × language. Each report includes subject scores, trend analysis, and plain-language recommendations — calibrated against ACARA Achievement Standards."
             />
 
             <FeatureBlock
               icon="🏠"
               title="Personalised At-Home Learning Suggestions"
               accentColor={T.amber}
-              description="The dashboard generates subject-specific learning suggestions derived from each student's live performance data. Suggestions are differentiated by performance band — below threshold and above threshold — and framed as concrete 10–15 minute parent-child activities that avoid curriculum jargon and require no specialist subject knowledge from the caregiver. This design reflects the research finding that effective Type 4 involvement (Learning at Home) requires structured guidance, not generic encouragement. The CurricuLLM API ensures that generated suggestions remain aligned with the relevant curriculum strand and year level, producing activities that are pedagogically coherent rather than generic."
-              researchBasis="Cooper et al.'s (2006) meta-analysis on homework and academic achievement found that the quality of parental guidance during home learning activities is significantly more predictive of outcomes than the quantity of time spent. The Epstein Framework's Type 4 involvement explicitly requires that parents receive structured, actionable guidance tailored to their child's specific learning needs, rather than general encouragement. Hattie's effect size for structured parental involvement in learning activities — as distinct from unstructured monitoring — reaches d = 0.58, suggesting that the scaffolding provided to parents mediates the effectiveness of their involvement."
+              description="Subject-specific 10–15 minute activities are generated from each student's current performance data, differentiated by performance band. CurricuLLM ensures suggestions align with the relevant curriculum strand and year level."
             />
 
             <FeatureBlock
@@ -1129,25 +1112,22 @@ export function LandingPage() {
               title="Two-Way Structured Messaging"
               flip
               accentColor={T.blue}
-              description="Academy Linker implements thread-based 1:1 messaging between parents and individual subject teachers, with server-side read-state tracking, unread badge propagation via 5-second background polling, and per-message AI translation. Message threads are associated with specific subjects, providing contextual continuity across a semester of communication and enabling both parties to reference prior exchanges. The polling architecture ensures that unread counts remain accurate across browser sessions and devices without requiring WebSocket infrastructure, maintaining compatibility with school IT network environments that may restrict persistent connections."
-              researchBasis="Kraft & Rogers (2015) conducted a randomised controlled trial demonstrating that brief, personalised teacher-to-parent messages increased student homework completion rates by 40% and reduced course failure rates by 25% over a semester. The critical finding was that two-way communication — in which parents could respond, ask questions, and initiate contact — produced significantly stronger effects than one-directional outreach alone. Walker et al. (2011) similarly found that the quality of the relationship between teacher and parent, operationalised as perceived responsiveness and mutual respect, was more predictive of sustained parental engagement than the raw frequency of contact."
+              description="Thread-based 1:1 messaging between parents and subject teachers. Each thread is subject-scoped for contextual continuity. Unread badges update via 5-second polling — no WebSocket required, compatible with school network environments."
             />
 
             <FeatureBlock
               icon="🤖"
-              title="AI-Assisted Teacher Communication (CurricuLLM)"
+              title="AI-Assisted Teacher Communication"
               accentColor={T.teal}
-              description="Teachers publish class posts once; the CurricuLLM API personalises each post for every student's parent by incorporating the student's name, specific performance data, and contextually relevant details drawn from the student's academic record. This produces individually addressed communications at scale without proportionally increasing teacher workload. AI reply drafts are available within the messaging interface, generating contextually appropriate response suggestions that teachers can edit and send, reducing the cognitive load associated with composing responses to recurring parent queries while preserving the teacher's voice and professional judgement."
-              researchBasis="Burden et al. (2012) identified teacher time constraints as the primary systemic barrier to frequent, personalised parent communication in secondary schools, with teachers reporting that individualised communication was desirable but practically unsustainable within existing workload structures. The McKinsey Global Education Report (2020) found that high-performing school systems treat family engagement as a professional responsibility requiring dedicated tools and workflow integration — not as an optional supplementary activity. CurricuLLM's curriculum-aligned intelligence ensures that AI-generated content remains pedagogically accurate and aligned with ACARA achievement standards, mitigating the accuracy risks associated with deploying general-purpose language models in educational contexts."
+              description="Teachers write one post; CurricuLLM personalises it for every student's parent with their name, current scores, and relevant context. AI reply drafts are available in the messaging interface to reduce the cost of routine responses."
             />
 
             <FeatureBlock
               icon="📊"
-              title="Academic Progress Dashboard with Trend Analysis"
+              title="Academic Progress Dashboard"
               flip
               accentColor={T.pri}
-              description="Parents access a longitudinal view of their child's academic performance across all subjects, visualised as trend charts with class average benchmarking. The dashboard surfaces at-risk signals derived from score trajectories, attendance patterns, and engagement indicators alongside academic data, implementing a holistic model of student monitoring that extends beyond individual assessment events. The visualisation layer is designed to communicate trajectory — improvement, stability, or decline — rather than presenting scores as isolated data points, reflecting research findings that contextualised feedback produces more constructive parental responses than decontextualised grades."
-              researchBasis="Zimmerman's (2002) self-regulation framework and subsequent empirical work by Schunk & Pajares (2009) establish that academic self-efficacy — a significant predictor of achievement — improves when students and families receive transparent, granular feedback on longitudinal progress rather than summary assessments. The PISA 2018 results documented a positive correlation (r = 0.43) between parent awareness of their child's current academic standing and student reading literacy scores across OECD countries, controlling for socioeconomic background. Critically, this correlation was stronger for families in the lower two quartiles of the socioeconomic distribution, suggesting that transparent progress information partially offsets the advantage conferred by higher parental educational attainment."
+              description="Longitudinal trend charts benchmarked against class averages across all subjects. The dashboard prioritises trajectory over point-in-time — a 72 improving from 58 reads very differently from a 72 declining from 88. At-risk flags are trajectory-based, not threshold-based."
             />
           </div>
         </section>
@@ -1160,10 +1140,7 @@ export function LandingPage() {
           </div>
           <div className="al-fade-up al-stagger-1">
             <BodyP style={{ maxWidth: 720, textAlign: 'center', margin: '0 auto 40px' }}>
-              Every design decision in Academy Linker is traceable to a research principle. The
-              following four principles guided architecture choices, interaction design patterns,
-              and AI integration decisions throughout development. Where tradeoffs arose between
-              competing principles, we document the rationale for the resolution.
+              Six principles shaped every architecture and interaction decision. Hover each card to read the full reasoning.
             </BodyP>
           </div>
 
@@ -1176,37 +1153,37 @@ export function LandingPage() {
               number="01"
               title="Reduce Cognitive Load"
               delay="1"
-              body="Miller's Law (1956) and subsequent cognitive load theory (Sweller, 1988) inform our interface decisions throughout. Information is chunked into digestible units, progressive disclosure is employed where secondary detail is available but not foregrounded, and AI summarisation reduces information density for time-constrained parents who may be accessing the platform between work commitments. The dashboard foregrounds the three most salient signals (subject trend, attendance, unread messages) before presenting granular data."
+              body="Secondary detail is progressively disclosed rather than foregrounded. The dashboard surfaces the three most salient signals — trend, attendance, unread messages — before presenting granular data. A 30-second read for a busy parent; a deeper read for one who has time."
             />
             <PrincipleCard
               number="02"
               title="Actionability Over Information"
               delay="2"
-              body="Following Epstein's finding that information delivery alone does not reliably predict parental behaviour change, every feature is designed to produce a specific, low-friction action: reply to a message, read a report, request leave, access a structured learning resource. We deliberately avoid surfaces that present data without a clear next step, as research consistently shows that overwhelmed caregivers disengage from information-rich environments that do not scaffold a response."
+              body="Every surface is designed around a specific next action: reply, read a report, request leave, access a learning resource. Screens that present data without a clear response path were avoided — information without a next step tends to be ignored."
             />
             <PrincipleCard
               number="03"
               title="Linguistic Equity"
               delay="3"
-              body="Drawing on Cummins' (1979) foundational distinction between Basic Interpersonal Communication Skills (BICS) and Cognitive Academic Language Proficiency (CALP), Academy Linker translates not merely words but communicative intent — employing the CurricuLLM API to ensure that curriculum language is rendered in a register accessible to non-specialist parents, regardless of their schooling background. This is a stronger requirement than surface-level translation: it demands that AI-generated content be contextualised for the parent audience."
+              body="CurricuLLM translates communicative intent, not just words. Curriculum terms like 'working towards' or 'achievement standard' have precise meanings that literal translation destroys. The output must be understandable by a non-specialist parent regardless of schooling background."
             />
             <PrincipleCard
               number="04"
               title="Minimising Teacher Workload"
               delay="4"
-              body="Consistent with findings by Kraft et al. (2020) that unsupported communication mandates — where schools require frequent parent contact without providing tools or time — are a documented contributor to teacher burnout, Academy Linker positions its AI layer explicitly as a workload-reduction instrument. Features were designed by starting from the teacher's existing workflow and identifying where AI can absorb routine cognitive labour (drafting, personalising, translating), rather than by designing AI features first and asking teachers to adapt."
+              body="AI features were designed by starting from the teacher's existing workflow — identifying where the system can absorb drafting, personalising, and translating. The teacher provides intent and judgement; execution at scale is handled automatically."
             />
             <PrincipleCard
               number="05"
-              title="Aggregation of Distributed Teacher Observation"
+              title="Aggregating Teacher Observation"
               delay="5"
-              body="A well-documented limitation of formative assessment in practice is the fragmentation of teacher observation: insights accumulated across daily interactions, marking, and informal monitoring rarely reach parents in a coherent, longitudinal form (Wyatt-Smith & Cumming, 2009). Academy Linker treats each teacher post, subject update, and performance record as a discrete observational data point that is automatically aggregated into a unified student profile. Drawing on Stiggins' (2005) argument that assessment for learning requires that information be communicated in ways that build a shared understanding between educator and family, the platform synthesises these distributed observations — via the CurricuLLM API — into coherent narrative summaries. This architectural decision reflects Vygotsky's (1978) social constructivist principle that meaningful learning is supported by informed, responsive adults across all of a child's developmental contexts, not only within the classroom."
+              body="A teacher's view of a student is built across dozens of weekly interactions — none of which reaches parents in a usable form. Each post, update, and score is treated as a data point, aggregated into a unified profile, then synthesised by CurricuLLM into a coherent narrative."
             />
             <PrincipleCard
               number="06"
-              title="Personalised Reporting as Pedagogical Scaffolding"
+              title="Personalised Reporting"
               delay="6"
-              body="Generic progress reports — standardised across a class cohort — have long been criticised for failing to scaffold meaningful parental action (Hargreaves et al., 2002). Academy Linker operationalises Tomlinson's (2001) framework of differentiated instruction at the communication layer: each report generated via the CurricuLLM API is individualised to the student's performance band, subject trajectory, and learning context, producing recommendations that are specific rather than normative. This approach is consistent with the Response to Intervention (RTI) literature, which identifies early, individualised communication as a prerequisite for timely support. Furthermore, Bandura's (1997) self-efficacy theory suggests that when parents receive specific, credible information about how they can support their child's learning — rather than generic encouragement — their confidence and engagement increase substantially. The platform therefore treats personalised reporting not as an enhancement but as a core pedagogical function: the mechanism through which assessment data is translated into parental agency."
+              body="A class-level report is written for no one in particular. Each CurricuLLM report is individualised to the student's performance band and subject trajectory — recommendations differ meaningfully between a student falling behind in one strand and one who is ahead but inconsistent."
             />
           </div>
         </Section>
@@ -1239,15 +1216,14 @@ export function LandingPage() {
                 system notifications — into the 17 supported languages.
               </BodyP>
               <BodyP>
-                Using a curriculum-trained API rather than a generic language model carries significant
-                implications for accuracy and educational appropriateness. Generic LLMs, when applied
-                to educational content generation, have been documented to produce advice inconsistent
-                with national curriculum frameworks, misrepresent achievement level descriptors, and
-                generate recommendations that are pedagogically unsound for the relevant year level.
-                CurricuLLM's domain specificity mitigates these risks, ensuring that AI-generated
-                content — which will be read by parents as authoritative representations of their
-                child's educational progress — remains aligned with the official standards under which
-                teachers are legally and professionally required to assess and report.
+                Using a curriculum-trained API rather than a generic language model is a deliberate
+                architectural choice with real consequences. A general-purpose LLM can describe what
+                Year 6 maths looks like in broad strokes, but it cannot reliably distinguish between
+                achievement level descriptors, will misrepresent what "working towards" means in a
+                specific learning area, and will generate at-home recommendations that are grade-level
+                inappropriate. CurricuLLM is trained against ACARA achievement standards, so the
+                content it produces stays grounded in the actual framework teachers use — which is the
+                minimum bar for content that parents will treat as authoritative.
               </BodyP>
             </div>
 
@@ -1274,70 +1250,60 @@ export function LandingPage() {
           </div>
         </Section>
 
-        {/* ── 8. Social Impact ─────────────────────────────────── */}
+        {/* ── 8. Who It's For ──────────────────────────────────── */}
         <Section bg={T.bg}>
-          <Eyebrow>Social Impact</Eyebrow>
+          <Eyebrow>Reach</Eyebrow>
           <div className="al-fade-up">
-            <SectionTitle>Addressing Structural Inequity in Education</SectionTitle>
+            <SectionTitle>Built for the Full Range of Australian School Communities</SectionTitle>
           </div>
           <div style={{ display: 'flex', gap: 60, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div style={{ flex: '1 1 420px' }} className="al-fade-left">
               <BodyP>
-                The gap between home and school is not uniformly distributed across the student
-                population. Research consistently demonstrates that communication barriers
-                disproportionately affect migrant families, EAL/D households, and families with
-                lower levels of formal educational attainment — the precise groups for whom parental
-                engagement interventions show the strongest marginal benefit. The Australian Early
-                Development Census (AEDC) data, collected at the kindergarten transition point,
-                documents persistent correlations between socioeconomic background, linguistic
-                minority status, and markers of developmental vulnerability. Children who begin
-                formal schooling with lower school readiness scores are, on average, the children
-                whose families are most likely to be excluded from school communication systems
-                designed for fluent English-speaking, educationally-advantaged caregivers.
+                The communication gap isn't evenly distributed. Families who navigate school systems
+                in a second language are systematically excluded from the information flows that
+                affect their children's education — not because they're disengaged, but because the
+                systems weren't built for them. A progress report only in English isn't accessible
+                to a Mandarin-speaking parent. A message from a teacher that can't be replied to in
+                Vietnamese isn't a conversation.
               </BodyP>
               <BodyP>
-                Digitally-mediated, AI-translated communication cannot resolve structural socioeconomic
-                disadvantage. However, it can partially offset one specific mechanism through which
-                that disadvantage propagates: the exclusion of linguistically diverse families from
-                the information flows that govern their children's education. When a Vietnamese-speaking
-                parent in Western Sydney receives a curriculum-contextualised progress report in
-                Vietnamese, and can respond to their child's teacher in Vietnamese, the linguistic
-                barrier — which is a structural artefact of how school communication systems were
-                built, not a characteristic of the family — is removed. This is a modest but
-                measurable intervention in a complex system.
+                AI-mediated translation can't fix structural inequality, but it can remove one
+                specific, addressable barrier: the language wall between school and home. When a
+                parent receives a progress report in their native language and can reply to their
+                child's teacher in that language, one concrete obstacle is eliminated. That's the
+                scope of what the platform claims to do — and it's meaningful precisely because
+                it's specific.
               </BodyP>
               <BodyP>
-                UNESCO's Sustainable Development Goal 4 calls for inclusive and equitable quality
-                education for all, with specific emphasis on reducing disparities associated with
-                socioeconomic status, gender, disability, and linguistic background. The SDG 4
-                monitoring framework explicitly identifies family engagement as a quality dimension
-                of educational systems, not merely an outcome indicator. Academy Linker's design
-                philosophy positions inclusive communication infrastructure as a component of
-                educational quality, consistent with this framing.
+                The design implication is that multilingual support is a core feature, not a
+                supplementary one. Every part of the platform — messages, reports, AI insights,
+                system notifications — runs through the translation layer by default. The 17
+                supported languages were selected to cover the actual distribution of languages
+                spoken across Australian metropolitan school communities, not as a marketing figure.
               </BodyP>
             </div>
 
             <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 18 }}>
               <ImpactCard
-                stat="22%"
-                label="of Australians speak LOTE at home"
+                stat="17"
+                label="Languages supported"
                 accentColor={T.pri}
                 delay="1"
-                body="ABS 2021 Census data — approximately 5.5 million Australians primarily communicate in a language other than English at home, with this proportion significantly higher in metropolitan school catchments where Academy Linker would be deployed."
+                body="Every dynamic content type — messages, reports, AI insights, system notifications — is translated in real time. Parents can toggle translation per message, and the translation layer is curriculum-aware rather than literal."
               />
               <ImpactCard
-                stat="r = 0.43"
-                label="PISA 2018 engagement correlation"
+                stat="1 in 5"
+                label="Australian households speak LOTE"
                 accentColor={T.teal}
                 delay="2"
-                body="OECD PISA 2018 data shows a correlation of r = 0.43 between parent awareness of school performance and student reading literacy, with stronger effects in lower socioeconomic quartiles — precisely the families most likely to face communication barriers."
+                body="Approximately 22% of Australian households primarily communicate in a language other than English — a proportion significantly higher in metropolitan school catchments. These are the families most systematically excluded from English-only communication systems."
               />
               <ImpactCard
-                stat="SDG 4"
-                label="UNESCO inclusive education mandate"
+                stat="3"
+                label="Roles. One platform."
                 accentColor={T.blue}
                 delay="3"
-                body="UNESCO's Sustainable Development Goal 4 explicitly identifies family engagement as a quality dimension of education systems, framing communication accessibility as an equity obligation rather than a supplementary service."
+                body="Parents, teachers, and administrators each get a purpose-built interface. No shared inbox, no one-size-fits-all dashboard. Each portal is scoped to the workflow and information needs of its user."
               />
             </div>
           </div>
@@ -1489,13 +1455,8 @@ export function LandingPage() {
             }}>
               {/* Brand */}
               <div style={{ flex: '1 1 280px' }}>
-                <div style={{
-                  fontFamily: T.serif,
-                  fontSize: 24,
-                  color: T.bg,
-                  marginBottom: 12,
-                }}>
-                  Academy Linker
+                <div style={{ marginBottom: 12 }}>
+                  <LogoCombo size={28} light />
                 </div>
                 <p style={{
                   fontFamily: T.body,
@@ -1505,9 +1466,8 @@ export function LandingPage() {
                   maxWidth: 320,
                   margin: 0,
                 }}>
-                  Operationalising research on parental engagement, linguistic accessibility,
-                  and formative feedback loops to create equitable communication between
-                  educators and families.
+                  A communication platform built for schools — connecting parents and teachers
+                  across languages, subjects, and time zones through AI-assisted, two-way dialogue.
                 </p>
               </div>
 

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 72" fill="none">
+  <!-- Dark blue rounded square -->
+  <rect x="2" y="10" width="46" height="46" rx="10" fill="#3D4A6B"/>
+  <!-- White dot inside square -->
+  <circle cx="25" cy="33" r="6" fill="white"/>
+  <!-- Connecting rod -->
+  <rect x="48" y="30" width="36" height="6" rx="3" fill="#D4956A"/>
+  <!-- Orange gradient circle -->
+  <defs>
+    <radialGradient id="og" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#F5C97A"/>
+      <stop offset="100%" stop-color="#E07B3A"/>
+    </radialGradient>
+  </defs>
+  <circle cx="96" cy="33" r="22" fill="url(#og)"/>
+  <!-- White dot inside circle -->
+  <circle cx="96" cy="33" r="5.5" fill="white"/>
+</svg>
