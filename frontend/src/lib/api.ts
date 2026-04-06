@@ -35,6 +35,9 @@ import type {
   LeaveRequest,
   CreateLeaveRequest,
   CreateIncidentReport,
+  ThreadDetailResponse,
+  TeacherDiscussionParentItem,
+  PaginationMeta,
 } from '@/types/api';
 
 // ── Config ───────────────────────────────────────────────────
@@ -183,7 +186,7 @@ export const parent = {
     ),
 
   getDiscussionThread: (studentUuid: string, teacherUuid: string) =>
-    apiFetch<ApiResponse<ThreadPost[]>>(
+    apiFetch<{ data: ThreadDetailResponse; meta: PaginationMeta }>(
       `/parents/me/students/${studentUuid}/discussions/teachers/${teacherUuid}`
     ),
 
@@ -226,8 +229,13 @@ export const teacher = {
       `/teachers/me/students/${studentUuid}/discussions/parents`
     ),
 
+  getDiscussionParentsList: (studentUuid: string) =>
+    apiFetch<ApiResponse<TeacherDiscussionParentItem[]>>(
+      `/teachers/me/students/${studentUuid}/discussions/parents`
+    ),
+
   getDiscussionThread: (studentUuid: string, parentUuid: string) =>
-    apiFetch<ApiResponse<ThreadPost[]>>(
+    apiFetch<{ data: ThreadDetailResponse; meta: PaginationMeta }>(
       `/teachers/me/students/${studentUuid}/discussions/parents/${parentUuid}`
     ),
 };
