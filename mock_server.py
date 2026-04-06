@@ -106,6 +106,15 @@ USERS = {
         "avatar_url": None,
         "password": "password123",
     },
+    "u-admin-01": {
+        "uuid": "u-admin-01",
+        "role": "admin",
+        "display_name": "Admin",
+        "email": "admin@westside.edu.au",
+        "phone_number": None,
+        "avatar_url": None,
+        "password": "admin123",
+    },
 }
 
 STUDENTS = {
@@ -117,6 +126,7 @@ STUDENTS = {
         "class_name": "7A",
         "grade_level": "Year 7",
         "avatar_url": None,
+        "birthday": "2014-04-10",   # 4 days from today (2026-04-06) for demo
     },
     "s-priya-01": {
         "uuid": "s-priya-01",
@@ -126,6 +136,7 @@ STUDENTS = {
         "class_name": "7A",
         "grade_level": "Year 7",
         "avatar_url": None,
+        "birthday": "2014-06-15",
     },
     "s-james-01": {
         "uuid": "s-james-01",
@@ -135,8 +146,34 @@ STUDENTS = {
         "class_name": "7A",
         "grade_level": "Year 7",
         "avatar_url": None,
+        "birthday": "2014-11-22",
     },
 }
+
+INCIDENT_REPORTS: list = []
+
+LEAVE_REQUESTS: list = [
+    {
+        "uuid": "leave-001",
+        "student_uuid": "s-aiden-01",
+        "type": "sick",
+        "start_date": "2026-03-20",
+        "end_date": "2026-03-21",
+        "reason": "Flu and fever",
+        "status": "approved",
+        "submitted_at": "2026-03-19T08:30:00Z",
+    },
+    {
+        "uuid": "leave-002",
+        "student_uuid": "s-aiden-01",
+        "type": "personal",
+        "start_date": "2026-04-14",
+        "end_date": "2026-04-14",
+        "reason": "Family appointment",
+        "status": "pending",
+        "submitted_at": "2026-04-05T10:00:00Z",
+    },
+]
 
 SUBJECTS = {
     "sub-math": {"uuid": "sub-math", "name": "Mathematics",       "code": "math",    "teacher_uuid": "u-teacher-02", "color": "#E8614E"},
@@ -198,6 +235,24 @@ PARENT_STUDENT_BINDINGS = [
     {"parent_uuid": "u-parent-01", "student_uuid": "s-aiden-01"},
 ]
 
+# classes
+CLASSES: dict[str, dict] = {
+    "cls-7a": {
+        "uuid": "cls-7a",
+        "name": "7A",
+        "grade_level": "Year 7",
+        "homeroom_teacher_uuid": "u-teacher-01",
+        "student_uuids": ["s-aiden-01", "s-priya-01", "s-james-01"],
+    },
+    "cls-7b": {
+        "uuid": "cls-7b",
+        "name": "7B",
+        "grade_level": "Year 7",
+        "homeroom_teacher_uuid": "u-teacher-02",
+        "student_uuids": [],
+    },
+}
+
 # teacher → student → subject assignments
 # Ms. Thompson (u-teacher-01) teaches English; Mr. Walsh (u-teacher-02) teaches Math
 TEACHING_ASSIGNMENTS = [
@@ -253,7 +308,7 @@ ANNOUNCEMENTS = {
         "body_preview": "Join us for the annual end-of-term music concert on Friday 11 April at 6:30 PM in the school hall. All students are invited to attend.",
         "content_markdown": "Join us for the annual end-of-term music concert on **Friday 11 April at 6:30 PM** in the school hall. All students are invited to attend and parents are warmly welcome.",
         "created_at": "2026-04-01T09:00:00Z",
-        "is_read": False,
+        "is_read": True,
         "is_important": False,
         "author": "School Administration",
     },
@@ -265,7 +320,7 @@ ANNOUNCEMENTS = {
         "body_preview": "Parent-teacher interviews are scheduled for Monday 14 April. Bookings open online from 7 April. Session slots are 10 minutes.",
         "content_markdown": "Parent-teacher interviews are scheduled for **Monday 14 April**. Bookings open online from 7 April via the school portal. Session slots are 10 minutes.",
         "created_at": "2026-03-28T10:00:00Z",
-        "is_read": False,
+        "is_read": True,
         "is_important": True,
         "author": "Ms. Thompson",
     },
@@ -772,6 +827,7 @@ def parent_dashboard(user, student_uuid):
             "display_name": student["full_name"],
             "grade": student["grade_level"],
             "class_name": student["class_name"],
+            "birthday": student.get("birthday"),
         },
         "summary_cards": summary_cards,
         "subject_chart": subject_chart,
@@ -1810,6 +1866,384 @@ def summarize_report(user, report_uuid):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def require_admin(f):
+    """Decorator: enforce admin role."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        user, reason = get_current_user()
+        if user is None:
+            if reason == "expired":
+                return err("access_token_expired", "Access token has expired.", 401)
+            return err("unauthenticated", "Authentication required.", 401)
+        if user["role"] != "admin":
+            return err("forbidden", "Admin access required.", 403)
+        return f(user, *args, **kwargs)
+    return wrapper
+
+
+def _teacher_summary(t: dict) -> dict:
+    return {
+        "uuid": t["uuid"],
+        "display_name": t["display_name"],
+        "email": t["email"],
+        "phone_number": t.get("phone_number"),
+        "subjects": [
+            s["name"] for s_uuid, s in SUBJECTS.items()
+            if s.get("teacher_uuid") == t["uuid"]
+        ],
+        "student_count": len(set(
+            a["student_uuid"] for a in TEACHING_ASSIGNMENTS if a["teacher_uuid"] == t["uuid"]
+        )),
+    }
+
+
+def _class_summary(c: dict) -> dict:
+    teacher = USERS.get(c.get("homeroom_teacher_uuid") or "", {})
+    students = [
+        {"uuid": s["uuid"], "display_name": s["preferred_name"], "full_name": s["full_name"],
+         "sid": s["sid"]}
+        for uid in c.get("student_uuids", [])
+        if (s := STUDENTS.get(uid))
+    ]
+    return {
+        "uuid": c["uuid"],
+        "name": c["name"],
+        "grade_level": c["grade_level"],
+        "homeroom_teacher_uuid": c.get("homeroom_teacher_uuid"),
+        "homeroom_teacher_name": teacher.get("display_name"),
+        "student_count": len(students),
+        "students": students,
+    }
+
+
+def _parent_summary(p: dict) -> dict:
+    bound = [
+        {"uuid": s["uuid"], "display_name": s["preferred_name"], "full_name": s["full_name"],
+         "sid": s["sid"]}
+        for b in PARENT_STUDENT_BINDINGS if b["parent_uuid"] == p["uuid"]
+        if (s := STUDENTS.get(b["student_uuid"]))
+    ]
+    return {
+        "uuid": p["uuid"],
+        "display_name": p["display_name"],
+        "email": p["email"],
+        "phone_number": p.get("phone_number"),
+        "students": bound,
+    }
+
+
+@app.get("/api/admin/overview")
+@require_admin
+def admin_overview(user):
+    teachers = [u for u in USERS.values() if u["role"] == "teacher"]
+    parents  = [u for u in USERS.values() if u["role"] == "parent"]
+    return ok({
+        "teacher_count": len(teachers),
+        "student_count": len(STUDENTS),
+        "parent_count":  len(parents),
+        "class_count":   len(CLASSES),
+    })
+
+
+# ── Teachers ─────────────────────────────────────────────────
+
+@app.get("/api/admin/teachers")
+@require_admin
+def admin_list_teachers(user):
+    teachers = [_teacher_summary(u) for u in USERS.values() if u["role"] == "teacher"]
+    return ok(teachers)
+
+
+@app.post("/api/admin/teachers")
+@require_admin
+def admin_create_teacher(user):
+    if e := check_origin(): return e
+    body = request.get_json(silent=True) or {}
+    display_name = (body.get("display_name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    password = (body.get("password") or "password123").strip()
+    phone_number = (body.get("phone_number") or "").strip() or None
+
+    if not display_name or not email:
+        return err("validation_error", "display_name and email are required.", 422)
+    if any(u["email"].lower() == email for u in USERS.values()):
+        return err("conflict", "Email already in use.", 409)
+
+    new_uuid = f"u-teacher-{str(uuid_lib.uuid4())[:8]}"
+    USERS[new_uuid] = {
+        "uuid": new_uuid, "role": "teacher",
+        "display_name": display_name, "email": email,
+        "phone_number": phone_number, "avatar_url": None,
+        "password": password,
+    }
+    return ok(_teacher_summary(USERS[new_uuid])), 201
+
+
+@app.patch("/api/admin/teachers/<teacher_uuid>")
+@require_admin
+def admin_update_teacher(user, teacher_uuid):
+    if e := check_origin(): return e
+    t = USERS.get(teacher_uuid)
+    if not t or t["role"] != "teacher":
+        return err("not_found", "Teacher not found.", 404)
+    body = request.get_json(silent=True) or {}
+    for field in ("display_name", "email", "phone_number"):
+        if field in body:
+            t[field] = body[field]
+    if "password" in body and body["password"]:
+        t["password"] = body["password"]
+    return ok(_teacher_summary(t))
+
+
+# ── Classes ──────────────────────────────────────────────────
+
+@app.get("/api/admin/classes")
+@require_admin
+def admin_list_classes(user):
+    return ok([_class_summary(c) for c in CLASSES.values()])
+
+
+@app.post("/api/admin/classes")
+@require_admin
+def admin_create_class(user):
+    if e := check_origin(): return e
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    grade_level = (body.get("grade_level") or "").strip()
+    if not name:
+        return err("validation_error", "name is required.", 422)
+
+    new_uuid = f"cls-{str(uuid_lib.uuid4())[:8]}"
+    CLASSES[new_uuid] = {
+        "uuid": new_uuid,
+        "name": name,
+        "grade_level": grade_level,
+        "homeroom_teacher_uuid": body.get("homeroom_teacher_uuid") or None,
+        "student_uuids": [],
+    }
+    return ok(_class_summary(CLASSES[new_uuid])), 201
+
+
+@app.patch("/api/admin/classes/<class_uuid>")
+@require_admin
+def admin_update_class(user, class_uuid):
+    if e := check_origin(): return e
+    c = CLASSES.get(class_uuid)
+    if not c:
+        return err("not_found", "Class not found.", 404)
+    body = request.get_json(silent=True) or {}
+    if "name" in body: c["name"] = body["name"]
+    if "grade_level" in body: c["grade_level"] = body["grade_level"]
+    if "homeroom_teacher_uuid" in body: c["homeroom_teacher_uuid"] = body["homeroom_teacher_uuid"] or None
+    if "add_student_uuid" in body:
+        sid = body["add_student_uuid"]
+        if sid and sid not in c["student_uuids"]:
+            if sid not in STUDENTS:
+                return err("not_found", "Student not found.", 404)
+            c["student_uuids"].append(sid)
+            # update student's class_name
+            STUDENTS[sid]["class_name"] = c["name"]
+    if "remove_student_uuid" in body:
+        sid = body["remove_student_uuid"]
+        c["student_uuids"] = [u for u in c["student_uuids"] if u != sid]
+    return ok(_class_summary(c))
+
+
+# ── Students ─────────────────────────────────────────────────
+
+@app.get("/api/admin/students")
+@require_admin
+def admin_list_students(user):
+    result = []
+    for s in STUDENTS.values():
+        parent_uuids = [b["parent_uuid"] for b in PARENT_STUDENT_BINDINGS if b["student_uuid"] == s["uuid"]]
+        parents = [{"uuid": p["uuid"], "display_name": p["display_name"]} for pu in parent_uuids if (p := USERS.get(pu))]
+        result.append({
+            "uuid": s["uuid"], "sid": s["sid"],
+            "full_name": s["full_name"], "preferred_name": s["preferred_name"],
+            "class_name": s["class_name"], "grade_level": s["grade_level"],
+            "parents": parents,
+        })
+    return ok(result)
+
+
+@app.post("/api/admin/students")
+@require_admin
+def admin_create_student(user):
+    if e := check_origin(): return e
+    body = request.get_json(silent=True) or {}
+    full_name = (body.get("full_name") or "").strip()
+    preferred_name = (body.get("preferred_name") or full_name.split()[0] if full_name else "").strip()
+    sid_val = (body.get("sid") or "").strip()
+    class_name = (body.get("class_name") or "").strip()
+    grade_level = (body.get("grade_level") or "").strip()
+
+    if not full_name:
+        return err("validation_error", "full_name is required.", 422)
+    if not sid_val:
+        sid_val = f"S{str(uuid_lib.uuid4().int)[:7]}"
+
+    new_uuid = f"s-{str(uuid_lib.uuid4())[:8]}"
+    STUDENTS[new_uuid] = {
+        "uuid": new_uuid, "sid": sid_val,
+        "full_name": full_name, "preferred_name": preferred_name,
+        "class_name": class_name, "grade_level": grade_level,
+        "avatar_url": None,
+    }
+    # auto-add to class if class_name matches
+    for c in CLASSES.values():
+        if c["name"] == class_name and new_uuid not in c["student_uuids"]:
+            c["student_uuids"].append(new_uuid)
+            break
+    return ok(STUDENTS[new_uuid]), 201
+
+
+# ── Parents ──────────────────────────────────────────────────
+
+@app.get("/api/admin/parents")
+@require_admin
+def admin_list_parents(user):
+    parents = [_parent_summary(u) for u in USERS.values() if u["role"] == "parent"]
+    return ok(parents)
+
+
+@app.post("/api/admin/parents")
+@require_admin
+def admin_create_parent(user):
+    if e := check_origin(): return e
+    body = request.get_json(silent=True) or {}
+    display_name = (body.get("display_name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    password = (body.get("password") or "password123").strip()
+    phone_number = (body.get("phone_number") or "").strip() or None
+
+    if not display_name or not email:
+        return err("validation_error", "display_name and email are required.", 422)
+    if any(u["email"].lower() == email for u in USERS.values()):
+        return err("conflict", "Email already in use.", 409)
+
+    new_uuid = f"u-parent-{str(uuid_lib.uuid4())[:8]}"
+    USERS[new_uuid] = {
+        "uuid": new_uuid, "role": "parent",
+        "display_name": display_name, "email": email,
+        "phone_number": phone_number, "avatar_url": None,
+        "password": password,
+    }
+    return ok(_parent_summary(USERS[new_uuid])), 201
+
+
+@app.post("/api/admin/bindings")
+@require_admin
+def admin_bind_student(user):
+    if e := check_origin(): return e
+    body = request.get_json(silent=True) or {}
+    parent_uuid  = body.get("parent_uuid", "")
+    student_uuid = body.get("student_uuid", "")
+    if not parent_uuid or not student_uuid:
+        return err("validation_error", "parent_uuid and student_uuid required.", 422)
+    p = USERS.get(parent_uuid)
+    if not p or p["role"] != "parent":
+        return err("not_found", "Parent not found.", 404)
+    if student_uuid not in STUDENTS:
+        return err("not_found", "Student not found.", 404)
+    if any(b["parent_uuid"] == parent_uuid and b["student_uuid"] == student_uuid for b in PARENT_STUDENT_BINDINGS):
+        return err("conflict", "Binding already exists.", 409)
+    PARENT_STUDENT_BINDINGS.append({"parent_uuid": parent_uuid, "student_uuid": student_uuid})
+    return ok({"parent_uuid": parent_uuid, "student_uuid": student_uuid}), 201
+
+
+@app.delete("/api/admin/bindings")
+@require_admin
+def admin_unbind_student(user):
+    if e := check_origin(): return e
+    body = request.get_json(silent=True) or {}
+    parent_uuid  = body.get("parent_uuid", "")
+    student_uuid = body.get("student_uuid", "")
+    before = len(PARENT_STUDENT_BINDINGS)
+    PARENT_STUDENT_BINDINGS[:] = [
+        b for b in PARENT_STUDENT_BINDINGS
+        if not (b["parent_uuid"] == parent_uuid and b["student_uuid"] == student_uuid)
+    ]
+    if len(PARENT_STUDENT_BINDINGS) == before:
+        return err("not_found", "Binding not found.", 404)
+    return ok({"removed": True})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INCIDENT REPORTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/parents/me/students/<student_uuid>/incidents")
+@require_auth
+def create_incident_report(user, student_uuid):
+    if e := check_origin(): return e
+    if user["role"] != "parent":
+        return err("role_not_allowed", "Only parents can access this.", 403)
+    body = request.get_json(silent=True) or {}
+    incident_type = body.get("type", "").strip()
+    description   = body.get("description", "").strip()
+    is_anonymous  = bool(body.get("is_anonymous", False))
+    if not incident_type or not description:
+        return err("validation_error", "type and description are required.", 400)
+    report = {
+        "uuid":         f"inc-{str(uuid_lib.uuid4())[:8]}",
+        "student_uuid": student_uuid,
+        "parent_uuid":  None if is_anonymous else user["uuid"],
+        "type":         incident_type,
+        "description":  description,
+        "is_anonymous": is_anonymous,
+        "status":       "received",
+        "submitted_at": now_iso(),
+    }
+    INCIDENT_REPORTS.append(report)
+    return ok({"uuid": report["uuid"], "status": "received"}, 201)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LEAVE REQUESTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/parents/me/students/<student_uuid>/leave")
+@require_auth
+def get_leave_requests(user, student_uuid):
+    if user["role"] != "parent":
+        return err("role_not_allowed", "Only parents can access this.", 403)
+    requests_for_student = [r for r in LEAVE_REQUESTS if r["student_uuid"] == student_uuid]
+    requests_for_student.sort(key=lambda r: r["submitted_at"], reverse=True)
+    return ok_list(requests_for_student)
+
+
+@app.post("/api/parents/me/students/<student_uuid>/leave")
+@require_auth
+def create_leave_request(user, student_uuid):
+    if e := check_origin(): return e
+    if user["role"] != "parent":
+        return err("role_not_allowed", "Only parents can access this.", 403)
+    body = request.get_json(silent=True) or {}
+    leave_type = body.get("type", "").strip()
+    start_date = body.get("start_date", "").strip()
+    end_date = body.get("end_date", "").strip()
+    reason = body.get("reason", "").strip()
+    if not leave_type or not start_date or not end_date:
+        return err("validation_error", "type, start_date and end_date are required.", 400)
+    new_req = {
+        "uuid": f"leave-{str(uuid_lib.uuid4())[:8]}",
+        "student_uuid": student_uuid,
+        "type": leave_type,
+        "start_date": start_date,
+        "end_date": end_date,
+        "reason": reason,
+        "status": "pending",
+        "submitted_at": now_iso(),
+    }
+    LEAVE_REQUESTS.append(new_req)
+    return ok(new_req, 201)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # STARTUP
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1821,6 +2255,7 @@ if __name__ == "__main__":
     print("  测试账号:")
     print("    家长  li.wei@email.com        / password123")
     print("    教师  thompson@westside.edu.au / password123")
+    print("    管理员 admin@westside.edu.au   / admin123")
     print()
     ai_status = "✅ 已配置" if DEEPSEEK_API_KEY else "❌ 未配置 (设置 DEEPSEEK_API_KEY)"
     print(f"  DeepSeek AI: {ai_status}")

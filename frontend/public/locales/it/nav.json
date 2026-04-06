@@ -9,4 +9,8 @@
   "parentConversations": "Conversazioni con i genitori",
   "language": "Lingua",
   "posts": "Pubblicazioni"
+,
+  "teachers": "Insegnanti", "classes": "Classi", "students": "Studenti", "parents": "Genitori"
+,
+  "grades": "Voti"
 }

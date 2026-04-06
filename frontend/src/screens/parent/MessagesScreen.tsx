@@ -5,7 +5,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
-import { mockDiscussionTeachers } from '@/lib/mock-data';
 import { parent as parentApi } from '@/lib/api';
 import type { DiscussionTeacherItem } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
@@ -31,20 +30,17 @@ export function MessagesScreen() {
   const { markThreadRead, updateThreadUnreadCounts, threadUnreadCounts, language } = useApp();
 
 
-  // Initialize with mock; replaced by API data when available
-  const [items, setItems] = useState<DiscussionTeacherItem[]>(mockDiscussionTeachers);
-  const [txItems, setTxItems] = useState(mockDiscussionTeachers);
+  const [items, setItems] = useState<DiscussionTeacherItem[]>([]);
+  const [txItems, setTxItems] = useState<DiscussionTeacherItem[]>([]);
 
-  // Fetch real discussion teachers
   useEffect(() => {
     if (!sid) return;
     parentApi.getDiscussionTeachers(sid).then(res => {
       setItems(res.data);
-      // Sync unread counts from backend
       updateThreadUnreadCounts(
         Object.fromEntries(res.data.map(t => [t.thread_uuid, t.unread_count]))
       );
-    }).catch(() => { /* keep mock */ });
+    }).catch(() => {});
   }, [sid]);
 
   useEffect(() => {
@@ -126,7 +122,7 @@ export function MessagesScreen() {
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   maxWidth: '100%',
                 }}>
-                  {item.latest_message_preview?.replace(/\*\*(.*?)\*\*/g, '$1').slice(0, 80)}…
+                  {item.latest_message_preview?.replace(/\*\*(.*?)\*\*/g, '$1').slice(0, 80) ?? ''}{(item.latest_message_preview?.length ?? 0) > 80 ? '…' : ''}
                 </div>
               </div>
 

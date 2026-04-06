@@ -9,4 +9,8 @@
   "parentConversations": "Percakapan Orang Tua",
   "language": "Bahasa",
   "posts": "Postingan Kelas"
+,
+  "teachers": "Guru", "classes": "Kelas", "students": "Siswa", "parents": "Orang Tua"
+,
+  "grades": "Nilai"
 }

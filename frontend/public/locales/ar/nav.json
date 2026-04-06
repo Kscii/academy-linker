@@ -9,4 +9,8 @@
   "parentConversations": "محادثات أولياء الأمور",
   "language": "اللغة",
   "posts": "مشاركات الفصل"
+,
+  "teachers": "المعلمون", "classes": "الفصول", "students": "الطلاب", "parents": "أولياء الأمور"
+,
+  "grades": "الدرجات"
 }

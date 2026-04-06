@@ -21,18 +21,27 @@ interface NavItem {
 }
 
 const PARENT_NAV: NavItem[] = [
-  { id: 'dashboard',  labelKey: 'nav:dashboard',  icon: '⊞', path: (sid) => `/parent/students/${sid}/dashboard` },
-  { id: 'messages',   labelKey: 'nav:messages',   icon: '✉', path: (sid) => `/parent/students/${sid}/discussions` },
+  { id: 'dashboard',  labelKey: 'nav:dashboard',  icon: '🏠', path: (sid) => `/parent/students/${sid}/dashboard` },
+  { id: 'grades',     labelKey: 'nav:grades',     icon: '📊', path: (sid) => `/parent/students/${sid}/grades` },
+  { id: 'messages',   labelKey: 'nav:messages',   icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
   { id: 'reports',    labelKey: 'nav:reports',    icon: '📋', path: (sid) => `/parent/students/${sid}/reports` },
   { id: 'notices',    labelKey: 'nav:notices',    icon: '📢', path: (sid) => `/parent/students/${sid}/tasks` },
   { id: 'resources',  labelKey: 'nav:resources',  icon: '📚', path: (sid) => `/parent/students/${sid}/resources` },
 ];
 
 const TEACHER_NAV: NavItem[] = [
-  { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '⊞', path: '/teacher/dashboard' },
-  { id: 'messages',     labelKey: 'nav:messages',     icon: '✉', path: '/teacher/messages' },
+  { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '🏠', path: '/teacher/dashboard' },
+  { id: 'messages',     labelKey: 'nav:messages',     icon: '💬', path: '/teacher/messages' },
   { id: 'posts',        labelKey: 'nav:posts',        icon: '📝', path: '/teacher/posts' },
   { id: 'find-student', labelKey: 'nav:findStudent',  icon: '🔍', path: '/teacher/find-student' },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { id: 'dashboard', labelKey: 'nav:dashboard',  icon: '🏠', path: '/admin/dashboard' },
+  { id: 'teachers',  labelKey: 'nav:teachers',   icon: '👨‍🏫', path: '/admin/teachers' },
+  { id: 'classes',   labelKey: 'nav:classes',    icon: '🏫', path: '/admin/classes' },
+  { id: 'students',  labelKey: 'nav:students',   icon: '🎒', path: '/admin/students' },
+  { id: 'parents',   labelKey: 'nav:parents',    icon: '👪', path: '/admin/parents' },
 ];
 
 const SHARED_NAV: NavItem[] = [
@@ -133,14 +142,14 @@ function UserProfile() {
 // ── AppShell ──────────────────────────────────────────────────
 
 export function AppShell() {
-  const { role, toggleTheme, theme, language, setLanguage, unreadMessageCount, unreadNoticeCount } = useApp();
+  const { role, toggleTheme, theme, language, setLanguage, unreadMessageCount, unreadNoticeCount, firstStudentUuid } = useApp();
   const { t } = useTranslation(['common', 'nav']);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const params = useParams<{ sid?: string }>();
-  const sid = params.sid ?? 'student-001';
+  const sid = params.sid ?? firstStudentUuid ?? 's-aiden-01';
 
-  const navItems = role === 'parent' ? PARENT_NAV : TEACHER_NAV;
+  const navItems = role === 'admin' ? ADMIN_NAV : role === 'parent' ? PARENT_NAV : TEACHER_NAV;
 
   const getPath = (item: NavItem) =>
     typeof item.path === 'function' ? item.path(sid) : item.path;

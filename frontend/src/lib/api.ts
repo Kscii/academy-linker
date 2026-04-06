@@ -23,6 +23,18 @@ import type {
   UpdatePostRequest,
   TeacherDashboardResponse,
   TeacherStudentItem,
+  AdminOverview,
+  AdminTeacher,
+  AdminClass,
+  AdminStudent,
+  AdminParent,
+  CreateTeacherRequest,
+  CreateClassRequest,
+  CreateStudentRequest,
+  CreateParentRequest,
+  LeaveRequest,
+  CreateLeaveRequest,
+  CreateIncidentReport,
 } from '@/types/api';
 
 // ── Config ───────────────────────────────────────────────────
@@ -174,6 +186,23 @@ export const parent = {
     apiFetch<ApiResponse<ThreadPost[]>>(
       `/parents/me/students/${studentUuid}/discussions/teachers/${teacherUuid}`
     ),
+
+  getLeaveRequests: (studentUuid: string) =>
+    apiFetch<ApiListResponse<LeaveRequest>>(
+      `/parents/me/students/${studentUuid}/leave`
+    ),
+
+  createLeaveRequest: (studentUuid: string, body: CreateLeaveRequest) =>
+    apiFetch<ApiResponse<LeaveRequest>>(
+      `/parents/me/students/${studentUuid}/leave`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  createIncidentReport: (studentUuid: string, body: CreateIncidentReport) =>
+    apiFetch<ApiResponse<{ uuid: string; status: string }>>(
+      `/parents/me/students/${studentUuid}/incidents`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
 };
 
 // ── Teacher ──────────────────────────────────────────────────
@@ -201,6 +230,65 @@ export const teacher = {
     apiFetch<ApiResponse<ThreadPost[]>>(
       `/teachers/me/students/${studentUuid}/discussions/parents/${parentUuid}`
     ),
+};
+
+// ── Admin ────────────────────────────────────────────────────
+
+export const admin = {
+  getOverview: () =>
+    apiFetch<ApiResponse<AdminOverview>>('/admin/overview'),
+
+  getTeachers: () =>
+    apiFetch<ApiResponse<AdminTeacher[]>>('/admin/teachers'),
+
+  createTeacher: (body: CreateTeacherRequest) =>
+    apiFetch<ApiResponse<AdminTeacher>>('/admin/teachers', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+
+  updateTeacher: (uuid: string, body: Partial<CreateTeacherRequest>) =>
+    apiFetch<ApiResponse<AdminTeacher>>(`/admin/teachers/${uuid}`, {
+      method: 'PATCH', body: JSON.stringify(body),
+    }),
+
+  getClasses: () =>
+    apiFetch<ApiResponse<AdminClass[]>>('/admin/classes'),
+
+  createClass: (body: CreateClassRequest) =>
+    apiFetch<ApiResponse<AdminClass>>('/admin/classes', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+
+  updateClass: (uuid: string, body: Record<string, unknown>) =>
+    apiFetch<ApiResponse<AdminClass>>(`/admin/classes/${uuid}`, {
+      method: 'PATCH', body: JSON.stringify(body),
+    }),
+
+  getStudents: () =>
+    apiFetch<ApiResponse<AdminStudent[]>>('/admin/students'),
+
+  createStudent: (body: CreateStudentRequest) =>
+    apiFetch<ApiResponse<AdminStudent>>('/admin/students', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+
+  getParents: () =>
+    apiFetch<ApiResponse<AdminParent[]>>('/admin/parents'),
+
+  createParent: (body: CreateParentRequest) =>
+    apiFetch<ApiResponse<AdminParent>>('/admin/parents', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+
+  bindStudent: (parent_uuid: string, student_uuid: string) =>
+    apiFetch<ApiResponse<{ parent_uuid: string; student_uuid: string }>>('/admin/bindings', {
+      method: 'POST', body: JSON.stringify({ parent_uuid, student_uuid }),
+    }),
+
+  unbindStudent: (parent_uuid: string, student_uuid: string) =>
+    apiFetch<ApiResponse<{ removed: boolean }>>('/admin/bindings', {
+      method: 'DELETE', body: JSON.stringify({ parent_uuid, student_uuid }),
+    }),
 };
 
 // ── Posts ────────────────────────────────────────────────────

@@ -5,7 +5,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
-import { mockReports, mockReportDetail } from '@/lib/mock-data';
 import { parent as parentApi } from '@/lib/api';
 import type { Report, ReportDetail } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
@@ -104,12 +103,10 @@ export function ReportScreen() {
   const txEmail       = useTranslatedText('Email to me', language);
   const txSent        = useTranslatedText('✓ Sent!', language);
 
-  const [reports, setReports]             = useState<Report[]>(mockReports);
-  const [selectedUuid, setSelectedUuid]   = useState(mockReports[0].uuid);
-  const [detail, setDetail]               = useState<ReportDetail>(mockReportDetail);
-  const [readIds, setReadIds]             = useState<Set<string>>(
-    new Set(mockReports.filter(r => r.is_read).map(r => r.uuid))
-  );
+  const [reports, setReports]             = useState<Report[]>([]);
+  const [selectedUuid, setSelectedUuid]   = useState('');
+  const [detail, setDetail]               = useState<ReportDetail | null>(null);
+  const [readIds, setReadIds]             = useState<Set<string>>(new Set());
   const [emailSent, setEmailSent]         = useState(false);
 
   // Rich AI content cache: `${reportUuid}:${language}` → markdown
@@ -147,8 +144,7 @@ export function ReportScreen() {
     parentApi.generateReport(selectedUuid, language)
       .then(res => setRichContent(prev => ({ ...prev, [cacheKey]: res.data.content_markdown })))
       .catch(() => {
-        // Fallback to existing content_markdown
-        if (detail.content_markdown) {
+        if (detail?.content_markdown) {
           setRichContent(prev => ({ ...prev, [cacheKey]: detail.content_markdown }));
         }
       })
@@ -180,16 +176,16 @@ export function ReportScreen() {
   }, [language, reports]);
 
   const txSubtitle = useTranslatedText(
-    `Weekly updates on ${detail.student?.display_name ?? ''}'s academic progress`,
+    `Weekly updates on ${detail?.student?.display_name ?? ''}'s academic progress`,
     language,
   );
 
   // ── PDF download ────────────────────────────────────────────
   const handlePDF = () => {
-    const content = richContent[cacheKey] || detail.content_markdown || '';
-    const reportTitle = txReports.find(r => r.uuid === selectedUuid)?.title ?? detail.title;
-    const dateStr = formatDate(detail.created_at);
-    const studentName = detail.student?.display_name ?? '';
+    const content = richContent[cacheKey] || detail?.content_markdown || '';
+    const reportTitle = txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? '';
+    const dateStr = detail ? formatDate(detail.created_at) : '';
+    const studentName = detail?.student?.display_name ?? '';
 
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) return;
@@ -283,9 +279,9 @@ export function ReportScreen() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 12 }}>
             <div>
               <div className="font-serif" style={{ fontSize: 20, color: 'var(--tx)', marginBottom: 4 }}>
-                {txReports.find(r => r.uuid === selectedUuid)?.title ?? detail.title}
+                {txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? ''}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{formatDate(detail.created_at)}</div>
+              <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{detail ? formatDate(detail.created_at) : ''}</div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
               {generating && (
@@ -310,7 +306,7 @@ export function ReportScreen() {
           </div>
 
           {/* Score pills */}
-          {detail.subjects && detail.subjects.length > 0 && (
+          {detail?.subjects && detail.subjects.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
               {detail.subjects.map(sub => (
                 <div key={sub.subject_uuid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: sub.subject_color + '15', border: `1px solid ${sub.subject_color}30` }}>
@@ -339,7 +335,7 @@ export function ReportScreen() {
           ) : (
             /* Fallback to subject list while generating */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {detail.subjects?.map(sub => (
+              {detail?.subjects?.map(sub => (
                 <div key={sub.subject_uuid} style={{ borderLeft: `4px solid ${sub.subject_color}`, paddingLeft: 16, paddingTop: 2, paddingBottom: 2 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{sub.subject_name}</div>
