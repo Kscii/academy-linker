@@ -11,6 +11,7 @@ Academy Linker — Mock Backend Server
 
 import json
 import os
+import re
 import uuid as uuid_lib
 import datetime
 from functools import wraps
@@ -40,7 +41,7 @@ CORS(app, origins=["http://localhost:5173", "http://localhost:5174", "http://127
 
 # ── JWT 配置 ─────────────────────────────────────────────────────────────────
 JWT_SECRET = "dev-secret-do-not-use-in-prod-academy-linker"
-AT_EXP_MINUTES = 15
+AT_EXP_MINUTES = 480  # 8 hours for dev convenience
 RT_EXP_DAYS = 3
 
 # ── 内存存储 ──────────────────────────────────────────────────────────────────
@@ -138,30 +139,58 @@ STUDENTS = {
 }
 
 SUBJECTS = {
-    "subj-math": {
-        "uuid": "subj-math",
-        "name": "Mathematics",
-        "code": "MATH",
-        "teacher_uuid": "u-teacher-01",
-    },
-    "subj-eng": {
-        "uuid": "subj-eng",
-        "name": "English",
-        "code": "ENG",
-        "teacher_uuid": "u-teacher-02",
-    },
-    "subj-sci": {
-        "uuid": "subj-sci",
-        "name": "Science",
-        "code": "SCI",
-        "teacher_uuid": "u-teacher-03",
-    },
-    "subj-hass": {
-        "uuid": "subj-hass",
-        "name": "HASS",
-        "code": "HASS",
-        "teacher_uuid": "u-teacher-04",
-    },
+    "sub-math": {"uuid": "sub-math", "name": "Mathematics",       "code": "math",    "teacher_uuid": "u-teacher-02", "color": "#E8614E"},
+    "sub-eng":  {"uuid": "sub-eng",  "name": "English",            "code": "english", "teacher_uuid": "u-teacher-01", "color": "#3DB6A8"},
+    "sub-sci":  {"uuid": "sub-sci",  "name": "Science",            "code": "science", "teacher_uuid": "u-teacher-03", "color": "#4A90D9"},
+    "sub-hass": {"uuid": "sub-hass", "name": "HASS",               "code": "hass",    "teacher_uuid": "u-teacher-04", "color": "#F0A732"},
+    "sub-pe":   {"uuid": "sub-pe",   "name": "Physical Education", "code": "pe",      "teacher_uuid": "u-teacher-02", "color": "#8B5CF6"},
+    "sub-arts": {"uuid": "sub-arts", "name": "Arts",               "code": "arts",    "teacher_uuid": "u-teacher-03", "color": "#E91E8C"},
+}
+
+# Learning pathway timelines per subject
+TIMELINES = {
+    "sub-math": [
+        {"uuid": "tl-math-1", "title": "Number & Algebra: Factoring", "status": "done",    "week": 1},
+        {"uuid": "tl-math-2", "title": "Linear Equations",            "status": "done",    "week": 3},
+        {"uuid": "tl-math-3", "title": "Quadratic Expressions",       "status": "current", "week": 5},
+        {"uuid": "tl-math-4", "title": "Functions & Graphs",          "status": "future",  "week": 7},
+        {"uuid": "tl-math-5", "title": "Mid-Term Exam Revision",      "status": "future",  "week": 9},
+    ],
+    "sub-eng": [
+        {"uuid": "tl-eng-1", "title": "Narrative Writing",         "status": "done",    "week": 1},
+        {"uuid": "tl-eng-2", "title": "Creative Composition",      "status": "done",    "week": 3},
+        {"uuid": "tl-eng-3", "title": "Persuasive Texts",          "status": "current", "week": 5},
+        {"uuid": "tl-eng-4", "title": "Reading Comprehension",     "status": "future",  "week": 7},
+        {"uuid": "tl-eng-5", "title": "Final Essay Assessment",    "status": "future",  "week": 9},
+    ],
+    "sub-sci": [
+        {"uuid": "tl-sci-1", "title": "Chemical Properties",  "status": "done",    "week": 1},
+        {"uuid": "tl-sci-2", "title": "Reactions & Equations","status": "done",    "week": 3},
+        {"uuid": "tl-sci-3", "title": "Lab Safety & Method",  "status": "current", "week": 5},
+        {"uuid": "tl-sci-4", "title": "Biological Systems",   "status": "future",  "week": 7},
+        {"uuid": "tl-sci-5", "title": "Science Assessment",   "status": "future",  "week": 9},
+    ],
+    "sub-hass": [
+        {"uuid": "tl-hass-1", "title": "Ancient Civilisations Intro", "status": "done",    "week": 1},
+        {"uuid": "tl-hass-2", "title": "Ancient Greece",              "status": "done",    "week": 3},
+        {"uuid": "tl-hass-3", "title": "Ancient Rome",                "status": "current", "week": 5},
+        {"uuid": "tl-hass-4", "title": "Medieval Europe",             "status": "future",  "week": 7},
+        {"uuid": "tl-hass-5", "title": "History Essay",               "status": "future",  "week": 9},
+    ],
+    "sub-pe": [
+        {"uuid": "tl-pe-1", "title": "Team Sports Fundamentals", "status": "done",    "week": 1},
+        {"uuid": "tl-pe-2", "title": "Athletics",                "status": "done",    "week": 3},
+        {"uuid": "tl-pe-3", "title": "Fitness & Wellness",       "status": "current", "week": 5},
+        {"uuid": "tl-pe-4", "title": "Swimming Program",         "status": "future",  "week": 7},
+        {"uuid": "tl-pe-5", "title": "Physical Assessment",      "status": "future",  "week": 9},
+    ],
+    "sub-arts": [
+        {"uuid": "tl-arts-1", "title": "Drawing Techniques",  "status": "done",    "week": 1},
+        {"uuid": "tl-arts-2", "title": "Colour Theory",       "status": "done",    "week": 3},
+        {"uuid": "tl-arts-3", "title": "Mixed Media Project", "status": "current", "week": 5},
+        {"uuid": "tl-arts-4", "title": "Digital Art Intro",   "status": "future",  "week": 7},
+        {"uuid": "tl-arts-5", "title": "Portfolio Review",    "status": "future",  "week": 9},
+    ],
 }
 
 # parent → student bindings
@@ -170,13 +199,16 @@ PARENT_STUDENT_BINDINGS = [
 ]
 
 # teacher → student → subject assignments
+# Ms. Thompson (u-teacher-01) teaches English; Mr. Walsh (u-teacher-02) teaches Math
 TEACHING_ASSIGNMENTS = [
-    {"teacher_uuid": "u-teacher-01", "student_uuid": "s-aiden-01", "subject_uuid": "subj-math"},
-    {"teacher_uuid": "u-teacher-01", "student_uuid": "s-priya-01", "subject_uuid": "subj-math"},
-    {"teacher_uuid": "u-teacher-01", "student_uuid": "s-james-01", "subject_uuid": "subj-math"},
-    {"teacher_uuid": "u-teacher-02", "student_uuid": "s-aiden-01", "subject_uuid": "subj-eng"},
-    {"teacher_uuid": "u-teacher-03", "student_uuid": "s-aiden-01", "subject_uuid": "subj-sci"},
-    {"teacher_uuid": "u-teacher-04", "student_uuid": "s-aiden-01", "subject_uuid": "subj-hass"},
+    {"teacher_uuid": "u-teacher-01", "student_uuid": "s-aiden-01", "subject_uuid": "sub-eng"},
+    {"teacher_uuid": "u-teacher-01", "student_uuid": "s-priya-01", "subject_uuid": "sub-eng"},
+    {"teacher_uuid": "u-teacher-01", "student_uuid": "s-james-01", "subject_uuid": "sub-eng"},
+    {"teacher_uuid": "u-teacher-02", "student_uuid": "s-aiden-01", "subject_uuid": "sub-math"},
+    {"teacher_uuid": "u-teacher-02", "student_uuid": "s-priya-01", "subject_uuid": "sub-math"},
+    {"teacher_uuid": "u-teacher-02", "student_uuid": "s-james-01", "subject_uuid": "sub-math"},
+    {"teacher_uuid": "u-teacher-03", "student_uuid": "s-aiden-01", "subject_uuid": "sub-sci"},
+    {"teacher_uuid": "u-teacher-04", "student_uuid": "s-aiden-01", "subject_uuid": "sub-hass"},
 ]
 
 REPORTS = {
@@ -184,49 +216,31 @@ REPORTS = {
         "uuid": "r-001",
         "student_uuid": "s-aiden-01",
         "title": "Week 8 Progress Report",
-        "report_type": "weekly",
-        "source_type": "ai",
+        "week": 8,
+        "term": 2,
         "created_at": "2026-04-01T08:00:00Z",
-        "updated_at": "2026-04-01T08:00:00Z",
-        "subject": {"uuid": None, "name": None},
-        "content_markdown": """## Aiden's Week in Review
-
-### Mathematics — Good Progress ✅
-Scored **18/20** on the factoring quiz. His working-out method is really developing. Encourage 15-minute daily practice sessions.
-
-### HASS — Needs Attention ⚠️
-Struggling with Ancient Rome unit (55%). Ten minutes of evening reading together would help.
-
-### This Week at Home
-1. Quiz Aiden on Roman vocab
-2. Ask about the Science experiment
-3. Check essay draft
-""",
-        "original_content_markdown": """## Aiden's Week in Review\n\n### Mathematics — Good Progress ✅\nScored **18/20** on the factoring quiz.""",
-        "translated_content_markdown": None,
-        "display_language": "en",
-        "original_language": "en",
-        "translated_language": None,
-        "translation_status": "not_required",
-        "translated_at": None,
+        "is_read": False,
+        "subjects": [
+            {"subject_uuid": "sub-eng",  "subject_name": "English",     "subject_color": "#3DB6A8", "score": 75, "summary": "Essay writing shows great improvement. Scored 18/20 on persuasive writing task. Focus on varied sentence structure and expanding vocabulary through non-fiction reading."},
+            {"subject_uuid": "sub-math", "subject_name": "Mathematics",  "subject_color": "#E8614E", "score": 82, "summary": "Strong performance in algebra. 15-minute daily practice sessions are making a real difference."},
+            {"subject_uuid": "sub-sci",  "subject_name": "Science",      "subject_color": "#4A90D9", "score": 91, "summary": "Excellent participation in lab work. Leading class discussions on chemical reactions."},
+            {"subject_uuid": "sub-hass", "subject_name": "HASS",         "subject_color": "#F0A732", "score": 55, "summary": "Struggling with Ancient Rome vocabulary (55%). 10 minutes of evening reading together would help significantly."},
+        ],
+        "content_markdown": "## Week 8 Progress\n\n### English — Good Progress ✅\nScored **18/20** on persuasive writing. Encourage non-fiction reading this term.\n\n### HASS — Needs Attention ⚠️\nStruggling with Ancient Rome unit (55%). Evening reading together would help.",
     },
     "r-002": {
         "uuid": "r-002",
         "student_uuid": "s-aiden-01",
         "title": "Term 2 Mid-Term Report",
-        "report_type": "monthly",
-        "source_type": "teacher",
+        "week": 6,
+        "term": 2,
         "created_at": "2026-03-15T10:00:00Z",
-        "updated_at": "2026-03-15T10:00:00Z",
-        "subject": {"uuid": "subj-math", "name": "Mathematics"},
-        "content_markdown": "## Mathematics Mid-Term\n\nAiden is performing above average in Mathematics. Particular strengths in algebra.",
-        "original_content_markdown": "## Mathematics Mid-Term\n\nAiden is performing above average in Mathematics.",
-        "translated_content_markdown": None,
-        "display_language": "en",
-        "original_language": "en",
-        "translated_language": None,
-        "translation_status": "not_required",
-        "translated_at": None,
+        "is_read": False,
+        "subjects": [
+            {"subject_uuid": "sub-math", "subject_name": "Mathematics", "subject_color": "#E8614E", "score": 80, "summary": "Performing above average in Mathematics. Particular strengths in algebra and problem-solving."},
+            {"subject_uuid": "sub-sci",  "subject_name": "Science",     "subject_color": "#4A90D9", "score": 88, "summary": "Excellent enthusiasm and participation. Strong lab work skills evident throughout the term."},
+        ],
+        "content_markdown": "## Term 2 Mid-Term\n\n### Mathematics\nAbove average performance. Particular strengths in algebra.\n\n### Science\nExcellent enthusiasm and strong lab work skills.",
     },
 }
 
@@ -234,38 +248,38 @@ ANNOUNCEMENTS = {
     "ann-001": {
         "uuid": "ann-001",
         "student_uuid": "s-aiden-01",
-        "category": "announcement",
-        "title": "Easter Holiday Notice",
-        "content_markdown": "School will be closed **28 March – 14 April** for Easter holidays. Term 2 begins Monday 28 April.",
-        "original_content_markdown": "School will be closed 28 March – 14 April for Easter holidays.",
-        "translated_content_markdown": None,
-        "display_language": "en",
-        "original_language": "en",
-        "translated_language": None,
-        "translation_status": "not_required",
-        "translated_at": None,
-        "published_at": "2026-03-25T09:00:00Z",
-        "due_at": None,
-        "is_important": True,
-        "author": {"uuid": "u-teacher-01", "display_name": "Ms. Thompson", "role": "teacher"},
+        "category": "Event",
+        "title": "End-of-Term Music Concert",
+        "body_preview": "Join us for the annual end-of-term music concert on Friday 11 April at 6:30 PM in the school hall. All students are invited to attend.",
+        "content_markdown": "Join us for the annual end-of-term music concert on **Friday 11 April at 6:30 PM** in the school hall. All students are invited to attend and parents are warmly welcome.",
+        "created_at": "2026-04-01T09:00:00Z",
+        "is_read": False,
+        "is_important": False,
+        "author": "School Administration",
     },
     "ann-002": {
         "uuid": "ann-002",
         "student_uuid": "s-aiden-01",
-        "category": "task",
-        "title": "Mid-Term Exam — April 10",
-        "content_markdown": "Mathematics mid-term exam covering **linear functions and quadratic expressions**. Review chapters 4–6.",
-        "original_content_markdown": "Mathematics mid-term exam covering linear functions and quadratic expressions.",
-        "translated_content_markdown": None,
-        "display_language": "en",
-        "original_language": "en",
-        "translated_language": None,
-        "translation_status": "not_required",
-        "translated_at": None,
-        "published_at": "2026-04-01T10:00:00Z",
-        "due_at": "2026-04-10T09:00:00Z",
+        "category": "Interviews",
+        "title": "Parent-Teacher Interviews — April 14",
+        "body_preview": "Parent-teacher interviews are scheduled for Monday 14 April. Bookings open online from 7 April. Session slots are 10 minutes.",
+        "content_markdown": "Parent-teacher interviews are scheduled for **Monday 14 April**. Bookings open online from 7 April via the school portal. Session slots are 10 minutes.",
+        "created_at": "2026-03-28T10:00:00Z",
+        "is_read": False,
         "is_important": True,
-        "author": {"uuid": "u-teacher-01", "display_name": "Ms. Thompson", "role": "teacher"},
+        "author": "Ms. Thompson",
+    },
+    "ann-003": {
+        "uuid": "ann-003",
+        "student_uuid": "s-aiden-01",
+        "category": "Excursion",
+        "title": "Year 7 Science Excursion — April 9",
+        "body_preview": "Year 7 students will visit the Science Museum on Wednesday 9 April. Permission forms and payment due by April 4.",
+        "content_markdown": "Year 7 students will visit the **Science Museum** on Wednesday 9 April. Permission forms and payment of $22 are due by Friday 4 April.",
+        "created_at": "2026-03-22T08:00:00Z",
+        "is_read": True,
+        "is_important": False,
+        "author": "Ms. Patel",
     },
 }
 
@@ -312,8 +326,8 @@ POSTS = [
     {
         "uuid": "post-001",
         "thread_uuid": "thread-parent01-teacher01-aiden",
-        "title": "Week 8 progress update",
-        "content_markdown": "Aiden has shown great improvement in algebra this week, scoring 18/20 on his factoring quiz. His working-out method is really developing. I'd encourage him to continue the daily 15-minute practice sessions — they're clearly making a difference.",
+        "title": "Week 8 English update",
+        "content_markdown": "Aiden has shown great improvement in essay writing this week, scoring 18/20 on his persuasive writing task. His arguments are becoming well-structured. I'd encourage him to read more non-fiction to strengthen his vocabulary — newspaper articles work great.",
         "created_at": "2026-04-01T14:00:00Z",
         "updated_at": None,
         "author": {"uuid": "u-teacher-01", "display_name": "Ms. Thompson", "role": "teacher"},
@@ -324,7 +338,7 @@ POSTS = [
         "uuid": "post-002",
         "thread_uuid": "thread-parent01-teacher01-aiden",
         "title": None,
-        "content_markdown": "Thank you! He has been working hard each evening. Will keep it up.",
+        "content_markdown": "Thank you Ms. Thompson! He has been working hard on his essays each evening. We will look for more non-fiction books this weekend.",
         "created_at": "2026-04-01T15:00:00Z",
         "updated_at": None,
         "author": {"uuid": "u-parent-01", "display_name": "Li Wei", "role": "parent"},
@@ -334,8 +348,8 @@ POSTS = [
     {
         "uuid": "post-003",
         "thread_uuid": "thread-parent01-teacher01-aiden",
-        "title": "Upcoming mid-term exam — April 10",
-        "content_markdown": "Just a reminder that our mid-term exam is on April 10, covering linear functions and quadratic expressions. A revision sheet has been uploaded to the school portal. Please ensure Aiden reviews chapters 4–6 over the Easter break.",
+        "title": "Reading comprehension assessment — April 10",
+        "content_markdown": "A reminder that our reading comprehension assessment is on April 10, covering persuasive texts. A revision guide has been uploaded to the school portal. Please ensure Aiden reviews the anthology chapters 4–6 over the Easter break.",
         "created_at": "2026-03-29T09:00:00Z",
         "updated_at": None,
         "author": {"uuid": "u-teacher-01", "display_name": "Ms. Thompson", "role": "teacher"},
@@ -357,39 +371,63 @@ POSTS = [
 
 SUBJECT_STATS = {
     "s-aiden-01": {
-        "subj-math": {
+        "sub-eng": {
+            "score": 75.0,
+            "progress": 0.68,
+            "assignment_completion_rate": 0.88,
+            "attendance_rate": 0.96,
+            "term_scores": [65, 68, 70, 72, 70, 73, 74, 75],
+            "class_avg":   [68, 69, 70, 70, 71, 72, 72, 72],
+        },
+        "sub-math": {
             "score": 82.0,
             "progress": 0.75,
             "assignment_completion_rate": 0.95,
             "attendance_rate": 0.98,
             "term_scores": [62, 68, 74, 70, 78, 80, 82, 82],
-            "class_avg": [65, 67, 70, 68, 72, 74, 75, 75],
+            "class_avg":   [65, 67, 70, 68, 72, 74, 75, 75],
         },
-        "subj-eng": {
-            "score": 68.0,
-            "progress": 0.60,
-            "assignment_completion_rate": 0.82,
-            "attendance_rate": 0.95,
-            "term_scores": [72, 70, 68, 65, 66, 68, 69, 68],
-            "class_avg": [70, 71, 72, 72, 73, 74, 73, 73],
-        },
-        "subj-sci": {
+        "sub-sci": {
             "score": 91.0,
             "progress": 0.85,
             "assignment_completion_rate": 0.98,
             "attendance_rate": 0.99,
             "term_scores": [78, 80, 84, 85, 87, 89, 90, 91],
-            "class_avg": [72, 73, 74, 76, 77, 78, 79, 79],
+            "class_avg":   [72, 73, 74, 76, 77, 78, 79, 79],
         },
-        "subj-hass": {
+        "sub-hass": {
             "score": 55.0,
             "progress": 0.50,
             "assignment_completion_rate": 0.70,
             "attendance_rate": 0.92,
             "term_scores": [64, 62, 60, 58, 56, 55, 54, 55],
-            "class_avg": [66, 67, 67, 68, 68, 68, 69, 69],
+            "class_avg":   [66, 67, 67, 68, 68, 68, 69, 69],
         },
-    }
+        "sub-pe": {
+            "score": 91.0,
+            "progress": 0.90,
+            "assignment_completion_rate": 0.99,
+            "attendance_rate": 1.00,
+            "term_scores": [82, 84, 86, 88, 89, 90, 90, 91],
+            "class_avg":   [75, 76, 77, 78, 78, 79, 79, 80],
+        },
+        "sub-arts": {
+            "score": 79.0,
+            "progress": 0.74,
+            "assignment_completion_rate": 0.90,
+            "attendance_rate": 0.97,
+            "term_scores": [72, 74, 76, 75, 77, 78, 78, 79],
+            "class_avg":   [70, 71, 72, 72, 73, 74, 74, 74],
+        },
+    },
+    "s-priya-01": {
+        "sub-eng":  {"score": 88.0, "progress": 0.82, "assignment_completion_rate": 0.97, "attendance_rate": 0.99, "term_scores": [80, 82, 84, 86, 87, 87, 88, 88], "class_avg": [68, 69, 70, 70, 71, 72, 72, 72]},
+        "sub-math": {"score": 91.0, "progress": 0.88, "assignment_completion_rate": 0.98, "attendance_rate": 1.00, "term_scores": [82, 84, 86, 88, 89, 90, 91, 91], "class_avg": [65, 67, 70, 68, 72, 74, 75, 75]},
+    },
+    "s-james-01": {
+        "sub-eng":  {"score": 62.0, "progress": 0.55, "assignment_completion_rate": 0.75, "attendance_rate": 0.90, "term_scores": [65, 63, 62, 60, 61, 62, 62, 62], "class_avg": [68, 69, 70, 70, 71, 72, 72, 72]},
+        "sub-math": {"score": 70.0, "progress": 0.65, "assignment_completion_rate": 0.85, "attendance_rate": 0.94, "term_scores": [62, 64, 66, 67, 68, 69, 70, 70], "class_avg": [65, 67, 70, 68, 72, 74, 75, 75]},
+    },
 }
 
 
@@ -496,7 +534,10 @@ def ensure_user_state(user_uuid: str):
             "read_reports": set(),
             "archived_reports": set(),
             "read_announcements": set(),
+            "read_threads": set(),
         }
+    elif "read_threads" not in USER_STATE[user_uuid]:
+        USER_STATE[user_uuid]["read_threads"] = set()
 
 
 def check_origin():
@@ -661,79 +702,82 @@ def parent_dashboard(user, student_uuid):
     if not student:
         return err("not_found", "Student not found.", 404)
 
-    ensure_user_state(user["uuid"])
-    us = USER_STATE[user["uuid"]]
-    unread_posts = sum(
-        1 for p in POSTS
-        if p["thread_uuid"].startswith("thread-" + user["uuid"].replace("u-parent-", "parent") )
-        and p["author"]["role"] == "teacher"
-    )
-
-    # simple dashboard data
     stats = SUBJECT_STATS.get(student_uuid, {})
-    subject_statistics = []
-    for subj_uuid, s in stats.items():
-        subj = SUBJECTS.get(subj_uuid, {})
-        subject_statistics.append({
-            "subject_uuid": subj_uuid,
-            "subject_name": subj.get("name", ""),
-            "score": s["score"],
-            "progress": s["progress"],
-            "assignment_completion_rate": s["assignment_completion_rate"],
+
+    # Build subjects list (SubjectSummary[])
+    subjects = []
+    for s_uuid, s_stats in stats.items():
+        subj = SUBJECTS.get(s_uuid)
+        if not subj:
+            continue
+        teacher = USERS.get(subj["teacher_uuid"], {})
+        subjects.append({
+            "uuid": subj["uuid"],
+            "name": subj["name"],
+            "code": subj["code"],
+            "color": subj["color"],
+            "score": s_stats["score"],
+            "progress": round(s_stats["progress"] * 100) if s_stats.get("progress") is not None else None,
+            "teacher": {"uuid": teacher.get("uuid"), "display_name": teacher.get("display_name"), "email": teacher.get("email")},
         })
 
-    bar_chart = [{"subject_uuid": su, "subject_name": SUBJECTS.get(su, {}).get("name", ""), "value": v["score"]}
-                 for su, v in stats.items()]
+    scores = [s["score"] for s in stats.values()]
+    overall = round(sum(scores) / len(scores), 1) if scores else 0
+    completions = [s["assignment_completion_rate"] for s in stats.values()]
+    avg_completion = round(sum(completions) / len(completions) * 100) if completions else 0
+    at_risk_count = sum(1 for s in stats.values() if s["score"] < 60)
+
+    # SummaryCard[]
+    summary_cards = [
+        {"label": "overallScore",  "value": f"{overall}%",         "sub": "Term 2, Week 8", "trend": "up",   "color": "a1"},
+        {"label": "attendance",    "value": "94%",                  "sub": "This term",      "trend": "flat", "color": "a2"},
+        {"label": "assignments",   "value": f"{avg_completion}%",   "sub": "Completion rate","trend": "up",   "color": "a3"},
+        {"label": "atRisk",        "value": str(at_risk_count),     "sub": "Needs attention","color": "a4"},
+    ]
+
+    # subject_chart: ChartDataPoint[] per subject (bar chart)
+    subject_chart = []
+    for s in subjects:
+        s_stat = stats.get(s["uuid"], {})
+        class_avg_arr = s_stat.get("class_avg", [])
+        class_avg_last = class_avg_arr[-1] if class_avg_arr else 0
+        subject_chart.append({"label": s["name"], "value": s_stat.get("score", 0), "avg": class_avg_last})
+
+    # trend_chart: ChartDataPoint[] using English scores as proxy for overall trend
+    eng_scores = stats.get("sub-eng", stats.get(next(iter(stats), ""), {})).get("term_scores", [])
+    trend_chart = [{"label": f"Wk{i+1}", "value": v} for i, v in enumerate(eng_scores)]
+
+    # important_post_banners: ImportantPostBanner[]
+    def get_subject_for_teacher(teacher_uuid):
+        for a in TEACHING_ASSIGNMENTS:
+            if a["teacher_uuid"] == teacher_uuid and a["student_uuid"] == student_uuid:
+                return SUBJECTS.get(a["subject_uuid"], {}).get("name", "")
+        return ""
 
     important_posts = [
         {
-            "post_uuid": p["uuid"],
-            "teacher_uuid": p["author"]["uuid"],
-            "teacher_display_name": p["author"]["display_name"],
-            "title": p.get("title"),
-            "preview_text": p["content_markdown"][:120],
+            "uuid": p["uuid"],
+            "title": p.get("title") or p["content_markdown"][:60],
+            "subject": get_subject_for_teacher(p["author"]["uuid"]),
+            "teacher_name": p["author"]["display_name"],
             "created_at": p["created_at"],
         }
-        for p in POSTS
+        for p in (POSTS + RUNTIME_POSTS)
         if any(t["name"] == "important" for t in p.get("tags", []))
     ]
 
     return ok({
-        "student": student,
-        "dashboard_context": {
-            "last_updated_at": now_iso(),
-            "selected_range": request.args.get("range", "30d"),
-            "unread_post_count": 2,
-            "unread_announcement_count": 1,
+        "student": {
+            "uuid": student["uuid"],
+            "display_name": student["full_name"],
+            "grade": student["grade_level"],
+            "class_name": student["class_name"],
         },
-        "summary_cards": {
-            "overall_performance_index": 74.0,
-            "assignment_completion_rate": 0.88,
-            "attendance_rate": 0.94,
-            "ai_summary": {
-                "display_text": "Aiden is performing well overall. Mathematics shows strong upward trend. HASS needs attention — consider evening reading together.",
-                "original_text": "Aiden is performing well overall.",
-                "translated_text": None,
-                "display_language": "en",
-                "original_language": "en",
-                "translated_language": None,
-                "translation_status": "not_required",
-                "translated_at": None,
-            },
-        },
-        "subject_statistics": subject_statistics,
-        "charts": {
-            "subject_score_bar_chart": bar_chart,
-            "subject_completion_bar_chart": [
-                {"subject_uuid": su, "subject_name": SUBJECTS.get(su, {}).get("name", ""), "value": v["assignment_completion_rate"]}
-                for su, v in stats.items()
-            ],
-            "learning_progress_chart": [
-                {"label": f"2026-0{i+1}-01", "value": round(0.5 + i * 0.04, 2)}
-                for i in range(8)
-            ],
-        },
+        "summary_cards": summary_cards,
+        "subject_chart": subject_chart,
+        "trend_chart": trend_chart,
         "important_post_banners": important_posts,
+        "subjects": subjects,
     })
 
 
@@ -742,17 +786,24 @@ def parent_dashboard(user, student_uuid):
 def parent_subjects(user, student_uuid):
     if user["role"] != "parent":
         return err("role_not_allowed", "Only parents can access this.", 403)
+    stats = SUBJECT_STATS.get(student_uuid, {})
     assignments = [a for a in TEACHING_ASSIGNMENTS if a["student_uuid"] == student_uuid]
+    seen = set()
     result = []
     for a in assignments:
         subj = SUBJECTS.get(a["subject_uuid"])
         teacher = USERS.get(a["teacher_uuid"])
-        if subj and teacher:
+        if subj and teacher and subj["uuid"] not in seen:
+            seen.add(subj["uuid"])
+            s_stat = stats.get(subj["uuid"], {})
             result.append({
                 "uuid": subj["uuid"],
                 "name": subj["name"],
                 "code": subj["code"],
-                "teacher": {"uuid": teacher["uuid"], "display_name": teacher["display_name"]},
+                "color": subj["color"],
+                "score": s_stat.get("score"),
+                "progress": s_stat.get("progress"),
+                "teacher": {"uuid": teacher["uuid"], "display_name": teacher["display_name"], "email": teacher.get("email")},
             })
     return ok(result)
 
@@ -770,38 +821,44 @@ def parent_subject_detail(user, student_uuid, subject_uuid):
     teacher = USERS.get(subj["teacher_uuid"], {})
     stats = SUBJECT_STATS.get(student_uuid, {}).get(subject_uuid, {})
 
+    term_scores = stats.get("term_scores", [])
+    class_avg   = stats.get("class_avg", [])
+    current_score = stats.get("score", 0)
+    term_avg = round(sum(term_scores) / len(term_scores), 1) if term_scores else current_score
+    highest  = max(term_scores) if term_scores else current_score
+    lowest   = min(term_scores) if term_scores else current_score
+    class_avg_last = class_avg[-1] if class_avg else 0
+
+    trend_data     = [{"label": f"Wk{i+1}", "value": v} for i, v in enumerate(term_scores)]
+    class_avg_data = [{"label": f"Wk{i+1}", "value": v} for i, v in enumerate(class_avg)]
+    timeline = TIMELINES.get(subject_uuid, [])
+
+    # Posts: teacher posts in threads involving this student
+    thread_uuids = {t["uuid"] for t in THREADS.values() if t["student_uuid"] == student_uuid}
+    subject_posts = [
+        p for p in (POSTS + RUNTIME_POSTS)
+        if p["thread_uuid"] in thread_uuids and p["author"]["uuid"] == subj["teacher_uuid"]
+    ]
+
     return ok({
-        "student": {"uuid": student["uuid"], "sid": student["sid"], "full_name": student["full_name"]},
         "subject": {
             "uuid": subj["uuid"],
             "name": subj["name"],
             "code": subj["code"],
-            "teacher": {
-                "uuid": teacher.get("uuid"),
-                "display_name": teacher.get("display_name"),
-                "email": teacher.get("email"),
-            },
+            "color": subj["color"],
+            "teacher": {"uuid": teacher.get("uuid"), "display_name": teacher.get("display_name"), "email": teacher.get("email")},
         },
         "overview": {
-            "score": stats.get("score", 0),
-            "progress": stats.get("progress", 0),
-            "assignment_completion_rate": stats.get("assignment_completion_rate", 0),
-            "attendance_rate": stats.get("attendance_rate", 0),
+            "current_score": current_score,
+            "term_avg": term_avg,
+            "highest": highest,
+            "lowest": lowest,
+            "class_avg": class_avg_last,
         },
-        "timeline": [
-            {"label": f"2026-0{i+1}-01", "score": v, "progress": round(0.5 + i * 0.04, 2)}
-            for i, v in enumerate(stats.get("term_scores", []))
-        ],
-        "ai_summary": {
-            "display_text": f"{student['preferred_name']} is showing {'strong' if stats.get('score', 0) >= 75 else 'developing'} performance in {subj['name']}.",
-            "original_text": f"{student['preferred_name']} performance overview.",
-            "translated_text": None,
-            "display_language": "en",
-            "original_language": "en",
-            "translated_language": None,
-            "translation_status": "not_required",
-            "translated_at": None,
-        },
+        "trend_data": trend_data,
+        "class_avg_data": class_avg_data,
+        "timeline": timeline,
+        "posts": subject_posts,
     })
 
 
@@ -818,30 +875,17 @@ def parent_reports(user, student_uuid):
     us = USER_STATE[user["uuid"]]
 
     reports = [r for r in REPORTS.values() if r["student_uuid"] == student_uuid]
-    status_filter = request.args.get("status", "active")
-    read_state = request.args.get("read_state", "all")
-
     result = []
     for r in reports:
         is_read = r["uuid"] in us["read_reports"]
-        is_archived = r["uuid"] in us["archived_reports"]
-        if status_filter == "active" and is_archived:
-            continue
-        if status_filter == "archived" and not is_archived:
-            continue
-        if read_state == "unread" and is_read:
-            continue
-        if read_state == "read" and not is_read:
-            continue
         result.append({
             "uuid": r["uuid"],
             "title": r["title"],
-            "report_type": r["report_type"],
-            "source_type": r["source_type"],
+            "week": r.get("week", 0),
+            "term": r.get("term", 2),
             "created_at": r["created_at"],
             "is_read": is_read,
-            "is_archived": is_archived,
-            "subject": r["subject"],
+            "subjects": r.get("subjects", []),
         })
 
     page = int(request.args.get("page", 1))
@@ -859,7 +903,23 @@ def parent_report_detail(user, student_uuid, report_uuid):
         return err("not_found", "Report not found.", 404)
     ensure_user_state(user["uuid"])
     us = USER_STATE[user["uuid"]]
-    return ok({**r, "is_read": report_uuid in us["read_reports"], "is_archived": report_uuid in us["archived_reports"]})
+    student = STUDENTS.get(student_uuid, {})
+    return ok({
+        "uuid": r["uuid"],
+        "title": r["title"],
+        "week": r.get("week", 0),
+        "term": r.get("term", 2),
+        "created_at": r["created_at"],
+        "is_read": report_uuid in us["read_reports"],
+        "subjects": r.get("subjects", []),
+        "content_markdown": r.get("content_markdown", ""),
+        "student": {
+            "uuid": student.get("uuid", student_uuid),
+            "display_name": student.get("full_name", ""),
+            "grade": student.get("grade_level"),
+            "class_name": student.get("class_name"),
+        },
+    })
 
 
 @app.post("/api/reports/<report_uuid>/read")
@@ -871,8 +931,6 @@ def mark_report_read(user, report_uuid):
     if not r:
         return err("not_found", "Report not found.", 404)
     ensure_user_state(user["uuid"])
-    if report_uuid in USER_STATE[user["uuid"]]["read_reports"]:
-        return err("already_read", "Report already marked as read.", 409)
     USER_STATE[user["uuid"]]["read_reports"].add(report_uuid)
     return ok({"report_uuid": report_uuid, "is_read": True, "read_at": now_iso()})
 
@@ -900,6 +958,84 @@ def unarchive_report(user, report_uuid):
     return ok({"report_uuid": report_uuid, "is_archived": False})
 
 
+@app.post("/api/reports/<report_uuid>/generate")
+@require_auth
+def generate_full_report(user, report_uuid):
+    """AI生成全文报告（含学科、活动、老师观察、顾问建议），支持多语言。"""
+    if e := check_origin():
+        return e
+    body = request.get_json(silent=True) or {}
+    lang = (body.get("language") or "en").lower()
+
+    r = REPORTS.get(report_uuid)
+    if not r:
+        return err("not_found", "Report not found.", 404)
+
+    cache_key = (report_uuid, lang)
+    if cache_key in REPORT_FULL_CACHE:
+        return ok({"content_markdown": REPORT_FULL_CACHE[cache_key], "cached": True})
+
+    student_uuid = r["student_uuid"]
+    student = STUDENTS.get(student_uuid, {})
+    stats    = SUBJECT_STATS.get(student_uuid, {})
+    subjects = r.get("subjects", [])
+
+    # School activities (announcements)
+    activities = [a for a in ANNOUNCEMENTS.values()]
+
+    # Teacher posts / observations for this student
+    thread_uuids = {t["uuid"] for t in THREADS.values() if t.get("student_uuid") == student_uuid}
+    teacher_posts = [
+        p for p in (POSTS + RUNTIME_POSTS)
+        if p["thread_uuid"] in thread_uuids and p["author"].get("role") == "teacher"
+    ]
+
+    lang_name = LANG_NAMES.get(lang, "English")
+    student_name = student.get("full_name", "the student")
+    avg_score = round(sum(s["score"] for s in subjects) / len(subjects), 1) if subjects else 0
+
+    subject_lines = "\n".join(
+        f"- {s['subject_name']}: {s['score']}% — {s['summary']}" for s in subjects
+    )
+    activity_lines = "\n".join(
+        f"- [{a.get('category','School')}] {a['title']}: {a['body_preview'][:120]}" for a in activities
+    )
+    teacher_lines = "\n".join(
+        f"- {p['author']['display_name']}: {p.get('title') or ''} — {p['content_markdown'][:200]}"
+        for p in teacher_posts[:6]
+    )
+
+    system_prompt = (
+        f"You are a warm, professional educational consultant writing a comprehensive weekly progress report for a parent. "
+        f"Write entirely in {lang_name}. Use clear markdown formatting with these sections in order: "
+        f"1) Executive Summary (2–3 sentences), "
+        f"2) Academic Performance (one subsection per subject with score, detailed feedback, specific home tips), "
+        f"3) School Activities & Events (from the data), "
+        f"4) Teacher Observations (synthesise teacher notes), "
+        f"5) Consultant Recommendations & This Week's Action Items (numbered, specific, actionable). "
+        f"Be encouraging but honest. Personalise using the student's name. Aim for ~600–900 words."
+    )
+    user_prompt = (
+        f"Student: {student_name} | Report: {r['title']} | Term {r.get('term',2)}, Week {r.get('week','?')} | Date: {r['created_at'][:10]}\n"
+        f"Overall average: {avg_score}%\n\n"
+        f"SUBJECT PERFORMANCE:\n{subject_lines}\n\n"
+        f"SCHOOL ACTIVITIES & EVENTS:\n{activity_lines}\n\n"
+        f"TEACHER NOTES & OBSERVATIONS:\n{teacher_lines}"
+    )
+
+    try:
+        content = deepseek_chat(
+            [{"role": "system", "content": system_prompt},
+             {"role": "user",   "content": user_prompt}],
+            temperature=0.45, max_tokens=3000,
+        )
+    except Exception as exc:
+        return err("ai_error", f"Report generation failed: {exc}", 502)
+
+    REPORT_FULL_CACHE[cache_key] = content
+    return ok({"content_markdown": content, "cached": False})
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ANNOUNCEMENTS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -912,20 +1048,16 @@ def parent_announcements(user, student_uuid):
     ensure_user_state(user["uuid"])
     us = USER_STATE[user["uuid"]]
     anns = [a for a in ANNOUNCEMENTS.values() if a["student_uuid"] == student_uuid]
-    category = request.args.get("category", "all")
     result = []
     for a in anns:
-        if category not in ("all", a["category"]):
-            continue
         result.append({
             "uuid": a["uuid"],
-            "category": a["category"],
             "title": a["title"],
-            "published_at": a["published_at"],
-            "due_at": a.get("due_at"),
+            "body_preview": a.get("body_preview", a.get("content_markdown", "")[:140]),
+            "created_at": a.get("created_at", a.get("published_at", "")),
             "is_read": a["uuid"] in us["read_announcements"],
-            "is_important": a["is_important"],
-            "author": a["author"],
+            "author": a.get("author"),
+            "category": a.get("category"),
         })
     page = int(request.args.get("page", 1))
     page_size = int(request.args.get("page_size", 20))
@@ -955,6 +1087,16 @@ def mark_announcement_read(user, ann_uuid):
     return ok({"announcement_uuid": ann_uuid, "is_read": True, "read_at": now_iso()})
 
 
+@app.post("/api/threads/<thread_uuid>/read")
+@require_auth
+def mark_thread_read(user, thread_uuid):
+    if e := check_origin():
+        return e
+    ensure_user_state(user["uuid"])
+    USER_STATE[user["uuid"]]["read_threads"].add(thread_uuid)
+    return ok({"thread_uuid": thread_uuid, "is_read": True, "read_at": now_iso()})
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # DISCUSSIONS — PARENT SIDE
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -981,16 +1123,23 @@ def get_thread(parent_uuid, teacher_uuid, student_uuid):
 def parent_discussion_teachers(user, student_uuid):
     if user["role"] != "parent":
         return err("role_not_allowed", "Only parents can access this.", 403)
-    # find all teachers who teach this student
     teacher_uuids = list({a["teacher_uuid"] for a in TEACHING_ASSIGNMENTS if a["student_uuid"] == student_uuid})
+    stats = SUBJECT_STATS.get(student_uuid, {})
     result = []
     for t_uuid in teacher_uuids:
         teacher = USERS.get(t_uuid)
         if not teacher:
             continue
+        # Subject this teacher teaches to this student
+        assignment = next((a for a in TEACHING_ASSIGNMENTS if a["teacher_uuid"] == t_uuid and a["student_uuid"] == student_uuid), None)
+        subj = SUBJECTS.get(assignment["subject_uuid"]) if assignment else None
         thread = get_thread(user["uuid"], t_uuid, student_uuid)
-        thread_posts = [p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]]
-        unread = sum(1 for p in thread_posts if p["author"]["role"] == "teacher")
+        thread_posts = sorted([p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]], key=lambda p: p["created_at"])
+        ensure_user_state(user["uuid"])
+        read_threads = USER_STATE[user["uuid"]]["read_threads"]
+        unread = 0 if thread["uuid"] in read_threads else sum(1 for p in thread_posts if p["author"]["role"] == "teacher")
+        latest = thread_posts[-1] if thread_posts else None
+        s_stat = stats.get(subj["uuid"], {}) if subj else {}
         result.append({
             "teacher": {
                 "uuid": teacher["uuid"],
@@ -998,11 +1147,18 @@ def parent_discussion_teachers(user, student_uuid):
                 "email": teacher["email"],
                 "avatar_url": teacher.get("avatar_url"),
             },
-            "thread": {
-                "uuid": thread["uuid"],
-                "last_post_at": thread.get("last_post_at"),
-                "unread_post_count": unread,
+            "thread_uuid": thread["uuid"],
+            "last_post_at": latest["created_at"] if latest else thread.get("last_post_at"),
+            "unread_count": unread,
+            "subject": {
+                "uuid": subj["uuid"] if subj else "",
+                "name": subj["name"] if subj else "General",
+                "code": subj["code"] if subj else "",
+                "color": subj["color"] if subj else "#999",
+                "score": s_stat.get("score"),
+                "progress": s_stat.get("progress"),
             },
+            "latest_message_preview": latest["content_markdown"][:80] if latest else None,
         })
     return ok(result)
 
@@ -1066,7 +1222,9 @@ def teacher_discussion_parents(user, student_uuid):
             continue
         thread = get_thread(p_uuid, user["uuid"], student_uuid)
         thread_posts = [p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]]
-        unread = sum(1 for p in thread_posts if p["author"]["role"] == "parent")
+        ensure_user_state(user["uuid"])
+        read_threads = USER_STATE[user["uuid"]]["read_threads"]
+        unread = 0 if thread["uuid"] in read_threads else sum(1 for p in thread_posts if p["author"]["role"] == "parent")
         result.append({
             "parent": {"uuid": parent["uuid"], "display_name": parent["display_name"], "email": parent["email"], "avatar_url": None},
             "thread": {"uuid": thread["uuid"], "last_post_at": thread.get("last_post_at"), "unread_post_count": unread},
@@ -1115,28 +1273,43 @@ def teacher_students(user):
     if user["role"] != "teacher":
         return err("role_not_allowed", "Only teachers can access this.", 403)
     assigned_uuids = list({a["student_uuid"] for a in TEACHING_ASSIGNMENTS if a["teacher_uuid"] == user["uuid"]})
-    keyword = request.args.get("keyword", "").lower()
-    class_filter = request.args.get("class_name", "")
+    keyword = request.args.get("search", request.args.get("keyword", "")).lower()
     result = []
     for s_uuid in assigned_uuids:
         s = STUDENTS.get(s_uuid)
         if not s:
             continue
-        if keyword and keyword not in s["full_name"].lower() and keyword not in (s["sid"] or "").lower():
-            continue
-        if class_filter and s["class_name"] != class_filter:
+        if keyword and keyword not in s["full_name"].lower():
             continue
         stats = SUBJECT_STATS.get(s_uuid, {})
         scores = [v["score"] for v in stats.values()]
         avg = round(sum(scores) / len(scores), 1) if scores else 0
+        at_risk = avg < 65 or any(v["score"] < 55 for v in stats.values())
+        # Build subjects with scores
+        subjects = []
+        for subj_uuid, s_stat in stats.items():
+            subj = SUBJECTS.get(subj_uuid)
+            if subj:
+                subjects.append({"uuid": subj["uuid"], "name": subj["name"], "code": subj["code"], "color": subj["color"], "score": s_stat["score"]})
+        # Count unread messages from any parent of this student
+        parent_bindings = [b for b in PARENT_STUDENT_BINDINGS if b["student_uuid"] == s_uuid]
+        unread_msgs = 0
+        for binding in parent_bindings:
+            thread = get_thread(binding["parent_uuid"], user["uuid"], s_uuid)
+            thread_posts = [p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]]
+            unread_msgs += sum(1 for p in thread_posts if p["author"]["role"] == "parent")
         result.append({
-            "uuid": s["uuid"],
-            "sid": s["sid"],
-            "full_name": s["full_name"],
-            "class_name": s["class_name"],
-            "grade_level": s["grade_level"],
-            "overall_performance_index": avg,
-            "last_activity_at": "2026-04-01T14:00:00Z",
+            "student": {
+                "uuid": s["uuid"],
+                "display_name": s["full_name"],
+                "grade": s["grade_level"],
+                "class_name": s["class_name"],
+                "overall_score": avg,
+            },
+            "overall_score": avg,
+            "at_risk": at_risk,
+            "unread_messages": unread_msgs,
+            "subjects": subjects,
         })
     page = int(request.args.get("page", 1))
     page_size = int(request.args.get("page_size", 20))
@@ -1333,6 +1506,9 @@ CHAT_HISTORY: dict[str, list[dict]] = {}
 # 内容翻译缓存: {(text_hash, lang): translated_text}
 TRANSLATION_CACHE: dict[tuple, str] = {}
 
+# 全文报告生成缓存: {(report_uuid, lang): content_markdown}
+REPORT_FULL_CACHE: dict[tuple, str] = {}
+
 
 def build_student_context(student_uuid: str) -> str:
     """把学生的真实数据组装成 AI 系统提示词片段。"""
@@ -1442,6 +1618,64 @@ def ai_chat_history(user):
     return ok(hist[-50:])
 
 
+@app.post("/api/ai/insight")
+@require_auth
+def ai_insight(user):
+    """为学科页面生成 AI Insight，不保存聊天记录。
+    Body: { "subject_name": "Mathematics", "current_score": 82, "term_avg": 74, "ui_language": "zh" }
+    Returns: { "summary": "...", "suggestions": ["...","...","..."] }
+    """
+    if e := check_origin():
+        return e
+    body = request.get_json(silent=True) or {}
+    subject_name = body.get("subject_name", "the subject")
+    current_score = body.get("current_score", "N/A")
+    term_avg = body.get("term_avg", "N/A")
+    student_uuid = body.get("student_uuid")
+    ui_lang = body.get("ui_language", "en")
+    lang_name = LANG_NAMES.get(ui_lang, "English")
+
+    system_parts = [
+        f"You are an AI assistant for a school parent portal called Academy Linker. "
+        f"You generate concise, warm, parent-facing subject insights. "
+        f"Always respond in {lang_name}. Your response must be ONLY valid JSON with no markdown fences."
+    ]
+    if student_uuid:
+        ctx = build_student_context(student_uuid)
+        if ctx:
+            system_parts.append(ctx)
+
+    user_prompt = (
+        f"Generate an AI insight for the student's {subject_name} subject. "
+        f"Current score: {current_score}%. Term average: {term_avg}%. "
+        f"Write in {lang_name}. "
+        f'Reply with ONLY this JSON (no markdown, no explanation): '
+        f'{{"summary":"2 concise sentences in {lang_name}","suggestions":["action tip 1","action tip 2","action tip 3"]}}'
+    )
+
+    messages = [
+        {"role": "system", "content": "\n".join(system_parts)},
+        {"role": "user", "content": user_prompt},
+    ]
+    try:
+        reply = deepseek_chat(messages, temperature=0.5, max_tokens=400)
+    except Exception as exc:
+        return err("ai_error", f"AI 服务异常: {exc}", 502)
+
+    # 解析 JSON（AI 可能包裹在 ```json ... ```）
+    match = re.search(r'\{[\s\S]*\}', reply)
+    if match:
+        try:
+            parsed = json.loads(match.group())
+            if "summary" in parsed and "suggestions" in parsed:
+                return ok(parsed)
+        except Exception:
+            pass
+
+    # 回退：把整段文本作为 summary
+    return ok({"summary": reply.strip(), "suggestions": []})
+
+
 @app.post("/api/content/translate")
 @require_auth
 def translate_content(user):
@@ -1470,7 +1704,10 @@ def translate_content(user):
             "role": "system",
             "content": (
                 f"Translate the following text into {lang_name}. "
-                f"Preserve Markdown formatting if present. Output ONLY the translated text."
+                f"Rules: (1) Preserve ALL Markdown formatting. "
+                f"(2) Keep abbreviations, acronyms (e.g. HASS, PE, IT, STEM), proper nouns, "
+                f"subject codes, and names unchanged — do NOT expand or explain them. "
+                f"(3) Output ONLY the translated text, no explanations or additions."
             ),
         },
         {"role": "user", "content": text},

@@ -19,5 +19,7 @@
   "newPosts": "Nuevas publicaciones",
   "totalStudents": "Total alumnos",
   "averageScore": "Nota media",
-  "unreadMsgs": "Msgs no leídos"
+  "unreadMsgs": "Msgs no leídos",
+  "overallScore": "Puntuación general",
+  "assignments": "Tareas"
 }

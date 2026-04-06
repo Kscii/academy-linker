@@ -5,6 +5,30 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+// ── Auto-refresh helper ───────────────────────────────────────
+// When any API call returns 401 (expired token), silently try
+// /api/auth/refresh once, then retry the original request.
+let _refreshing: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  if (_refreshing) return _refreshing;
+  _refreshing = fetch('/api/auth/refresh', {
+    method: 'POST', credentials: 'include',
+  }).then(r => r.ok).catch(() => false).finally(() => { _refreshing = null; });
+  return _refreshing;
+}
+
+export async function apiFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const res = await fetch(input, { credentials: 'include', ...init });
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      return fetch(input, { credentials: 'include', ...init });
+    }
+  }
+  return res;
+}
+
 // 本地内存缓存，避免重复请求同一内容
 const localCache = new Map<string, string>();
 
@@ -23,9 +47,8 @@ export async function translateText(
   if (localCache.has(key)) return localCache.get(key)!;
 
   try {
-    const res = await fetch('/api/content/translate', {
+    const res = await apiFetch('/api/content/translate', {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,

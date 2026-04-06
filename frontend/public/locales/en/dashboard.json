@@ -19,5 +19,7 @@
   "newPosts": "New Posts",
   "totalStudents": "Total Students",
   "averageScore": "Average Score",
-  "unreadMsgs": "Unread Msgs"
+  "unreadMsgs": "Unread Msgs",
+  "overallScore": "Overall Score",
+  "assignments": "Assignments"
 }

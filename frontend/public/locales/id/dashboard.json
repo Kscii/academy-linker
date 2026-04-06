@@ -19,5 +19,7 @@
   "newPosts": "Postingan Baru",
   "totalStudents": "Total Siswa",
   "averageScore": "Nilai Rata-rata",
-  "unreadMsgs": "Pesan Belum Dibaca"
+  "unreadMsgs": "Pesan Belum Dibaca",
+  "overallScore": "Nilai Keseluruhan",
+  "assignments": "Tugas"
 }

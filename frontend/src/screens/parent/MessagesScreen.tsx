@@ -6,6 +6,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { mockDiscussionTeachers } from '@/lib/mock-data';
+import { parent as parentApi } from '@/lib/api';
+import type { DiscussionTeacherItem } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 
 function timeAgo(dateStr?: string): string {
@@ -26,31 +28,49 @@ function initials(name: string): string {
 export function MessagesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { markThreadRead, readThreadIds: readThreads, language } = useApp();
+  const { markThreadRead, updateThreadUnreadCounts, threadUnreadCounts, language } = useApp();
+
+
+  // Initialize with mock; replaced by API data when available
+  const [items, setItems] = useState<DiscussionTeacherItem[]>(mockDiscussionTeachers);
   const [txItems, setTxItems] = useState(mockDiscussionTeachers);
 
+  // Fetch real discussion teachers
   useEffect(() => {
-    setTxItems(mockDiscussionTeachers);
+    if (!sid) return;
+    parentApi.getDiscussionTeachers(sid).then(res => {
+      setItems(res.data);
+      // Sync unread counts from backend
+      updateThreadUnreadCounts(
+        Object.fromEntries(res.data.map(t => [t.thread_uuid, t.unread_count]))
+      );
+    }).catch(() => { /* keep mock */ });
+  }, [sid]);
+
+  useEffect(() => {
+    setTxItems(items);
     if (language === 'en') return;
-    const texts = mockDiscussionTeachers.flatMap(i => [
+    const texts = items.flatMap(i => [
       i.subject.name,
       i.latest_message_preview ?? '',
     ]);
     translateBatch(texts, language).then(results => {
-      setTxItems(mockDiscussionTeachers.map((item, i) => ({
+      setTxItems(items.map((item, i) => ({
         ...item,
         subject: { ...item.subject, name: results[i * 2] || item.subject.name },
         latest_message_preview: results[i * 2 + 1] || item.latest_message_preview,
       })));
     });
-  }, [language]);
+  }, [language, items]);
 
   const txTitle = useTranslatedText('Messages', language);
   const txSubtitle = useTranslatedText("Your conversations with your student's teachers", language);
 
-  const handleOpen = (teacherUuid: string, subjectUuid: string) => {
-    markThreadRead(teacherUuid);
-    navigate(`/parent/students/${sid}/subjects/${subjectUuid}`);
+  const handleOpen = (item: DiscussionTeacherItem) => {
+    markThreadRead(item.thread_uuid);
+    navigate(`/parent/students/${sid}/conversations/${item.thread_uuid}`, {
+      state: { teacher: item.teacher, subject: item.subject },
+    });
   };
 
   return (
@@ -70,7 +90,7 @@ export function MessagesScreen() {
             key={item.teacher.uuid}
             className="card-sm"
             style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onClick={() => handleOpen(item.teacher.uuid, item.subject.uuid)}
+            onClick={() => handleOpen(item)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div
@@ -110,14 +130,14 @@ export function MessagesScreen() {
                 </div>
               </div>
 
-              {item.unread_count > 0 && !readThreads.has(item.teacher.uuid) && (
+              {(threadUnreadCounts[item.thread_uuid] ?? item.unread_count) > 0 && (
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%',
                   background: 'var(--a1)', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 11, fontWeight: 700, flexShrink: 0,
                 }}>
-                  {item.unread_count}
+                  {threadUnreadCounts[item.thread_uuid] ?? item.unread_count}
                 </div>
               )}
 
