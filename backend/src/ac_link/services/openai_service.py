@@ -27,7 +27,7 @@ def _get_client() -> OpenAI:
     if _client is None:
         _client = OpenAI(
             api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
+            base_url=settings.llm_base_url or None,  # 空字符串等同于 None，使用默认地址
         )
     return _client
 

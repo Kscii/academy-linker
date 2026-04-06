@@ -159,7 +159,6 @@ class TestAiConversations:
 # ── 跳过需要 LLM 的接口 ────────────────────────────────────────────────────────
 
 class TestAiSkipped:
-    @pytest.mark.skip(reason="需要真实 LLM API（OpenAI/compatible），集成测试环境跳过")
     def test_send_ai_message(self, teacher_client, td):
         """发送 AI 消息需要真实的 LLM API key。"""
         r = teacher_client.post("/api/ai/conversations", json={"context_type": "global"})
@@ -174,7 +173,6 @@ class TestAiSkipped:
         assert "user_message" in data
         assert "assistant_message" in data
 
-    @pytest.mark.skip(reason="需要真实 LLM API，集成测试环境跳过")
     def test_generate_ai_report(self, teacher_client, td):
         """AI 报告生成需要真实的 LLM API key。"""
         from datetime import date
@@ -189,11 +187,29 @@ class TestAiSkipped:
         )
         assert r.status_code == 201
 
-    @pytest.mark.skip(reason="需要真实 LLM API，集成测试环境跳过")
     def test_resolve_translation(self, teacher_client, td):
         """翻译解析接口在缺少缓存时需要调用 LLM API。"""
-        r = teacher_client.post("/api/translations/resolve", json={
-            "resource_type": "report",
-            "resource_uuid": "some-report-uuid",
-        })
-        assert r.status_code == 200
+        # 先创建一篇英文报告
+        r = teacher_client.post(
+            f"/api/teachers/me/students/{td['student_uuid']}/reports",
+            json={
+                "title": "Translation Test Report",
+                "report_type": "weekly",
+                "subject_uuid": td["subject_uuid"],
+                "content_markdown": "# Weekly Summary\n\nThe student performed well this week.",
+                "original_language": "en-AU",
+                "translation_status": "not_required",
+            },
+        )
+        assert r.status_code == 201, f"Create report failed: {r.text}"
+        report_uuid = r.json()["data"]["uuid"]
+
+        # 请求中文翻译（Accept-Language: zh-CN 让目标语言不同于原文）
+        r = teacher_client.post(
+            "/api/translations/resolve",
+            json={"resource_type": "report", "resource_uuid": report_uuid},
+            headers={"accept-language": "zh-CN"},
+        )
+        assert r.status_code == 200, f"Resolve translation failed: {r.text}"
+        data = r.json()["data"]
+        assert data["translation_status"] in ("completed", "not_required")
