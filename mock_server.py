@@ -354,6 +354,20 @@ THREADS = {
         "student_uuid": "s-aiden-01",
         "last_post_at": "2026-03-31T10:00:00Z",
     },
+    "thread-parent01-teacher02-aiden": {
+        "uuid": "thread-parent01-teacher02-aiden",
+        "parent_uuid": "u-parent-01",
+        "teacher_uuid": "u-teacher-02",
+        "student_uuid": "s-aiden-01",
+        "last_post_at": "2026-04-02T11:00:00Z",
+    },
+    "thread-parent01-teacher03-aiden": {
+        "uuid": "thread-parent01-teacher03-aiden",
+        "parent_uuid": "u-parent-01",
+        "teacher_uuid": "u-teacher-03",
+        "student_uuid": "s-aiden-01",
+        "last_post_at": "2026-04-03T09:30:00Z",
+    },
 }
 
 TAGS = {
@@ -377,11 +391,14 @@ TAGS = {
     },
 }
 
-POSTS = [
+POSTS: list = []
+
+_UNUSED = [
+    # ── Ms. Thompson — English ────────────────────────────────
     {
-        "uuid": "post-001",
+        "uuid": "post-eng-001",
         "thread_uuid": "thread-parent01-teacher01-aiden",
-        "title": "Week 8 English update",
+        "title": "Week 8 English Update",
         "content_markdown": "Aiden has shown great improvement in essay writing this week, scoring 18/20 on his persuasive writing task. His arguments are becoming well-structured. I'd encourage him to read more non-fiction to strengthen his vocabulary — newspaper articles work great.",
         "created_at": "2026-04-01T14:00:00Z",
         "updated_at": None,
@@ -390,7 +407,7 @@ POSTS = [
         "reply_to_post_uuid": None,
     },
     {
-        "uuid": "post-002",
+        "uuid": "post-eng-001-reply",
         "thread_uuid": "thread-parent01-teacher01-aiden",
         "title": None,
         "content_markdown": "Thank you Ms. Thompson! He has been working hard on his essays each evening. We will look for more non-fiction books this weekend.",
@@ -398,31 +415,158 @@ POSTS = [
         "updated_at": None,
         "author": {"uuid": "u-parent-01", "display_name": "Li Wei", "role": "parent"},
         "tags": [],
-        "reply_to_post_uuid": "post-001",
+        "reply_to_post_uuid": "post-eng-001",
     },
     {
-        "uuid": "post-003",
+        "uuid": "post-eng-002",
         "thread_uuid": "thread-parent01-teacher01-aiden",
-        "title": "Reading comprehension assessment — April 10",
-        "content_markdown": "A reminder that our reading comprehension assessment is on April 10, covering persuasive texts. A revision guide has been uploaded to the school portal. Please ensure Aiden reviews the anthology chapters 4–6 over the Easter break.",
+        "title": "Reading Comprehension Assessment — April 10",
+        "content_markdown": "A reminder that our reading comprehension assessment is on **April 10**, covering persuasive texts. A revision guide has been uploaded to the school portal. Please ensure Aiden reviews anthology chapters 4–6 over the Easter break.",
         "created_at": "2026-03-29T09:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-01", "display_name": "Ms. Thompson", "role": "teacher"},
+        "tags": [{"uuid": "tag-important", "name": "important", "scope": "system"}],
+        "reply_to_post_uuid": None,
+    },
+    {
+        "uuid": "post-eng-003",
+        "thread_uuid": "thread-parent01-teacher01-aiden",
+        "title": "Creative Writing Portfolio",
+        "content_markdown": "I wanted to share that Aiden's creative writing portfolio is looking excellent this semester. His short story submission showed strong narrative voice and vivid imagery. Well done — keep encouraging him to write freely at home.",
+        "created_at": "2026-03-18T10:30:00Z",
         "updated_at": None,
         "author": {"uuid": "u-teacher-01", "display_name": "Ms. Thompson", "role": "teacher"},
         "tags": [],
         "reply_to_post_uuid": None,
     },
+
+    # ── Mr. Walsh — Mathematics ───────────────────────────────
     {
-        "uuid": "post-004",
+        "uuid": "post-math-001",
+        "thread_uuid": "thread-parent01-teacher02-aiden",
+        "title": "Algebra Progress — Week 8",
+        "content_markdown": "Aiden scored 82% on the latest algebra assessment — a strong result. He's particularly confident with linear equations. We're moving into quadratic expressions next week. I'd recommend 15 minutes of Khan Academy practice on factoring each evening to build a solid foundation.",
+        "created_at": "2026-04-02T11:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-02", "display_name": "Mr. Walsh", "role": "teacher"},
+        "tags": [],
+        "reply_to_post_uuid": None,
+    },
+    {
+        "uuid": "post-math-001-reply",
+        "thread_uuid": "thread-parent01-teacher02-aiden",
+        "title": None,
+        "content_markdown": "Thanks Mr. Walsh, we'll set up Khan Academy tonight. Is there a specific section you recommend starting with?",
+        "created_at": "2026-04-02T18:30:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-parent-01", "display_name": "Li Wei", "role": "parent"},
+        "tags": [],
+        "reply_to_post_uuid": "post-math-001",
+    },
+    {
+        "uuid": "post-math-002",
+        "thread_uuid": "thread-parent01-teacher02-aiden",
+        "title": "Mid-Term Maths Test — March 20",
+        "content_markdown": "Just a heads up that we have our mid-term test on **Thursday March 20** covering algebra and number theory. Revision worksheets are available on the portal. Aiden has been performing consistently — a focused revision session over the weekend should set him up well.",
+        "created_at": "2026-03-15T08:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-02", "display_name": "Mr. Walsh", "role": "teacher"},
+        "tags": [{"uuid": "tag-important", "name": "important", "scope": "system"}],
+        "reply_to_post_uuid": None,
+    },
+    {
+        "uuid": "post-math-003",
+        "thread_uuid": "thread-parent01-teacher02-aiden",
+        "title": "Extension Maths Opportunity",
+        "content_markdown": "Given Aiden's strong performance, I'd like to invite him to join our weekly Extension Maths group (Thursdays, lunch). It's a small group working on problem-solving competitions. No pressure — just thought it might suit him.",
+        "created_at": "2026-03-08T09:15:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-02", "display_name": "Mr. Walsh", "role": "teacher"},
+        "tags": [],
+        "reply_to_post_uuid": None,
+    },
+
+    # ── Ms. Patel — Science ───────────────────────────────────
+    {
+        "uuid": "post-sci-001",
+        "thread_uuid": "thread-parent01-teacher03-aiden",
+        "title": "Science — Lab Safety Week",
+        "content_markdown": "Aiden is doing exceptionally well in Science this term — sitting at 91%, well above the class average of 79%. This week we're covering lab safety and experimental method. He's been a great contributor in discussions. Please encourage him to review his lab notes over the weekend as we have a practical assessment in Week 6.",
+        "created_at": "2026-04-03T09:30:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-03", "display_name": "Ms. Patel", "role": "teacher"},
+        "tags": [{"uuid": "tag-important", "name": "important", "scope": "system"}],
+        "reply_to_post_uuid": None,
+    },
+    {
+        "uuid": "post-sci-002",
+        "thread_uuid": "thread-parent01-teacher03-aiden",
+        "title": "Year 7 Science Excursion — April 9",
+        "content_markdown": "Reminder: our Science Museum excursion is on **Wednesday 9 April**. Students should bring their excursion note and $22 payment by Friday 4 April. We'll be visiting the chemistry and physics exhibits — it directly ties into our current unit!",
+        "created_at": "2026-03-22T08:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-03", "display_name": "Ms. Patel", "role": "teacher"},
+        "tags": [],
+        "reply_to_post_uuid": None,
+    },
+    {
+        "uuid": "post-sci-003",
+        "thread_uuid": "thread-parent01-teacher03-aiden",
+        "title": "Chemical Reactions Project — Outstanding Work",
+        "content_markdown": "I wanted to personally congratulate Aiden on his Chemical Reactions project. His write-up was thorough, well-researched, and showed genuine curiosity beyond the syllabus. I've given him a High Distinction and nominated the work for the school Science showcase.",
+        "created_at": "2026-03-10T11:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-03", "display_name": "Ms. Patel", "role": "teacher"},
+        "tags": [],
+        "reply_to_post_uuid": None,
+    },
+
+    # ── Mr. Nguyen — HASS ─────────────────────────────────────
+    {
+        "uuid": "post-hass-001",
         "thread_uuid": "thread-parent01-teacher04-aiden",
-        "title": "Ancient Rome unit — support needed",
-        "content_markdown": "Aiden is finding the vocabulary in this unit particularly challenging. I've compiled a glossary of key terms on the school portal. 10 minutes of reading together each evening and quizzing him on the terms would make a significant difference.",
+        "title": "Ancient Rome Unit — Support Needed",
+        "content_markdown": "Aiden is finding the vocabulary in this unit particularly challenging. I've compiled a glossary of key terms on the school portal. **10 minutes of reading together each evening** and quizzing him on the terms would make a significant difference to his upcoming assessment.",
         "created_at": "2026-03-31T10:00:00Z",
         "updated_at": None,
         "author": {"uuid": "u-teacher-04", "display_name": "Mr. Nguyen", "role": "teacher"},
         "tags": [{"uuid": "tag-important", "name": "important", "scope": "system"}],
         "reply_to_post_uuid": None,
     },
-]
+    {
+        "uuid": "post-hass-001-reply",
+        "thread_uuid": "thread-parent01-teacher04-aiden",
+        "title": None,
+        "content_markdown": "Thank you for letting us know. We'll start the evening reading sessions from tonight. Should we focus on the glossary first or the textbook chapters?",
+        "created_at": "2026-03-31T19:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-parent-01", "display_name": "Li Wei", "role": "parent"},
+        "tags": [],
+        "reply_to_post_uuid": "post-hass-001",
+    },
+    {
+        "uuid": "post-hass-002",
+        "thread_uuid": "thread-parent01-teacher04-aiden",
+        "title": "HASS Assessment Week 9",
+        "content_markdown": "Our HASS essay assessment is in Week 9, covering Ancient Rome and its influence on modern society. Students have been given the essay prompt in class today. I'd recommend Aiden start planning his response this week — a brief outline would help him structure his ideas before writing.",
+        "created_at": "2026-03-20T09:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-04", "display_name": "Mr. Nguyen", "role": "teacher"},
+        "tags": [{"uuid": "tag-important", "name": "important", "scope": "system"}],
+        "reply_to_post_uuid": None,
+    },
+    {
+        "uuid": "post-hass-003",
+        "thread_uuid": "thread-parent01-teacher04-aiden",
+        "title": "Civics Debate Activity",
+        "content_markdown": "This week we held our civics debate on democratic governance. Aiden participated well and made some thoughtful points, though he was a little quiet during the rebuttal rounds. Encouraging him to share his opinions at home in a low-pressure setting can build his confidence for class discussions.",
+        "created_at": "2026-03-06T14:00:00Z",
+        "updated_at": None,
+        "author": {"uuid": "u-teacher-04", "display_name": "Mr. Nguyen", "role": "teacher"},
+        "tags": [],
+        "reply_to_post_uuid": None,
+    },
+]  # end _UNUSED
 
 SUBJECT_STATS = {
     "s-aiden-01": {
@@ -589,10 +733,24 @@ def ensure_user_state(user_uuid: str):
             "read_reports": set(),
             "archived_reports": set(),
             "read_announcements": set(),
-            "read_threads": set(),
+            "read_threads": {},   # {thread_uuid: last_read_at_iso}
         }
-    elif "read_threads" not in USER_STATE[user_uuid]:
-        USER_STATE[user_uuid]["read_threads"] = set()
+    else:
+        if "read_threads" not in USER_STATE[user_uuid]:
+            USER_STATE[user_uuid]["read_threads"] = {}
+        elif isinstance(USER_STATE[user_uuid]["read_threads"], set):
+            # migrate legacy set → dict (mark all as read at epoch)
+            USER_STATE[user_uuid]["read_threads"] = {
+                k: "2000-01-01T00:00:00Z" for k in USER_STATE[user_uuid]["read_threads"]
+            }
+
+
+def unread_count_after_read(thread_posts: list, role: str, read_threads: dict, thread_uuid: str) -> int:
+    """Count posts by `role` that arrived after the thread was last marked as read."""
+    read_at = read_threads.get(thread_uuid)
+    if read_at is None:
+        return sum(1 for p in thread_posts if p["author"]["role"] == role)
+    return sum(1 for p in thread_posts if p["author"]["role"] == role and p["created_at"] > read_at)
 
 
 def check_origin():
@@ -1149,8 +1307,9 @@ def mark_thread_read(user, thread_uuid):
     if e := check_origin():
         return e
     ensure_user_state(user["uuid"])
-    USER_STATE[user["uuid"]]["read_threads"].add(thread_uuid)
-    return ok({"thread_uuid": thread_uuid, "is_read": True, "read_at": now_iso()})
+    ts = now_iso()
+    USER_STATE[user["uuid"]]["read_threads"][thread_uuid] = ts
+    return ok({"thread_uuid": thread_uuid, "is_read": True, "read_at": ts})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1193,7 +1352,7 @@ def parent_discussion_teachers(user, student_uuid):
         thread_posts = sorted([p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]], key=lambda p: p["created_at"])
         ensure_user_state(user["uuid"])
         read_threads = USER_STATE[user["uuid"]]["read_threads"]
-        unread = 0 if thread["uuid"] in read_threads else sum(1 for p in thread_posts if p["author"]["role"] == "teacher")
+        unread = unread_count_after_read(thread_posts, "teacher", read_threads, thread["uuid"])
         latest = thread_posts[-1] if thread_posts else None
         s_stat = stats.get(subj["uuid"], {}) if subj else {}
         result.append({
@@ -1280,10 +1439,12 @@ def teacher_discussion_parents(user, student_uuid):
         thread_posts = [p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]]
         ensure_user_state(user["uuid"])
         read_threads = USER_STATE[user["uuid"]]["read_threads"]
-        unread = 0 if thread["uuid"] in read_threads else sum(1 for p in thread_posts if p["author"]["role"] == "parent")
+        unread = unread_count_after_read(thread_posts, "parent", read_threads, thread["uuid"])
+        latest = thread_posts[-1] if thread_posts else None
         result.append({
             "parent": {"uuid": parent["uuid"], "display_name": parent["display_name"], "email": parent["email"], "avatar_url": None},
             "thread": {"uuid": thread["uuid"], "last_post_at": thread.get("last_post_at"), "unread_post_count": unread},
+            "latest_message_preview": latest["content_markdown"][:80] if latest else None,
         })
     return ok(result)
 
@@ -1347,13 +1508,15 @@ def teacher_students(user):
             subj = SUBJECTS.get(subj_uuid)
             if subj:
                 subjects.append({"uuid": subj["uuid"], "name": subj["name"], "code": subj["code"], "color": subj["color"], "score": s_stat["score"]})
-        # Count unread messages from any parent of this student
+        # Count unread messages from any parent of this student (respects last-read timestamp)
         parent_bindings = [b for b in PARENT_STUDENT_BINDINGS if b["student_uuid"] == s_uuid]
+        ensure_user_state(user["uuid"])
+        read_threads = USER_STATE[user["uuid"]]["read_threads"]
         unread_msgs = 0
         for binding in parent_bindings:
             thread = get_thread(binding["parent_uuid"], user["uuid"], s_uuid)
             thread_posts = [p for p in POSTS + RUNTIME_POSTS if p["thread_uuid"] == thread["uuid"]]
-            unread_msgs += sum(1 for p in thread_posts if p["author"]["role"] == "parent")
+            unread_msgs += unread_count_after_read(thread_posts, "parent", read_threads, thread["uuid"])
         result.append({
             "student": {
                 "uuid": s["uuid"],

@@ -3,15 +3,32 @@
 // Route: /parent/students/:sid/conversations/:threadUuid
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { mockDiscussionTeachers, SUBJECT_COLORS } from '@/lib/mock-data';
-import type { DirectMessage } from '@/lib/mock-data';
-import type { TeacherSummary, SubjectSummary } from '@/types/api';
+import type { TeacherSummary, SubjectSummary, ThreadPost } from '@/types/api';
 import { useApp } from '@/contexts/AppContext';
 import { translateText, useTranslatedText } from '@/lib/translate';
+import { parent as parentApi, posts as postsApi } from '@/lib/api';
 
 const MAX_CHARS = 300;
+const POLL_INTERVAL = 10_000; // 10s
+
+interface DisplayMsg {
+  uuid: string;
+  sender: 'parent' | 'teacher';
+  text: string;
+  sent_at: string;
+}
+
+function toDisplayMsg(p: ThreadPost): DisplayMsg {
+  return {
+    uuid: p.uuid,
+    sender: (p.author.role === 'teacher' ? 'teacher' : 'parent') as 'parent' | 'teacher',
+    text: p.content_markdown,
+    sent_at: p.created_at,
+  };
+}
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -28,8 +45,8 @@ function formatDateLabel(dateStr: string): string {
   return d.toLocaleDateString('en-AU', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-function groupByDay(messages: DirectMessage[]): { label: string; msgs: DirectMessage[] }[] {
-  const groups: { label: string; msgs: DirectMessage[] }[] = [];
+function groupByDay(messages: DisplayMsg[]): { label: string; msgs: DisplayMsg[] }[] {
+  const groups: { label: string; msgs: DisplayMsg[] }[] = [];
   let lastLabel = '';
   for (const msg of messages) {
     const label = formatDateLabel(msg.sent_at);
@@ -52,7 +69,7 @@ export function ConversationScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { sid, threadUuid } = useParams<{ sid: string; threadUuid: string }>();
-  const { language, conversations, sendMessage, markThreadRead } = useApp();
+  const { language, markThreadRead } = useApp();
 
   // Try mock lookup first (offline); fall back to navigation state passed from MessagesScreen
   const mockThread = mockDiscussionTeachers.find(t => t.thread_uuid === threadUuid);
@@ -61,19 +78,37 @@ export function ConversationScreen() {
   const subject = mockThread?.subject ?? navState?.subject;
   const subjectColor = subject?.color ?? SUBJECT_COLORS.math;
 
-  const messages = conversations[threadUuid ?? ''] ?? [];
+  const [messages, setMessages] = useState<DisplayMsg[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [msgTranslations, setMsgTranslations] = useState<Record<string, MsgTx>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
+  const latestUuidsRef = useRef<Set<string>>(new Set());
 
-  // Clear per-message translations when language changes
-  // Mark thread as read when entering the conversation
+  const fetchMessages = useCallback(async () => {
+    if (!sid || !teacher?.uuid) return;
+    try {
+      const res = await parentApi.getDiscussionThread(sid, teacher.uuid);
+      const newMsgs = res.data.posts.map(toDisplayMsg);
+      setMessages(newMsgs);
+      latestUuidsRef.current = new Set(newMsgs.map(m => m.uuid));
+    } catch { /* backend offline — keep current state */ }
+  }, [sid, teacher?.uuid]);
+
+  // Initial fetch + polling
+  useEffect(() => {
+    fetchMessages();
+    const id = setInterval(fetchMessages, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [fetchMessages]);
+
+  // Mark thread as read when entering
   useEffect(() => {
     if (threadUuid) markThreadRead(threadUuid);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadUuid]);
 
+  // Clear per-message translations when language changes
   useEffect(() => {
     setMsgTranslations({});
   }, [language]);
@@ -99,11 +134,25 @@ export function ConversationScreen() {
     if (!text || sending) return;
     setSending(true);
     setDraft('');
-    await sendMessage(threadUuid ?? '', 'parent', text, language);
+    // Optimistic append
+    const optimistic: DisplayMsg = {
+      uuid: `opt-${Date.now()}`,
+      sender: 'parent',
+      text,
+      sent_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+    try {
+      await postsApi.create(threadUuid ?? '', { content_markdown: text });
+      // Refetch to get real UUID and any teacher replies
+      await fetchMessages();
+    } catch {
+      // Keep optimistic message on failure
+    }
     setSending(false);
   };
 
-  const handleTranslate = async (msg: DirectMessage) => {
+  const handleTranslate = async (msg: DisplayMsg) => {
     const id = msg.uuid;
     const existing = msgTranslations[id];
 
@@ -122,7 +171,6 @@ export function ConversationScreen() {
   const groups = groupByDay(messages);
   const charLeft = MAX_CHARS - draft.length;
   const isOverLimit = charLeft < 0;
-  const showTranslateBtn = language !== 'en';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', maxHeight: 800 }}>
@@ -284,7 +332,7 @@ export function ConversationScreen() {
                       flexDirection: isParent ? 'row-reverse' : 'row',
                     }}>
                       <span>{formatTime(msg.sent_at)}</span>
-                      {showTranslateBtn && (
+                      {(
                         <>
                           <span style={{ opacity: 0.4 }}>·</span>
                           <button

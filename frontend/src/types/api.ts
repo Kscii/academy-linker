@@ -258,6 +258,20 @@ export interface DiscussionTeacherItem {
   latest_message_preview?: string;
 }
 
+export interface ThreadDetailResponse {
+  posts: ThreadPost[];
+  thread: { uuid: string; last_post_at?: string };
+  student?: { uuid: string; sid: string; full_name: string };
+  teacher?: { uuid: string; display_name: string; email: string; avatar_url: string | null };
+  available_tags?: PostTag[];
+}
+
+export interface TeacherDiscussionParentItem {
+  parent: { uuid: string; display_name: string; email: string; avatar_url: string | null };
+  thread: { uuid: string; last_post_at?: string; unread_post_count: number };
+  latest_message_preview?: string | null;
+}
+
 // ── Teacher-side ─────────────────────────────────────────────
 
 export interface TeacherStudentItem {
