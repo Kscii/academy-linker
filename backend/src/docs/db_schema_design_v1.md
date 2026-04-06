@@ -85,6 +85,23 @@ v1 中先不拆 profile 表，避免过度设计。
 - `revoked`
 - `expired`
 
+### 3.8 `translation_resource_type`
+
+- `report`
+- `announcement`
+- `post`
+
+### 3.9 `ai_conversation_context_type`
+
+- `global`
+- `student`
+- `subject`
+
+### 3.10 `ai_message_role`
+
+- `user`
+- `assistant`
+
 PostgreSQL 中可用 `ENUM`，也可用 `TEXT + CHECK`。若重视迁移灵活性，建议 v1 用 `TEXT + CHECK`。
 
 ---
@@ -146,6 +163,8 @@ user_settings(
   email_post_notification_enabled,
   default_report_time_range,
   default_announcement_time_range,
+  ai_chat_style,
+  ai_auto_translate_enabled,
   created_at,
   updated_at
 )
@@ -155,6 +174,8 @@ user_settings(
 
 - 每个 user 一条设置记录。
 - `user_id` 唯一，形成 1:1。
+- `ai_chat_style` 存 AI 对话风格偏好，如 `default / summary / parent_friendly`。
+- `ai_auto_translate_enabled` 控制是否允许在读取资源时自动创建缺失译文缓存。
 
 #### `user_sessions`
 
@@ -348,15 +369,14 @@ reports(
   report_type,
   source_type,
   title,
+  period_start NULL,
+  period_end NULL,
   content_markdown,
   original_content_markdown,
   original_language,
-  translated_content_markdown NULL,
-  translated_language NULL,
-  translation_status,
-  translated_at NULL,
   created_at,
   updated_at,
+  published_at NULL,
   archived_at NULL
 )
 ```
@@ -367,11 +387,14 @@ reports(
 
 - `author_user_id` 保留作者，可以是 teacher，也可以是 system/admin 代表 AI 任务写入。
 - `source_type` 表示来源是 `ai` 还是 `teacher`；不要仅根据 `author_user_id` 推断。
+- `period_start` / `period_end` 用于标识报告所覆盖的统计周期，AI report 的唯一性规则依赖这两个字段。
+- `published_at` 用于支撑接口中的立即发布语义。
 - `archived_at` 不代表用户归档。它只预留给全局资源级归档/软删除；v1 可以不使用。
 
 说明：
 
-- 接口返回既有 `content_markdown`，又有 original / translated 内容，因此主表直接存多语言正文最直观。fileciteturn0file0
+- 报告主表只保存原文与原始语言；译文缓存统一转移到独立的 `resource_translations` 表。
+- 对于 `source_type='ai'` 的报告，推荐使用部分唯一索引（可结合 `coalesce(subject_id, 0)`）约束同一 `student + subject(含 null) + report_type + period_start + period_end` 只存在一条 AI report。
 
 索引：
 
@@ -381,6 +404,7 @@ reports(
 - index(`author_user_id`, `created_at desc`)
 - index(`report_type`)
 - index(`source_type`)
+- partial unique index on AI reports by `(student_id, coalesce(subject_id, 0), report_type, period_start, period_end)` where `source_type = 'ai'`
 
 #### `report_user_states`
 
@@ -429,10 +453,6 @@ announcements(
   content_markdown,
   original_content_markdown,
   original_language,
-  translated_content_markdown NULL,
-  translated_language NULL,
-  translation_status,
-  translated_at NULL,
   published_at,
   due_at NULL,
   is_important,
@@ -445,6 +465,7 @@ announcements(
 
 - `student_id` 先做“面向单个学生”的模型，因为当前接口都是按 `/students/{student_uuid}/announcements` 读取。fileciteturn0file0
 - 若未来要支持面向班级/多学生群发，再新增发布目标表，例如 `announcement_targets`。
+- 公告正文主表只保存原文与原始语言；译文缓存统一落到 `resource_translations`。
 
 索引：
 
@@ -566,6 +587,7 @@ posts(
   reply_to_post_id NULL FK -> posts.id,
   title NULL,
   content_markdown,
+  original_language,
   created_at,
   updated_at NULL,
   deleted_at NULL
@@ -577,6 +599,7 @@ posts(
 - v1 用软删除 `deleted_at`，这样不会破坏 reply 链，也便于后续 moderation。
 - 删除后接口层可返回“该帖子已删除”或直接不展示正文。
 - `reply_to_post_id` 自关联即可，无需单独 replies 表。
+- `content_markdown` 视为原文正文；对应译文缓存统一落到 `resource_translations`。
 
 索引：
 
@@ -698,6 +721,110 @@ student_period_metrics(
 
 ---
 
+### 4.9 `resource_translations`
+
+用于统一缓存 `report / announcement / post` 在不同目标语言下的译文。
+
+```text
+resource_translations(
+  id PK,
+  uuid UNIQUE,
+  resource_type,
+  resource_id,
+  language,
+  translated_content_markdown,
+  translation_status,
+  translated_at NULL,
+  created_at,
+  updated_at,
+  UNIQUE(resource_type, resource_id, language)
+)
+```
+
+说明：
+
+- 该表使用 `resource_type + resource_id` 的多态关联形式，统一支撑 `report`、`announcement`、`post` 三类资源的译文缓存。
+- 由于是统一资源表，不直接对单一资源表做数据库级 FK；资源存在性与访问权限由业务层保证。
+- 详情接口仅读缓存；缺失译文时，由 `POST /api/translations/resolve` 负责创建并回写缓存。
+- 当原文资源内容发生变化时，后端应将对应资源的全部译文缓存标记为 `stale`。
+
+索引：
+
+- unique(`uuid`)
+- unique(`resource_type`, `resource_id`, `language`)
+- index(`resource_type`, `resource_id`)
+- index(`language`, `translation_status`)
+
+### 4.10 AI 会话
+
+#### `ai_conversations`
+
+```text
+ai_conversations(
+  id PK,
+  uuid UNIQUE,
+  user_id FK -> users.id,
+  context_type,
+  student_id NULL FK -> students.id,
+  subject_id NULL FK -> subjects.id,
+  title NULL,
+  is_archived,
+  archived_at NULL,
+  last_message_at NULL,
+  created_at,
+  updated_at,
+  deleted_at NULL
+)
+```
+
+说明：
+
+- AI 会话独立于 `discussion_threads`，不复用家长/老师讨论区的 thread/post 结构。
+- `context_type = 'global'` 时，`student_id` 与 `subject_id` 必须均为 NULL。
+- `context_type = 'student'` 时，`student_id` 必须非 NULL，`subject_id` 必须为 NULL。
+- `context_type = 'subject'` 时，`student_id` 与 `subject_id` 必须均非 NULL。
+- v1 允许同一用户在相同 context 下创建多条 conversation。
+- 删除采用软删除 `deleted_at`。
+
+索引：
+
+- unique(`uuid`)
+- index(`user_id`, `updated_at desc`)
+- index(`user_id`, `is_archived`, `updated_at desc`)
+- index(`student_id`, `updated_at desc`)
+- index(`subject_id`, `updated_at desc`)
+- partial index on `deleted_at is null`
+
+#### `ai_messages`
+
+```text
+ai_messages(
+  id PK,
+  uuid UNIQUE,
+  conversation_id FK -> ai_conversations.id,
+  role,
+  preset NULL,
+  content_markdown,
+  created_at,
+  deleted_at NULL
+)
+```
+
+说明：
+
+- `role` 取值 `user / assistant`。
+- `preset` 仅对 user message 有意义，assistant message 固定为 NULL。
+- v1 先不记录 token usage / provider / model；若后续需要审计，再单独扩字段或引入日志表。
+
+索引：
+
+- unique(`uuid`)
+- index(`conversation_id`, `created_at`)
+- index(`role`, `created_at`)
+- partial index on `deleted_at is null`
+
+---
+
 ## 6. 历史关键设计决策记录
 
 - 不把家长、老师拆成独立主体表
@@ -706,6 +833,8 @@ student_period_metrics(
 - announcement 先不做多目标发送表
 - `tags` 要单表加 scope，而不是 system_tags / teacher_tags 两张表
 - `posts` 需要使用软删除
+- 统一使用 `resource_translations` 作为译文缓存表，而不是把所有译文直接写回资源主表
+- AI 会话独立建模，不复用 discussion thread/post
 - 学生换班时的业务操作规范
 
 ## 7. 表清单
@@ -730,8 +859,10 @@ student_period_metrics(
 18. `student_exam_scores`
 19. `student_period_metrics`
 20. `student_overall_metrics`
-21. `translation_jobs`
-22. `audit_logs`
+21. `resource_translations`
+22. `ai_conversations`
+23. `ai_messages`
+24. `audit_logs`
 
 ---
 
@@ -772,7 +903,8 @@ users(id PK, uuid UNIQUE, role, email UNIQUE, password_hash, display_name, phone
 user_settings(id PK, user_id UNIQUE FK -> users.id, language NULL, timezone NULL, theme,
               high_contrast_mode, tts_enabled, email_digest_enabled,
               email_post_notification_enabled, default_report_time_range,
-              default_announcement_time_range, created_at, updated_at)
+              default_announcement_time_range, ai_chat_style,
+              ai_auto_translate_enabled, created_at, updated_at)
 
 user_sessions(id PK, uuid UNIQUE, user_id FK -> users.id, refresh_token_hash UNIQUE,
               device_label NULL, ip_address NULL, user_agent NULL,
@@ -799,9 +931,9 @@ teaching_assignments(id PK, uuid UNIQUE, teacher_user_id FK -> users.id,
 
 reports(id PK, uuid UNIQUE, student_id FK -> students.id, subject_id NULL FK -> subjects.id,
         author_user_id FK -> users.id, report_type, source_type, title,
-        content_markdown, original_content_markdown, original_language,
-        translated_content_markdown NULL, translated_language NULL,
-        translation_status, translated_at NULL, created_at, updated_at, archived_at NULL)
+        period_start NULL, period_end NULL, content_markdown,
+        original_content_markdown, original_language,
+        created_at, updated_at, published_at NULL, archived_at NULL)
 
 report_user_states(id PK, report_id FK -> reports.id, user_id FK -> users.id,
                    is_read, read_at NULL, is_archived, archived_at NULL,
@@ -810,9 +942,7 @@ report_user_states(id PK, report_id FK -> reports.id, user_id FK -> users.id,
 announcements(id PK, uuid UNIQUE, category, student_id FK -> students.id,
               subject_id NULL FK -> subjects.id, author_user_id FK -> users.id,
               title, content_markdown, original_content_markdown, original_language,
-              translated_content_markdown NULL, translated_language NULL,
-              translation_status, translated_at NULL, published_at, due_at NULL,
-              is_important, created_at, updated_at)
+              published_at, due_at NULL, is_important, created_at, updated_at)
 
 announcement_user_states(id PK, announcement_id FK -> announcements.id,
                          user_id FK -> users.id, is_read, read_at NULL,
@@ -829,7 +959,8 @@ tags(id PK, uuid UNIQUE, scope, name, color NULL, description NULL,
 
 posts(id PK, uuid UNIQUE, thread_id FK -> discussion_threads.id,
       author_user_id FK -> users.id, reply_to_post_id NULL FK -> posts.id,
-      title NULL, content_markdown, created_at, updated_at NULL, deleted_at NULL)
+      title NULL, content_markdown, original_language,
+      created_at, updated_at NULL, deleted_at NULL)
 
 post_tags(post_id FK -> posts.id, tag_id FK -> tags.id, created_at,
           PRIMARY KEY(post_id, tag_id))
@@ -849,4 +980,17 @@ student_period_metrics(id PK, uuid UNIQUE, student_id FK -> students.id,
                        term NULL, progress NULL, assignment_completion_rate NULL,
                        attendance_rate NULL, snapshot_date, created_at, updated_at,
                        UNIQUE(student_id, subject_id, snapshot_date))
+
+resource_translations(id PK, uuid UNIQUE, resource_type, resource_id, language,
+                      translated_content_markdown, translation_status,
+                      translated_at NULL, created_at, updated_at,
+                      UNIQUE(resource_type, resource_id, language))
+
+ai_conversations(id PK, uuid UNIQUE, user_id FK -> users.id, context_type,
+                 student_id NULL FK -> students.id, subject_id NULL FK -> subjects.id,
+                 title NULL, is_archived, archived_at NULL, last_message_at NULL,
+                 created_at, updated_at, deleted_at NULL)
+
+ai_messages(id PK, uuid UNIQUE, conversation_id FK -> ai_conversations.id,
+            role, preset NULL, content_markdown, created_at, deleted_at NULL)
 ```

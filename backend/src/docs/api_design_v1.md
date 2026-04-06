@@ -112,6 +112,20 @@
 | PATCH | `/api/admin/classes/{class_uuid}` | 更新班级 | 未完成 |
 | POST | `/api/admin/students/{student_uuid}/transfer-class` | 学生换班（原子操作） | 未完成 |
 
+### AI (§12)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| POST | `/api/teachers/me/students/{student_uuid}/ai-reports` | 手动生成 AI 报告 | 未完成 |
+| POST | `/api/translations/resolve` | 解析/获取资源翻译内容 | 未完成 |
+| GET | `/api/ai/conversations` | 获取 AI 会话列表 | 未完成 |
+| POST | `/api/ai/conversations` | 创建 AI 会话 | 未完成 |
+| GET | `/api/ai/conversations/{conversation_uuid}` | 获取 AI 会话详情 | 未完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/messages` | 发送 AI 消息 | 未完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/archive` | 归档 AI 会话 | 未完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/unarchive` | 取消归档 AI 会话 | 未完成 |
+| DELETE | `/api/ai/conversations/{conversation_uuid}` | 删除 AI 会话 | 未完成 |
+
 ---
 
 ## 2. 系统固定前提
@@ -171,6 +185,12 @@
 - `completed`
 - `failed`
 - `stale`
+
+补充约定：
+
+- `report` / `announcement` / `post` 的译文缓存统一由独立翻译解析接口负责创建与读取
+- 资源详情接口仅读取当前目标语言已缓存的译文，不主动触发新的翻译写入
+- 默认目标语言优先级：`user_settings.language` > `Accept-Language` > 系统默认值 `en-AU`
 
 ### 2.6 讨论区规则
 
@@ -287,6 +307,7 @@
 | 400 | `invalid_filter` | 筛选参数非法 |
 | 400 | `invalid_pagination` | 分页参数非法 |
 | 400 | `invalid_state_transition` | 状态变更非法 |
+| 400 | `unsupported_preset` | preset 非法或未支持 |
 | 401 | `unauthenticated` | 未登录或 cookie 缺失 |
 | 401 | `access_token_expired` | access token 过期 |
 | 401 | `refresh_token_expired` | refresh token 过期 |
@@ -294,14 +315,20 @@
 | 403 | `forbidden` | 无权限 |
 | 403 | `origin_not_allowed` | Origin 校验失败 |
 | 403 | `role_not_allowed` | 角色不允许 |
+| 403 | `auto_translation_disabled` | 已关闭自动翻译，且当前请求不允许自动创建译文 |
 | 404 | `not_found` | 资源不存在 |
+| 404 | `translation_not_available` | 当前目标语言译文不存在 |
 | 409 | `conflict` | 资源冲突 |
 | 409 | `duplicate_tag_name` | tag 名称冲突 |
 | 409 | `already_archived` | 已归档 |
 | 409 | `already_read` | 已读状态重复提交 |
+| 409 | `conversation_archived` | AI 会话已归档，不允许继续发送消息 |
 | 422 | `validation_error` | body/参数校验失败 |
 | 429 | `rate_limited` | 请求过频 |
 | 500 | `internal_error` | 服务端内部错误 |
+| 500 | `ai_generation_failed` | AI 报告生成失败 |
+| 500 | `ai_translation_failed` | AI 翻译失败 |
+| 500 | `ai_chat_failed` | AI 对话生成失败 |
 
 ---
 
@@ -667,7 +694,9 @@
     "email_digest_enabled": false,
     "email_post_notification_enabled": false,
     "default_report_time_range": "all_time | 7d | 30d | 90d",
-    "default_announcement_time_range": "all_time | 7d | 30d | 90d"
+    "default_announcement_time_range": "all_time | 7d | 30d | 90d",
+    "ai_chat_style": "default | summary | parent_friendly",
+    "ai_auto_translate_enabled": true
   }
 }
 ```
@@ -690,13 +719,20 @@
   "email_digest_enabled": "boolean | null",
   "email_post_notification_enabled": "boolean | null",
   "default_report_time_range": "all_time | 7d | 30d | 90d | null",
-  "default_announcement_time_range": "all_time | 7d | 30d | 90d | null"
+  "default_announcement_time_range": "all_time | 7d | 30d | 90d | null",
+  "ai_chat_style": "default | summary | parent_friendly | null",
+  "ai_auto_translate_enabled": "boolean | null"
 }
 ```
 
 #### Success 200
 
 返回更新后的完整 settings。
+
+#### 注释
+
+- `language` 为空时，服务端按 `Accept-Language` 推断；仍为空时回退到系统默认值 `en-AU`。
+- `ai_auto_translate_enabled=false` 时，资源详情接口不会自动创建缺失译文；前端若仍需翻译，须显式调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -949,6 +985,8 @@
       "title": "string",
       "report_type": "weekly | monthly | custom",
       "source_type": "ai | teacher",
+      "period_start": "string | null",
+      "period_end": "string | null",
       "subject": {
         "uuid": "string",
         "name": "string",
@@ -978,6 +1016,8 @@
 }
 ```
 
+> 注：列表中的 `translation` 仅反映当前目标语言的已缓存译文状态，不会触发新的翻译写入。若前端需要确保译文存在，应显式调用 `POST /api/translations/resolve`。
+
 ---
 
 ### 9.6 获取报告详情（已完成）
@@ -993,6 +1033,8 @@
     "title": "string",
     "report_type": "weekly | monthly | custom",
     "source_type": "ai | teacher",
+    "period_start": "string | null",
+    "period_end": "string | null",
     "subject": {
       "uuid": "string",
       "name": "string",
@@ -1016,7 +1058,7 @@
 }
 ```
 
-> 注：`display_content_markdown` 由后端根据 `translation_status` 自动选择 original / translated 版本，前端直接渲染即可。`display_language` 表示当前展示文本所用的语言。
+> 注：`display_content_markdown` 由后端根据当前目标语言的已缓存译文自动选择 original / translated 版本，前端直接渲染即可。`display_language` 表示当前展示文本所用的语言。详情接口仅读取缓存，不会触发新的翻译写入；若需要生成缺失译文，前端应调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -1131,6 +1173,8 @@
 }
 ```
 
+> 注：列表中的 `translation` 仅反映当前目标语言的已缓存译文状态，不会触发新的翻译写入。若前端需要确保译文存在，应显式调用 `POST /api/translations/resolve`。
+
 ---
 
 ### 9.11 获取公告/任务详情（已完成）
@@ -1172,7 +1216,7 @@
 }
 ```
 
-> 注：`display_content_markdown` 由后端根据 `translation_status` 自动选择 original / translated 版本。`display_language` 表示当前展示文本所用的语言。
+> 注：`display_content_markdown` 由后端根据当前目标语言的已缓存译文自动选择 original / translated 版本。`display_language` 表示当前展示文本所用的语言。详情接口仅读取缓存，不会触发新的翻译写入；若需要生成缺失译文，前端应调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -1281,6 +1325,13 @@
         },
         "title": "string | null",
         "content_markdown": "string",
+        "original_content_markdown": "string",
+        "translated_content_markdown": "string | null",
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null",
         "is_deleted": false,
         "reply_to_post_uuid": "string | null",
         "tags": [
@@ -1304,7 +1355,7 @@
 }
 ```
 
-> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
 >
 > **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
 
@@ -1320,6 +1371,7 @@
 {
   "title": "string | null",
   "content_markdown": "string",
+  "original_language": "string | null",
   "tag_uuids": ["string"],
   "reply_to_post_uuid": "string | null"
 }
@@ -1330,6 +1382,7 @@
 - 家长可使用所有系统 tag
 - 家长可使用当前讨论教师的私有 tag
 - 不属于当前讨论教师的私有 tag 返回 403
+- `original_language` 缺失时，后端按 `user_settings.language` > `Accept-Language` > `en-AU` 推断
 
 #### Success 201
 
@@ -1371,6 +1424,7 @@
 {
   "title": "string | null",
   "content_markdown": "string | null",
+  "original_language": "string | null",
   "tag_uuids": ["string"] 
 }
 ```
@@ -1382,6 +1436,7 @@
 - 仅作者可编辑
 - 家长只能使用系统 tag 或当前讨论教师的私有 tag
 - 不支持编辑作者角色和 thread 归属
+- 若更新了 `content_markdown`，后端应将该 post 的已有译文缓存全部置为 `stale`
 
 #### Success 200
 
@@ -1674,6 +1729,13 @@
         },
         "title": "string | null",
         "content_markdown": "string",
+        "original_content_markdown": "string",
+        "translated_content_markdown": "string | null",
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null",
         "is_deleted": false,
         "reply_to_post_uuid": "string | null",
         "tags": [
@@ -1697,7 +1759,7 @@
 }
 ```
 
-> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -1711,6 +1773,7 @@
 {
   "title": "string | null",
   "content_markdown": "string",
+  "original_language": "string | null",
   "tag_uuids": ["string"],
   "reply_to_post_uuid": "string | null"
 }
@@ -1721,6 +1784,7 @@
 - 老师可使用所有系统 tag
 - 老师可使用自己的私有 tag（非自己的 private tag 返回 403）
 - `important` 为系统 tag，老师和家长均可使用
+- `original_language` 缺失时，后端按 `user_settings.language` > `Accept-Language` > `en-AU` 推断
 
 #### Success 201
 
@@ -1740,6 +1804,7 @@
 
 - 仅作者可编辑
 - private tag 必须是自己创建的
+- 若更新了 `content_markdown`，后端应将该 post 的已有译文缓存全部置为 `stale`
 
 #### Success 200
 
@@ -1900,18 +1965,17 @@
   "title": "string",
   "report_type": "weekly | monthly | custom",
   "subject_uuid": "string | null",
+  "period_start": "string | null",
+  "period_end": "string | null",
   "content_markdown": "string",
-  "original_language": "string",
-  "translation_status": "not_required | pending | completed | failed | stale",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translated_at": "string | null"
+  "original_language": "string"
 }
 ```
 
 #### 规则
 
 - `source_type` 固定为 `teacher`，不可由客户端传入
+- `period_start` / `period_end` 可为空；若仅提供其中一个，返回 422
 - 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
 - 创建后立即发布（`is_published=true`，`published_at=now()`）
 
@@ -1924,6 +1988,8 @@
     "title": "string",
     "report_type": "weekly | monthly | custom",
     "source_type": "teacher",
+    "period_start": "string | null",
+    "period_end": "string | null",
     "subject": {
       "uuid": "string",
       "name": "string",
@@ -1963,12 +2029,10 @@
   "title": "string | null",
   "report_type": "weekly | monthly | custom | null",
   "subject_uuid": "string | null",
+  "period_start": "string | null",
+  "period_end": "string | null",
   "content_markdown": "string | null",
-  "original_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale | null",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translated_at": "string | null"
+  "original_language": "string | null"
 }
 ```
 
@@ -1976,7 +2040,8 @@
 
 - 仅报告创建者（teacher）或 admin 可更新
 - **禁止修改** `student`（由创建时的路径决定）和 `source_type`
-- 若更新了 `content_markdown` 且当前 `translation_status == completed`，后端自动将 `translation_status` 置为 `stale`
+- `period_start` / `period_end` 必须同时更新或同时不更新
+- 若更新了 `content_markdown`，后端应将该报告的已有译文缓存全部置为 `stale`
 - 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联；admin 跳过此验证
 - 不影响家长个人 `is_read` / `is_archived` 状态
 
@@ -1999,10 +2064,6 @@
   "subject_uuid": "string | null",
   "content_markdown": "string",
   "original_language": "string",
-  "translation_status": "not_required | pending | completed | failed | stale",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translated_at": "string | null",
   "published_at": "string | null",
   "due_at": "string | null",
   "is_important": false
@@ -2015,6 +2076,7 @@
 - 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联
 - `is_important` 允许老师设置
 - 创建后立即发布（`is_published=true`）
+- 创建时不会主动写入译文缓存；如前端需要对应目标语言的译文，应显式调用 `POST /api/translations/resolve`
 
 #### Success 201
 
@@ -2067,10 +2129,6 @@
   "subject_uuid": "string | null",
   "content_markdown": "string | null",
   "original_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale | null",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translated_at": "string | null",
   "published_at": "string | null",
   "due_at": "string | null",
   "is_important": "boolean | null"
@@ -2081,7 +2139,7 @@
 
 - 仅公告创建者（teacher）或 admin 可更新
 - **禁止修改** `student` 和 `author`
-- 若更新了 `content_markdown` 且当前 `translation_status == completed`，后端自动将 `translation_status` 置为 `stale`
+- 若更新了 `content_markdown`，后端应将该公告的已有译文缓存全部置为 `stale`
 - 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联；admin 跳过此验证
 
 #### Success 200
@@ -2931,9 +2989,316 @@
 
 ---
 
-## 12. 关键实现规则
+## 12. AI 相关接口
 
-### 12.1 403 与 404 的边界
+### 12.1 老师手动生成 AI 报告
+
+**POST** `/api/teachers/me/students/{student_uuid}/ai-reports`
+
+#### Body
+
+```json
+{
+  "report_type": "weekly | monthly | custom",
+  "subject_uuid": "string | null",
+  "period_start": "string",
+  "period_end": "string",
+  "extra_instruction": "string | null"
+}
+```
+
+#### 规则
+
+- 仅 `teacher` 可调用
+- `title` 由后端自动生成；前端只传递生成意图，不拼接完整 prompt
+- `source_type` 固定为 `ai`，不可由客户端传入
+- `subject_uuid = null` 表示学生整体 AI 报告；非 null 表示该学生该学科 AI 报告
+- 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
+- 同一 `student + subject(含 null) + period_start + period_end + report_type` 只允许存在一条 AI report；若已存在，则覆盖同一条 report，而不是创建新记录
+- 自动定时生成任务与手动接口共用同一套生成逻辑与唯一性规则
+- 覆盖已有 AI report 后，后端必须将该 report 的所有 `report_user_states.is_read=false`、`read_at=null`、`is_archived=false`、`archived_at=null`
+- 手动生成时 `author` 记录为当前 teacher；自动定时生成时 `author` 记录为 system/admin
+- 生成完成后立即发布（`published_at=now()`）
+
+#### Success 201
+
+返回生成后的完整报告对象，结构与 §10.12 Success 201 一致，但 `source_type` 固定为 `ai`。
+
+---
+
+### 12.2 解析/获取资源翻译内容
+
+**POST** `/api/translations/resolve`
+
+#### Body
+
+```json
+{
+  "resource_type": "report | announcement | post",
+  "resource_uuid": "string"
+}
+```
+
+#### 规则
+
+- 目标语言优先级：`user_settings.language` > `Accept-Language` > 系统默认值 `en-AU`
+- 仅支持 `report`、`announcement`、`post` 三类资源
+- 若当前目标语言译文已存在缓存，则直接读取并返回
+- 若缓存不存在且 `ai_auto_translate_enabled=false`，返回 `403 auto_translation_disabled`
+- 若缓存不存在且允许自动翻译，则执行翻译、写入缓存并返回
+- 若翻译失败，返回 `500 ai_translation_failed`
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "resource_type": "report | announcement | post",
+    "resource_uuid": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "not_required | pending | completed | failed | stale",
+    "translated_at": "string | null"
+  }
+}
+```
+
+---
+
+### 12.3 获取 AI 会话列表
+
+**GET** `/api/ai/conversations`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `archived` | boolean | 否 | 默认 false |
+| `context_type` | enum | 否 | `global`, `student`, `subject` |
+| `student_uuid` | string | 否 | 按学生过滤 |
+| `subject_uuid` | string | 否 | 仅当 `context_type=subject` 时有意义 |
+| `sort` | enum | 否 | `updated_at_desc`, `updated_at_asc` |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "title": "string | null",
+      "context_type": "global | student | subject",
+      "student_uuid": "string | null",
+      "subject_uuid": "string | null",
+      "is_archived": false,
+      "last_message_at": "string | null",
+      "created_at": "string",
+      "updated_at": "string"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 3,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 12.4 创建 AI 会话
+
+**POST** `/api/ai/conversations`
+
+#### Body
+
+```json
+{
+  "context_type": "global | student | subject",
+  "student_uuid": "string | null",
+  "subject_uuid": "string | null",
+  "title": "string | null"
+}
+```
+
+#### 规则
+
+- `context_type=global` 时，`student_uuid` / `subject_uuid` 必须均为 null
+- `context_type=student` 时，`student_uuid` 必填，`subject_uuid` 必须为 null
+- `context_type=subject` 时，`student_uuid` 与 `subject_uuid` 必须同时提供
+- `context_type=subject` 时，teacher 需校验 `teaching_assignment`；parent 需校验对该学生的绑定访问权
+- 允许同一用户在相同 context 下创建多条 conversation
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string | null",
+    "context_type": "global | student | subject",
+    "student_uuid": "string | null",
+    "subject_uuid": "string | null",
+    "is_archived": false,
+    "last_message_at": null,
+    "created_at": "string",
+    "updated_at": "string"
+  }
+}
+```
+
+---
+
+### 12.5 获取 AI 会话详情
+
+**GET** `/api/ai/conversations/{conversation_uuid}`
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string | null",
+    "context_type": "global | student | subject",
+    "student_uuid": "string | null",
+    "subject_uuid": "string | null",
+    "is_archived": false,
+    "last_message_at": "string | null",
+    "created_at": "string",
+    "updated_at": "string",
+    "messages": [
+      {
+        "uuid": "string",
+        "role": "user | assistant",
+        "preset": "default | summary | parent_friendly | null",
+        "content_markdown": "string",
+        "created_at": "string"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 12.6 发送 AI 消息
+
+**POST** `/api/ai/conversations/{conversation_uuid}/messages`
+
+#### Body
+
+```json
+{
+  "message": "string",
+  "preset": "default | summary | parent_friendly"
+}
+```
+
+#### 规则
+
+- 前端只传用户输入与 preset；实际 prompt 组织、上下文查询、系统 prompt 拼接全部由后端完成
+- 当前 v1 采用普通 JSON 同步返回，不采用流式输出
+- 若 conversation 已归档，返回 `409 conversation_archived`
+- AI 输出语言优先使用 `user_settings.language`；为空时按 `Accept-Language`，仍为空时回退到 `en-AU`
+- 若设置了 `ai_chat_style`，后端应将其作为对话风格偏好参与 prompt 组织
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "conversation_uuid": "string",
+    "user_message": {
+      "uuid": "string",
+      "role": "user",
+      "preset": "default | summary | parent_friendly",
+      "content_markdown": "string",
+      "created_at": "string"
+    },
+    "assistant_message": {
+      "uuid": "string",
+      "role": "assistant",
+      "preset": null,
+      "content_markdown": "string",
+      "created_at": "string"
+    }
+  }
+}
+```
+
+---
+
+### 12.7 归档 AI 会话
+
+**POST** `/api/ai/conversations/{conversation_uuid}/archive`
+
+#### Body
+
+无
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+### 12.8 取消归档 AI 会话
+
+**POST** `/api/ai/conversations/{conversation_uuid}/unarchive`
+
+#### Body
+
+无
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+### 12.9 删除 AI 会话
+
+**DELETE** `/api/ai/conversations/{conversation_uuid}`
+
+#### 规则
+
+- v1 采用软删除，删除后用户不可在列表中继续看到该 conversation
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+## 13. 关键实现规则
+
+### 13.1 403 与 404 的边界
 
 v1 统一约定：
 
@@ -2942,7 +3307,7 @@ v1 统一约定：
 
 当前不做“为了防枚举而把 403 伪装成 404”的额外策略。
 
-### 12.2 筛选、排序、搜索全部由后端完成
+### 13.2 筛选、排序、搜索全部由后端完成
 
 前端只负责传 query 参数：
 
@@ -2958,22 +3323,22 @@ v1 统一约定：
 - 排序
 - 分页
 
-### 12.3 已读与归档必须是用户个人状态
+### 13.3 已读与归档必须是用户个人状态
 
 对于：
 
 - report
-n- announcement
+- announcement
 
 其 `is_read`、`is_archived` 等状态必须由用户个人状态表维护，不能直接写回资源主表作为全局状态。
 
-### 12.4 Post 删除规则
+### 13.4 Post 删除规则
 
 - 只允许作者删除自己发的帖子
 - 当前不支持“老师删除家长帖子”的额外管理特权
 - 若将来需要 moderation，再单独设计接口与权限规则
 
-### 12.5 Discussion Thread 创建策略
+### 13.5 Discussion Thread 创建策略
 
 v1 推荐：**懒创建**
 
@@ -2981,5 +3346,25 @@ v1 推荐：**懒创建**
 
 - 当 parent / teacher 第一次访问讨论页时，如果 thread 不存在，则服务端自动创建
 - 不由前端显式调用创建 thread 接口
+
+### 13.6 AI Report 周期唯一与覆盖规则
+
+- `AI report` 的唯一业务键为：`student + subject(含 null) + report_type + period_start + period_end`
+- 自动定时生成与手动生成必须共用同一套唯一性规则
+- 命中同一业务键时，覆盖同一条 AI report，而不是新增第二条记录
+- 覆盖后必须重置所有用户的 `report_user_states` 已读/归档状态
+
+### 13.7 详情接口与翻译解析接口必须读写分离
+
+- `GET` 详情接口（report / announcement / discussion）只负责读取当前目标语言已缓存的译文
+- 缺失译文时，不由详情接口隐式写库
+- 创建缺失译文统一通过 `POST /api/translations/resolve` 完成
+
+### 13.8 AI 会话上下文约束
+
+- `global` 会话不绑定 student / subject
+- `student` 会话必须绑定 `student_uuid`
+- `subject` 会话必须同时绑定 `student_uuid + subject_uuid`
+- AI 会话独立于 discussion thread，不复用 `thread / post` 表结构
 
 ---
