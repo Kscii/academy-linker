@@ -2,6 +2,7 @@
 §11 Admin 管理接口集成测试。
 
 覆盖：
+  GET            /api/admin/overview
   GET/POST/PATCH /api/admin/users
   GET/POST/PATCH /api/admin/classes
   GET/POST/PATCH /api/admin/students
@@ -18,6 +19,52 @@ from __future__ import annotations
 import uuid as _uuid
 
 import pytest
+
+# ── Admin 首页总览 (§11.0) ─────────────────────────────────────────────────
+
+class TestAdminOverview:
+    def test_overview_returns_200(self, admin_client):
+        """Admin 首页总览接口应返回 200。"""
+        r = admin_client.get("/api/admin/overview")
+        assert r.status_code == 200
+
+    def test_overview_structure(self, admin_client):
+        """返回结构应包含全部指定的计数字段。"""
+        r = admin_client.get("/api/admin/overview")
+        data = r.json()["data"]
+        for field in ("user_count", "teacher_count", "parent_count",
+                      "student_count", "class_count"):
+            assert field in data, f"Missing field: {field}"
+
+    def test_overview_counts_are_non_negative(self, admin_client):
+        """所有计数字段均应为非负整数。"""
+        r = admin_client.get("/api/admin/overview")
+        data = r.json()["data"]
+        for field in ("user_count", "teacher_count", "parent_count",
+                      "student_count", "class_count"):
+            assert isinstance(data[field], int)
+            assert data[field] >= 0, f"{field} should be non-negative"
+
+    def test_overview_counts_reflect_seed_data(self, admin_client):
+        """种子数据至少创建了1个 teacher、1个 parent、1个 student、1个 class，统计应反映这些。"""
+        r = admin_client.get("/api/admin/overview")
+        data = r.json()["data"]
+        assert data["teacher_count"] >= 1
+        assert data["parent_count"] >= 1
+        assert data["student_count"] >= 1
+        assert data["class_count"] >= 1
+        # user_count = teacher + parent + admin，至少包含上述3个
+        assert data["user_count"] >= 3
+
+    def test_teacher_cannot_access_admin_overview(self, teacher_client):
+        """teacher 不能访问 admin 端接口，应返回 403。"""
+        r = teacher_client.get("/api/admin/overview")
+        assert r.status_code == 403
+
+    def test_parent_cannot_access_admin_overview(self, parent_client):
+        """parent 不能访问 admin 端接口，应返回 403。"""
+        r = parent_client.get("/api/admin/overview")
+        assert r.status_code == 403
 
 # ── 用户管理 ──────────────────────────────────────────────────────────────────
 

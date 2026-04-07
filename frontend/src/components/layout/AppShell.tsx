@@ -23,25 +23,37 @@ interface NavItem {
 const PARENT_NAV: NavItem[] = [
   { id: 'dashboard',  labelKey: 'nav:dashboard',  icon: '🏠', path: (sid) => `/parent/students/${sid}/dashboard` },
   { id: 'grades',     labelKey: 'nav:grades',     icon: '📊', path: (sid) => `/parent/students/${sid}/grades` },
+  { id: 'examScores', labelKey: 'nav:examScores', icon: '📝', path: (sid) => `/parent/students/${sid}/exam-scores` },
+  { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: (sid) => `/parent/students/${sid}/period-metrics` },
   { id: 'messages',   labelKey: 'nav:messages',   icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
   { id: 'reports',    labelKey: 'nav:reports',    icon: '📋', path: (sid) => `/parent/students/${sid}/reports` },
   { id: 'notices',    labelKey: 'nav:notices',    icon: '📢', path: (sid) => `/parent/students/${sid}/tasks` },
+  { id: 'leave',      labelKey: 'nav:leave',      icon: '🗒', path: (sid) => `/parent/students/${sid}/leave` },
+  { id: 'incidents',  labelKey: 'nav:incidents',  icon: '🚨', path: (sid) => `/parent/students/${sid}/incidents` },
   { id: 'resources',  labelKey: 'nav:resources',  icon: '📚', path: (sid) => `/parent/students/${sid}/resources` },
 ];
 
 const TEACHER_NAV: NavItem[] = [
   { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '🏠', path: '/teacher/dashboard' },
   { id: 'messages',     labelKey: 'nav:messages',     icon: '💬', path: '/teacher/messages' },
-  { id: 'posts',        labelKey: 'nav:posts',        icon: '📝', path: '/teacher/posts' },
+  { id: 'announcements', labelKey: 'nav:announcements', icon: '📢', path: '/teacher/posts' },
+  { id: 'reports',      labelKey: 'nav:reports',      icon: '📋', path: '/teacher/reports' },
+  { id: 'tags',         labelKey: 'nav:tags',         icon: '🏷', path: '/teacher/tags' },
+  { id: 'examScores',   labelKey: 'nav:examScores',   icon: '📝', path: '/teacher/exam-scores' },
+  { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: '/teacher/period-metrics' },
+  { id: 'aiReports',    labelKey: 'nav:aiReports',    icon: '🤖', path: '/teacher/ai-reports' },
   { id: 'find-student', labelKey: 'nav:findStudent',  icon: '🔍', path: '/teacher/find-student' },
 ];
 
 const ADMIN_NAV: NavItem[] = [
   { id: 'dashboard', labelKey: 'nav:dashboard',  icon: '🏠', path: '/admin/dashboard' },
+  { id: 'users',     labelKey: 'nav:users',      icon: '🧾', path: '/admin/users' },
   { id: 'teachers',  labelKey: 'nav:teachers',   icon: '👨‍🏫', path: '/admin/teachers' },
   { id: 'classes',   labelKey: 'nav:classes',    icon: '🏫', path: '/admin/classes' },
   { id: 'students',  labelKey: 'nav:students',   icon: '🎒', path: '/admin/students' },
   { id: 'parents',   labelKey: 'nav:parents',    icon: '👪', path: '/admin/parents' },
+  { id: 'assignments', labelKey: 'nav:teachingAssignments', icon: '🧩', path: '/admin/assignments/teaching' },
+  { id: 'systemTags', labelKey: 'nav:systemTags', icon: '🏷', path: '/admin/tags/system' },
 ];
 
 const SHARED_NAV: NavItem[] = [

@@ -58,6 +58,9 @@ from ac_link.dto.teacher import (
     TeacherAnnouncementDetail,
     TeacherClassItem,
     TeacherDashboardData,
+    TeacherOverviewClassItem,
+    TeacherOverviewData,
+    TeacherOverviewSummary,
     TeacherReportDetail,
     TeacherStudentBrief,
     TeacherStudentListItem,
@@ -67,6 +70,35 @@ from ac_link.dto.teacher import (
 )
 
 router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
+
+
+# ── GET /api/teachers/me/overview ────────────────────────────────────────────
+
+@router.get("/overview", response_model=ApiResponse[TeacherOverviewData])
+def get_teacher_overview(
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[TeacherOverviewData]:
+    """获取教师首页总览聚合数据（§10.0）。"""
+    result = teacher_crud.get_teacher_overview(db, current_user.id)
+    return ApiResponse(data=TeacherOverviewData(
+        summary=TeacherOverviewSummary(
+            student_count=result["student_count"],
+            class_count=result["class_count"],
+            unread_message_count=result["unread_message_count"],
+        ),
+        classes=[
+            TeacherOverviewClassItem(
+                uuid=cls.uuid,
+                name=cls.name,
+                grade_level=cls.grade_level,
+                academic_year=cls.academic_year,
+                is_homeroom=is_homeroom,
+                student_count=student_count,
+            )
+            for cls, is_homeroom, student_count in result["classes"]
+        ],
+    ))
 
 
 # ── 翻译辅助 ──────────────────────────────────────────────────────────────────

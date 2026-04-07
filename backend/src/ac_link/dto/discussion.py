@@ -103,6 +103,7 @@ class DiscussionTeacherListItem(BaseModel):
     thread_uuid: UUID | None
     last_post_at: datetime | None
     unread_post_count: int
+    latest_message_preview: str | None = None
 
 
 class DiscussionParentListItem(BaseModel):

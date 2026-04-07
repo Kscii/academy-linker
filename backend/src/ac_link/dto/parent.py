@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta  # noqa: F401
 
@@ -46,6 +46,7 @@ class StudentOut(BaseModel):
     class_name: str | None = None
     grade_level: str | None = None
     avatar_url: str | None = None
+    date_of_birth: date | None = None
 
     class Config:
         from_attributes = True
@@ -62,6 +63,7 @@ class StudentOut(BaseModel):
             class_name=c.name if c else None,
             grade_level=c.grade_level if c else None,
             avatar_url=s.avatar_url,  # type: ignore[attr-defined]
+            date_of_birth=getattr(s, 'date_of_birth', None),
         )
 
 
@@ -97,16 +99,53 @@ class SubjectWithTeachers(BaseModel):
 
 
 class SubjectOverview(BaseModel):
-    score: float | None = None
-    progress: float | None = None
+    current_score: float | None = None
+    term_avg: float | None = None
+    highest: float | None = None
+    lowest: float | None = None
+    class_avg: float | None = None
     assignment_completion_rate: float | None = None
     attendance_rate: float | None = None
+
+
+class TrendDataPoint(BaseModel):
+    label: str
+    value: float | None = None
+    avg: float | None = None
+
+
+class ClassAvgPoint(BaseModel):
+    label: str
+    value: float | None = None
 
 
 class TimelinePoint(BaseModel):
     label: str
     score: float | None = None
     progress: float | None = None
+
+
+class LearningPathwayItemBrief(BaseModel):
+    uuid: UUID
+    title: str
+    description: str | None = None
+    status: str
+    week: int | None = None
+
+
+class SubjectPostAuthor(BaseModel):
+    uuid: UUID
+    display_name: str
+    role: str
+
+
+class SubjectPostItem(BaseModel):
+    uuid: UUID
+    title: str | None = None
+    content_markdown: str
+    created_at: datetime
+    author: SubjectPostAuthor
+    tags: list
 
 
 class ReportSummary(BaseModel):
@@ -126,7 +165,10 @@ class SubjectDetailData(BaseModel):
     student: StudentBrief
     subject: SubjectWithTeachers
     overview: SubjectOverview
-    timeline: list[TimelinePoint]
+    trend_data: list[TrendDataPoint] = []
+    class_avg_data: list[ClassAvgPoint] = []
+    learning_pathway: list[LearningPathwayItemBrief] = []
+    posts: list[SubjectPostItem] = []
     summary: ReportSummary | None = None
 
 
@@ -270,6 +312,7 @@ class AnnouncementListItem(BaseModel):
     read_at: datetime | None = None
     published_at: datetime
     due_at: datetime | None = None
+    body_preview: str | None = None
     translation: TranslationBlock
 
 
@@ -371,3 +414,60 @@ class AnnouncementDetail(BaseModel):
     translated_language: str | None = None
     translation_status: str | None = None
     translated_at: datetime | None = None
+
+
+# ── §9.20 / §9.21 请假申请 ────────────────────────────────────────────────────
+
+class LeaveRequestItem(BaseModel):
+    uuid: UUID
+    student_uuid: UUID
+    type: str
+    start_date: date
+    end_date: date
+    reason: str | None = None
+    status: str
+    school_note: str | None = None
+    submitted_at: datetime
+
+
+class LeaveRequestCreate(BaseModel):
+    type: str
+    start_date: date
+    end_date: date
+    reason: str | None = None
+
+    @model_validator(mode='after')
+    def validate_dates(self) -> 'LeaveRequestCreate':
+        if self.start_date > self.end_date:
+            raise ValueError("start_date 不能晚于 end_date")
+        return self
+
+
+# ── §9.22 / §9.23 事件举报 ────────────────────────────────────────────────────
+
+class IncidentReportItem(BaseModel):
+    uuid: UUID
+    student_uuid: UUID
+    incident_type: str
+    description: str
+    is_anonymous: bool
+    status: str
+    submitted_at: datetime
+
+
+class IncidentReportCreate(BaseModel):
+    incident_type: str
+    description: str
+    is_anonymous: bool = False
+
+    @field_validator("description")
+    @classmethod
+    def description_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("description 不能为空或纯空白")
+        return v
+
+
+class IncidentReportCreateResponse(BaseModel):
+    uuid: UUID
+    status: str

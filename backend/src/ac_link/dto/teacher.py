@@ -379,3 +379,25 @@ class AiReportGenerateRequest(BaseModel):
         if v not in _VALID_REPORT_TYPES:
             raise ValueError(f"report_type 必须为 {_VALID_REPORT_TYPES}")
         return v
+
+
+# ── §10.0 教师首页总览 ────────────────────────────────────────────────────────
+
+class TeacherOverviewSummary(BaseModel):
+    student_count: int
+    class_count: int
+    unread_message_count: int
+
+
+class TeacherOverviewClassItem(BaseModel):
+    uuid: UUID
+    name: str
+    grade_level: str | None = None
+    academic_year: str | None = None
+    is_homeroom: bool
+    student_count: int
+
+
+class TeacherOverviewData(BaseModel):
+    summary: TeacherOverviewSummary
+    classes: list[TeacherOverviewClassItem]
