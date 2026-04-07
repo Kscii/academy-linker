@@ -1,22 +1,18 @@
 // ============================================================
-// Teacher PostsScreen — compose announcements and reports
+// Teacher PostsScreen — compose announcements and tasks
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
-import type { AnnouncementCategory, AnnouncementDetail, CreateAnnouncementRequest, CreateReportRequest, ReportType, TeacherClass, TeacherStudentListItem } from '@/types/api';
-
-type ComposeMode = 'announcement' | 'report';
+import type { AnnouncementCategory, AnnouncementDetail, CreateAnnouncementRequest, TeacherClass, TeacherStudentListItem } from '@/types/api';
 
 const ANNOUNCEMENT_CATEGORIES: AnnouncementCategory[] = ['announcement', 'task'];
-const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
 
 export function TeacherPostsScreen() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialMode = searchParams.get('mode') === 'report' ? 'report' : 'announcement';
   const initialStudentUuid = searchParams.get('student') ?? '';
-  const [mode, setMode] = useState<ComposeMode>(initialMode);
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [allStudents, setAllStudents] = useState<TeacherStudentListItem[]>([]);
   const [target, setTarget] = useState<string>(initialStudentUuid ? `student:${initialStudentUuid}` : '');
@@ -31,16 +27,20 @@ export function TeacherPostsScreen() {
   const [publishedAt, setPublishedAt] = useState('');
   const [dueAt, setDueAt] = useState('');
 
-  const [reportType, setReportType] = useState<ReportType>('weekly');
-  const [periodStart, setPeriodStart] = useState('');
-  const [periodEnd, setPeriodEnd] = useState('');
-
   const [publishing, setPublishing] = useState(false);
   const [progress, setProgress] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [announcements, setAnnouncements] = useState<AnnouncementDetail[]>([]);
   const [editingAnnouncementUuid, setEditingAnnouncementUuid] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('mode') === 'report') {
+      const next = new URLSearchParams();
+      if (initialStudentUuid) next.set('student', initialStudentUuid);
+      navigate(`/teacher/reports${next.toString() ? `?${next.toString()}` : ''}`, { replace: true });
+    }
+  }, [initialStudentUuid, navigate, searchParams]);
 
   useEffect(() => {
     Promise.all([
@@ -54,12 +54,12 @@ export function TeacherPostsScreen() {
 
   useEffect(() => {
     const next = new URLSearchParams();
-    next.set('mode', mode);
+    next.set('mode', 'announcement');
     if (target.startsWith('student:')) {
       next.set('student', target.slice(8));
     }
     setSearchParams(next, { replace: true });
-  }, [mode, setSearchParams, target]);
+  }, [setSearchParams, target]);
 
   const targetStudents: TeacherStudentListItem[] = useMemo(() => {
     if (!target) return [];
@@ -85,14 +85,10 @@ export function TeacherPostsScreen() {
     setPublishedAt('');
     setDueAt('');
     setIsImportant(false);
-    setReportType('weekly');
-    setPeriodStart('');
-    setPeriodEnd('');
     setEditingAnnouncementUuid('');
   };
 
   const openAnnouncementEdit = (announcement: AnnouncementDetail) => {
-    setMode('announcement');
     setTarget(`student:${selectedStudent?.uuid ?? ''}`);
     setEditingAnnouncementUuid(announcement.uuid);
     setTitle(announcement.title);
@@ -107,10 +103,6 @@ export function TeacherPostsScreen() {
 
   const handlePublish = async () => {
     if (!title.trim() || !content.trim() || !target || publishing) return;
-    if (mode === 'report' && (!!periodStart !== !!periodEnd)) {
-      setErrorMsg('Report period start and end must be provided together.');
-      return;
-    }
 
     setPublishing(true);
     setProgress('');
@@ -126,44 +118,31 @@ export function TeacherPostsScreen() {
     await Promise.allSettled(
       targetStudents.map(async (student) => {
         try {
-          if (mode === 'announcement') {
-            if (editingAnnouncementUuid) {
-              const res = await teacherApi.updateAnnouncement(editingAnnouncementUuid, {
-                category,
-                title: title.trim(),
-                subject_uuid: subjectUuid.trim() || null,
-                content_markdown: content.trim(),
-                original_language: originalLanguage,
-                published_at: publishedAt || null,
-                due_at: dueAt || null,
-                is_important: isImportant,
-              });
-              createdAnnouncements.push(res.data);
-            } else {
-              const body: CreateAnnouncementRequest = {
-                category,
-                title: title.trim(),
-                subject_uuid: subjectUuid.trim() || null,
-                content_markdown: content.trim(),
-                original_language: originalLanguage,
-                published_at: publishedAt || null,
-                due_at: dueAt || null,
-                is_important: isImportant,
-              };
-              const res = await teacherApi.createAnnouncement(student.uuid, body);
-              createdAnnouncements.push(res.data);
-            }
-          } else {
-            const body: CreateReportRequest = {
+          if (editingAnnouncementUuid) {
+            const res = await teacherApi.updateAnnouncement(editingAnnouncementUuid, {
+              category,
               title: title.trim(),
-              report_type: reportType,
               subject_uuid: subjectUuid.trim() || null,
-              period_start: periodStart || null,
-              period_end: periodEnd || null,
               content_markdown: content.trim(),
               original_language: originalLanguage,
+              published_at: publishedAt || null,
+              due_at: dueAt || null,
+              is_important: isImportant,
+            });
+            createdAnnouncements.push(res.data);
+          } else {
+            const body: CreateAnnouncementRequest = {
+              category,
+              title: title.trim(),
+              subject_uuid: subjectUuid.trim() || null,
+              content_markdown: content.trim(),
+              original_language: originalLanguage,
+              published_at: publishedAt || null,
+              due_at: dueAt || null,
+              is_important: isImportant,
             };
-            await teacherApi.createReport(student.uuid, body);
+            const res = await teacherApi.createAnnouncement(student.uuid, body);
+            createdAnnouncements.push(res.data);
           }
           done++;
         } catch {
@@ -176,7 +155,7 @@ export function TeacherPostsScreen() {
     setPublishing(false);
     setProgress('');
     if (failed === 0) {
-      setSuccessMsg(`${mode === 'announcement' ? 'Announcement' : 'Report'} sent to ${done} student${done !== 1 ? 's' : ''}.`);
+      setSuccessMsg(`Announcement sent to ${done} student${done !== 1 ? 's' : ''}.`);
       if (createdAnnouncements.length > 0) {
         setAnnouncements(prev => [...createdAnnouncements, ...prev.filter(item => !createdAnnouncements.some(created => created.uuid === item.uuid))]);
       }
@@ -189,19 +168,10 @@ export function TeacherPostsScreen() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>Teacher Composer</div>
+        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>Announcements</div>
         <div style={{ fontSize: 13, color: 'var(--tx3)', marginTop: 4 }}>
-          Create announcements, tasks, and reports using the teacher API contract
+          Create and update announcements and tasks using the teacher API contract
         </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button className="chip" style={{ background: mode === 'announcement' ? 'var(--a4)' : undefined, color: mode === 'announcement' ? '#fff' : undefined }} onClick={() => setMode('announcement')}>
-          Announcement / Task
-        </button>
-        <button className="chip" style={{ background: mode === 'report' ? 'var(--a1)' : undefined, color: mode === 'report' ? '#fff' : undefined }} onClick={() => setMode('report')}>
-          Report
-        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 340px', gap: 0, border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden', minHeight: 560 }}>
@@ -267,38 +237,26 @@ export function TeacherPostsScreen() {
                 </span>
               </div>
 
-              {mode === 'announcement' && (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {ANNOUNCEMENT_CATEGORIES.map(item => (
-                    <button key={item} className="chip" style={{ fontSize: 12, background: category === item ? 'var(--a4)' : undefined, color: category === item ? '#fff' : undefined }} onClick={() => setCategory(item)}>
-                      {item}
-                    </button>
-                  ))}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)', cursor: 'pointer', marginLeft: 8 }}>
-                    <input type="checkbox" checked={isImportant} onChange={e => setIsImportant(e.target.checked)} style={{ width: 14, height: 14 }} />
-                    Important
-                  </label>
-                </div>
-              )}
-
-              {mode === 'report' && (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {REPORT_TYPES.map(item => (
-                    <button key={item} className="chip" style={{ fontSize: 12, background: reportType === item ? 'var(--a1)' : undefined, color: reportType === item ? '#fff' : undefined }} onClick={() => setReportType(item)}>
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {ANNOUNCEMENT_CATEGORIES.map(item => (
+                  <button key={item} className="chip" style={{ fontSize: 12, background: category === item ? 'var(--a4)' : undefined, color: category === item ? '#fff' : undefined }} onClick={() => setCategory(item)}>
+                    {item}
+                  </button>
+                ))}
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)', cursor: 'pointer', marginLeft: 8 }}>
+                  <input type="checkbox" checked={isImportant} onChange={e => setIsImportant(e.target.checked)} style={{ width: 14, height: 14 }} />
+                  Important
+                </label>
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <input className="input-field" placeholder={mode === 'announcement' ? 'Announcement title…' : 'Report title…'} value={title} onChange={e => setTitle(e.target.value)} />
+                <input className="input-field" placeholder="Announcement title…" value={title} onChange={e => setTitle(e.target.value)} />
                 <input className="input-field" placeholder="Subject UUID (optional)" value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)} />
               </div>
 
               <textarea
                 className="input-field"
-                placeholder={mode === 'announcement' ? 'Write your announcement…' : 'Write your report…'}
+                placeholder="Write your announcement…"
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 rows={8}
@@ -307,16 +265,8 @@ export function TeacherPostsScreen() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                 <input className="input-field" placeholder="Original language" value={originalLanguage} onChange={e => setOriginalLanguage(e.target.value)} />
-                {mode === 'announcement' ? (
-                  <input type="datetime-local" className="input-field" value={publishedAt} onChange={e => setPublishedAt(e.target.value)} />
-                ) : (
-                  <input type="date" className="input-field" value={periodStart} onChange={e => setPeriodStart(e.target.value)} />
-                )}
-                {mode === 'announcement' ? (
-                  <input type="datetime-local" className="input-field" value={dueAt} onChange={e => setDueAt(e.target.value)} />
-                ) : (
-                  <input type="date" className="input-field" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} />
-                )}
+                <input type="datetime-local" className="input-field" value={publishedAt} onChange={e => setPublishedAt(e.target.value)} />
+                <input type="datetime-local" className="input-field" value={dueAt} onChange={e => setDueAt(e.target.value)} />
               </div>
 
               {progress && <div style={{ fontSize: 12, color: 'var(--a4)', fontWeight: 700 }}>✦ {progress}</div>}
@@ -330,7 +280,7 @@ export function TeacherPostsScreen() {
                   onClick={() => void handlePublish()}
                   disabled={!title.trim() || !content.trim() || publishing}
                 >
-                  {publishing ? 'Sending…' : editingAnnouncementUuid ? 'Update announcement' : `Send ${mode} to ${targetStudents.length} student${targetStudents.length !== 1 ? 's' : ''}`}
+                  {publishing ? 'Sending…' : editingAnnouncementUuid ? 'Update announcement' : `Send announcement to ${targetStudents.length} student${targetStudents.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
             </>
