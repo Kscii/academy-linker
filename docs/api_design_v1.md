@@ -753,6 +753,7 @@
 
 - `language` 为空时，服务端按 `Accept-Language` 推断；仍为空时回退到系统默认值 `en-AU`。
 - `ai_auto_translate_enabled=false` 时，资源详情接口不会自动创建缺失译文；前端若仍需翻译，须显式调用 `POST /api/translations/resolve`。
+- 更新 `language` 后，会同时影响资源翻译的默认目标语言和 AI 会话默认回复语言；优先级统一为 `user_settings.language` > `Accept-Language` > `en-AU`。
 
 ---
 
@@ -1111,7 +1112,7 @@
 }
 ```
 
-> 注：`display_content_markdown` 由后端根据当前目标语言的已缓存译文自动选择 original / translated 版本，前端直接渲染即可。`display_language` 表示当前展示文本所用的语言。详情接口仅读取缓存，不会触发新的翻译写入；若需要生成缺失译文，前端应调用 `POST /api/translations/resolve`。
+> 注：`display_content_markdown` 由后端根据当前目标语言的已缓存译文自动选择 original / translated 版本，前端直接渲染即可。`display_language` 表示当前展示文本所用的语言。若前端提供“显示原文 / 显示译文”切换，可直接在 `display_content_markdown` 与 `original_content_markdown` 间切换渲染。详情接口仅读取缓存，不会触发新的翻译写入；若需要生成缺失译文，前端应调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -1410,7 +1411,7 @@
 }
 ```
 
-> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
 >
 > **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
 
@@ -2013,7 +2014,7 @@
 }
 ```
 
-> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -3330,6 +3331,7 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 - 若缓存不存在且 `ai_auto_translate_enabled=false`，返回 `403 auto_translation_disabled`
 - 若缓存不存在且允许自动翻译，则执行翻译、写入缓存并返回
 - 若翻译失败，返回 `500 ai_translation_failed`
+- `resource_type=post` 可用于家长/老师 discussion 页面中单条帖子的按需翻译；成功写入缓存后，后续 discussion 详情接口会直接回填该帖子的译文字段
 
 #### Success 200
 
