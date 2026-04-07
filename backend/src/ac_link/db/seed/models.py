@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 
 DEMO_EMAIL_DOMAIN = os.getenv("SEED_DEMO_EMAIL_DOMAIN", "academy-link.dev")
-DEFAULT_PASSWORD = "DemoPass123!"
+DEFAULT_PASSWORD = "114514"
 
 
 @dataclass(frozen=True)
