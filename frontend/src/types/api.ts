@@ -291,6 +291,11 @@ export interface Report {
 }
 
 export interface ReportDetail extends Omit<Report, 'translation'> {
+  author: {
+    uuid: string;
+    display_name: string;
+    role: 'teacher' | 'admin';
+  };
   display_content_markdown: string;
   original_content_markdown: string;
   translated_content_markdown: string | null;
@@ -313,6 +318,7 @@ export interface Announcement {
   is_important: boolean;
   is_read: boolean;
   read_at: string | null;
+  created_at?: string;
   published_at: string;
   due_at: string | null;
   body_preview: string | null;
@@ -490,6 +496,14 @@ export interface CreateExamScoreRequest {
   note?: string | null;
 }
 
+export interface UpdateExamScoreRequest {
+  exam_name?: string | null;
+  exam_date?: string | null;
+  score?: number | null;
+  full_score?: number | null;
+  note?: string | null;
+}
+
 // ── Period Metrics ────────────────────────────────────────────
 
 export interface PeriodMetric {
@@ -525,6 +539,16 @@ export interface CreateReportRequest {
   original_language: string;
 }
 
+export interface UpdateReportRequest {
+  title?: string | null;
+  report_type?: ReportType | null;
+  subject_uuid?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  content_markdown?: string | null;
+  original_language?: string | null;
+}
+
 export interface CreateAnnouncementRequest {
   category: AnnouncementCategory;
   title: string;
@@ -534,6 +558,17 @@ export interface CreateAnnouncementRequest {
   published_at?: string | null;
   due_at?: string | null;
   is_important?: boolean;
+}
+
+export interface UpdateAnnouncementRequest {
+  category?: AnnouncementCategory | null;
+  title?: string | null;
+  subject_uuid?: string | null;
+  content_markdown?: string | null;
+  original_language?: string | null;
+  published_at?: string | null;
+  due_at?: string | null;
+  is_important?: boolean | null;
 }
 
 export interface GenerateAiReportRequest {

@@ -46,6 +46,11 @@ import { StudentDetailScreen } from '@/screens/teacher/StudentDetailScreen';
 import { TeacherMessagesScreen } from '@/screens/teacher/MessagesScreen';
 import { TeacherPostsScreen } from '@/screens/teacher/PostsScreen';
 import { FindStudentScreen } from '@/screens/teacher/FindStudentScreen';
+import { TeacherTagsScreen } from '@/screens/teacher/TagsScreen';
+import { TeacherReportsScreen } from '@/screens/teacher/ReportsScreen';
+import { TeacherExamScoresScreen } from '@/screens/teacher/ExamScoresScreen';
+import { TeacherPeriodMetricsScreen } from '@/screens/teacher/PeriodMetricsScreen';
+import { TeacherAIReportsScreen } from '@/screens/teacher/AIReportsScreen';
 
 // ── Auth guard ────────────────────────────────────────────────
 
@@ -135,6 +140,11 @@ function AppRoutes() {
           <Route path="/teacher/dashboard"                         element={<TeacherDashboardScreen />} />
           <Route path="/teacher/messages"                          element={<TeacherMessagesScreen />} />
           <Route path="/teacher/posts"                             element={<TeacherPostsScreen />} />
+          <Route path="/teacher/tags"                              element={<TeacherTagsScreen />} />
+          <Route path="/teacher/reports"                           element={<TeacherReportsScreen />} />
+          <Route path="/teacher/exam-scores"                       element={<TeacherExamScoresScreen />} />
+          <Route path="/teacher/period-metrics"                    element={<TeacherPeriodMetricsScreen />} />
+          <Route path="/teacher/ai-reports"                        element={<TeacherAIReportsScreen />} />
           <Route path="/teacher/find-student"                      element={<FindStudentScreen />} />
           <Route path="/teacher/classes/:classUuid"                element={<ClassDetailScreen />} />
           <Route path="/teacher/students/:studentUuid"             element={<StudentDetailScreen />} />

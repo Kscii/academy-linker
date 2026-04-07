@@ -32,10 +32,13 @@ import type {
   TeacherOverview,
   ExamScore,
   CreateExamScoreRequest,
+  UpdateExamScoreRequest,
   PeriodMetric,
   CreatePeriodMetricRequest,
   CreateReportRequest,
+  UpdateReportRequest,
   CreateAnnouncementRequest,
+  UpdateAnnouncementRequest,
   GenerateAiReportRequest,
   PostTag,
   AdminOverview,
@@ -328,8 +331,9 @@ export const teacher = {
   getOverview: () =>
     apiFetch<ApiResponse<TeacherOverview>>('/teachers/me/overview'),
 
-  getStudents: (params: { page?: number; class_uuid?: string; subject_uuid?: string; keyword?: string; sort?: string } = {}) => {
+  getStudents: (params: { page?: number; page_size?: number; class_uuid?: string; subject_uuid?: string; keyword?: string; sort?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.class_uuid) q.set('class_uuid', params.class_uuid);
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
     if (params.keyword) q.set('keyword', params.keyword);
@@ -344,13 +348,17 @@ export const teacher = {
       `/teachers/me/students/${studentUuid}/dashboard?range=${range}`
     ),
 
-  getDiscussionParents: (studentUuid: string) =>
-    apiFetch<ApiResponse<DiscussionParentItem[]>>(
-      `/teachers/me/students/${studentUuid}/discussions/parents`
-    ),
+  getDiscussionParents: (studentUuid: string, params: { sort?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiResponse<DiscussionParentItem[]>>(
+      `/teachers/me/students/${studentUuid}/discussions/parents${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
 
-  getDiscussionThread: (studentUuid: string, parentUuid: string, params: { page?: number; sort?: string; tag?: string; keyword?: string } = {}) => {
+  getDiscussionThread: (studentUuid: string, parentUuid: string, params: { page?: number; page_size?: number; sort?: string; tag?: string; keyword?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.sort) q.set('sort', params.sort);
     if (params.tag) q.set('tag', params.tag);
     if (params.keyword) q.set('keyword', params.keyword);
@@ -362,8 +370,9 @@ export const teacher = {
   getClasses: () =>
     apiFetch<ApiResponse<TeacherClass[]>>('/teachers/me/classes'),
 
-  getClassStudents: (classUuid: string, params: { page?: number; subject_uuid?: string; keyword?: string } = {}) => {
+  getClassStudents: (classUuid: string, params: { page?: number; page_size?: number; subject_uuid?: string; keyword?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
     if (params.keyword) q.set('keyword', params.keyword);
     return apiFetch<ApiListResponse<TeacherClassStudentItem>>(
@@ -381,8 +390,9 @@ export const teacher = {
     );
   },
 
-  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number; exam_date_from?: string; exam_date_to?: string } = {}) => {
+  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number; page_size?: number; exam_date_from?: string; exam_date_to?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
     if (params.exam_date_from) q.set('exam_date_from', params.exam_date_from);
     if (params.exam_date_to) q.set('exam_date_to', params.exam_date_to);
@@ -397,7 +407,7 @@ export const teacher = {
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  updateExamScore: (studentUuid: string, scoreUuid: string, body: Partial<Pick<CreateExamScoreRequest, 'exam_name' | 'exam_date' | 'score' | 'full_score' | 'note'>>) =>
+  updateExamScore: (studentUuid: string, scoreUuid: string, body: UpdateExamScoreRequest) =>
     apiFetch<ApiResponse<ExamScore>>(
       `/teachers/me/students/${studentUuid}/exam-scores/${scoreUuid}`,
       { method: 'PATCH', body: JSON.stringify(body) }
@@ -450,7 +460,7 @@ export const teacher = {
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  updateReport: (reportUuid: string, body: Partial<CreateReportRequest>) =>
+  updateReport: (reportUuid: string, body: UpdateReportRequest) =>
     apiFetch<ApiResponse<ReportDetail>>(`/reports/${reportUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -462,7 +472,7 @@ export const teacher = {
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  updateAnnouncement: (announcementUuid: string, body: Partial<CreateAnnouncementRequest>) =>
+  updateAnnouncement: (announcementUuid: string, body: UpdateAnnouncementRequest) =>
     apiFetch<ApiResponse<AnnouncementDetail>>(`/announcements/${announcementUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
