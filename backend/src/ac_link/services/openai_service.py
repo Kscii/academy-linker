@@ -61,7 +61,7 @@ def translate_content(
     resp = client.chat.completions.create(
         model=settings.llm_model,
         temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
+        max_completion_tokens=settings.llm_max_tokens,
         messages=[
             {"role": "system", "content": _TRANSLATE_SYSTEM_PROMPT},
             {
@@ -137,7 +137,7 @@ def generate_ai_report(
     resp = client.chat.completions.create(
         model=settings.llm_model,
         temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
+        max_completion_tokens=settings.llm_max_tokens,
         messages=[
             {"role": "system", "content": _REPORT_SYSTEM_PROMPT},
             {"role": "user", "content": f"请根据以下学生数据生成报告：\n\n{user_message}"},
@@ -227,7 +227,7 @@ def ai_chat(
     resp = client.chat.completions.create(
         model=settings.llm_model,
         temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
+        max_completion_tokens=settings.llm_max_tokens,
         messages=api_messages,  # type: ignore[arg-type]
     )
     return resp.choices[0].message.content or ""

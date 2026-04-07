@@ -166,15 +166,50 @@ def list_teachers_for_parent_student(
         )
         state_by_thread = {s.thread_id: s for s in states}
 
+    # 批量查询每个 thread 的最新未删除帖子（用于 latest_message_preview）
+    latest_post_by_thread: dict[int, Post] = {}
+    if thread_ids:
+        from sqlalchemy import func as _func
+        # 子查询：每个 thread 的最大 post created_at
+        latest_sq = (
+            db.query(
+                Post.thread_id.label("thread_id"),
+                _func.max(Post.created_at).label("max_created_at"),
+            )
+            .filter(
+                Post.thread_id.in_(thread_ids),
+                Post.deleted_at.is_(None),
+            )
+            .group_by(Post.thread_id)
+            .subquery()
+        )
+        latest_posts = (
+            db.query(Post)
+            .join(
+                latest_sq,
+                (Post.thread_id == latest_sq.c.thread_id)
+                & (Post.created_at == latest_sq.c.max_created_at),
+            )
+            .filter(Post.deleted_at.is_(None))
+            .all()
+        )
+        for p in latest_posts:
+            latest_post_by_thread[p.thread_id] = p
+
     result = []
     for teacher_id, (teacher_user, subjects) in teacher_map.items():
         thread = thread_by_teacher.get(teacher_id)
         state = state_by_thread.get(thread.id) if thread else None
+        latest_post = latest_post_by_thread.get(thread.id) if thread else None
+        preview: str | None = None
+        if latest_post:
+            preview = latest_post.content_markdown[:80]
         result.append({
             "teacher_user": teacher_user,
             "subjects": subjects,
             "thread": thread,
             "unread_count": state.unread_count_cache if state else 0,
+            "latest_message_preview": preview,
         })
 
     _sort_discussion_list(result, sort, user_key="teacher_user")

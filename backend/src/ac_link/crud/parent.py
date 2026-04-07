@@ -450,6 +450,67 @@ def get_announcement_for_parent(
     )
 
 
+def list_learning_pathway_items(
+    db: Session,
+    student_id: int,
+    subject_id: int,
+) -> list:
+    """返回指定学生+学科的学习路径条目，按 week asc, display_order asc 排序。"""
+    from ac_link.db.orm.academic import LearningPathwayItem
+    return (
+        db.query(LearningPathwayItem)
+        .filter(
+            LearningPathwayItem.student_id == student_id,
+            LearningPathwayItem.subject_id == subject_id,
+        )
+        .order_by(LearningPathwayItem.week.asc(), LearningPathwayItem.display_order.asc())
+        .all()
+    )
+
+
+def list_recent_subject_posts(
+    db: Session,
+    student_id: int,
+    subject_id: int,
+    *,
+    parent_user_id: int,
+    limit: int = 20,
+) -> list:
+    """
+    返回与该学生+学科相关的教师近期发帖（按 created_at desc）。
+
+    取该学科教学分配的教师所在 thread（parent+student 匹配）中所有未删除的帖子。
+    """
+    # 找到教这个学科的教师 ID 列表
+    ta_teacher_ids_sq = (
+        db.query(TeachingAssignment.teacher_user_id)
+        .filter(
+            TeachingAssignment.student_id == student_id,
+            TeachingAssignment.subject_id == subject_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+        )
+        .subquery()
+    )
+
+    return (
+        db.query(Post)
+        .options(
+            joinedload(Post.author_user),
+            joinedload(Post.post_tags).joinedload(PostTag.tag),
+        )
+        .join(DiscussionThread, DiscussionThread.id == Post.thread_id)
+        .filter(
+            DiscussionThread.student_id == student_id,
+            DiscussionThread.parent_user_id == parent_user_id,
+            DiscussionThread.teacher_user_id.in_(ta_teacher_ids_sq),
+            Post.deleted_at.is_(None),
+        )
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
 def upsert_announcement_state(
     db: Session,
     announcement_id: int,

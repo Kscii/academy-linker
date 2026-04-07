@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ac_link.db.orm.base import Base, uq
-from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType
+from ac_link.db.orm.enums import AnnouncementCategory, ReportSourceType, ReportType, ResourceAudienceRole
 from ac_link.db.orm.mixins import (
     IntPrimaryKeyMixin,
     OriginalContentMixin,
@@ -104,3 +104,27 @@ class AnnouncementUserState(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin)
 
     announcement: Mapped['Announcement'] = relationship(back_populates='user_states')
     user: Mapped['User'] = relationship(back_populates='announcement_states')
+
+
+class Resource(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin, OriginalContentMixin):
+    """资源中心文章/资料（§12A）。"""
+    __tablename__ = 'resources'
+    __table_args__ = (
+        Index('ix_resources_published_audience', 'is_published', 'audience_role'),
+        Index('ix_resources_category_published', 'category_key', 'is_published'),
+        Index('ix_resources_pinned_published_at', 'is_pinned', 'published_at'),
+    )
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    category_label: Mapped[str] = mapped_column(String(200), nullable=False)
+    audience_role: Mapped[ResourceAudienceRole] = mapped_column(
+        enum_column(ResourceAudienceRole, 'resource_audience_role'),
+        nullable=False,
+    )
+    cover_image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    external_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
