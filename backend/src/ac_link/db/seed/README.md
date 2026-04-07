@@ -135,11 +135,22 @@ DemoPass123!
 
 账号包括：
 
-- `admin.demo@academy-link.test`
-- `teacher.ada@academy-link.test`
-- `teacher.lin@academy-link.test`
-- `parent.chen@academy-link.test`
-- `parent.wang@academy-link.test`
+- `admin.demo@academy-link.dev`
+- `teacher.ada@academy-link.dev`
+- `teacher.lin@academy-link.dev`
+- `parent.chen@academy-link.dev`
+- `parent.wang@academy-link.dev`
+
+如需替换 demo 邮箱域名，可以在执行前设置环境变量：
+
+```bash
+export SEED_DEMO_EMAIL_DOMAIN=demo.your-domain.com
+```
+
+注意：
+
+- 不要使用 `.test`、`.example`、`.invalid`、`.localhost` 这类保留域名
+- 登录接口使用 `EmailStr` 校验，请选择一个普通、非保留的域名字符串
 
 建议在本地开发环境使用，不要在生产环境导入这组数据。
 
@@ -149,4 +160,3 @@ DemoPass123!
 - 需要复用的写库逻辑，放进 `helpers.py`
 - 不要把测试专用 fixture 和这里的 demo seed 强耦合
 - 如果后续前端页面继续扩展，优先更新 `full_demo.py`，确保一条命令仍能覆盖全站联调
-
