@@ -13,6 +13,121 @@
 
 ---
 
+## 接口索引
+
+> 开发状态：**（已完成）** = 已完成开发；**（未完成）** = 尚未开发；**（变更）** = 接口定义相对初始版本发生了变更。
+
+### 认证与账户 (§7)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| POST | `/api/auth/login` | 登录 | 已完成 |
+| POST | `/api/auth/refresh` | 刷新 Access Token | 已完成 |
+| POST | `/api/auth/logout` | 登出当前设备 | 已完成 |
+| POST | `/api/auth/logout_all` | 登出所有设备 | 已完成 |
+| GET | `/api/me` | 获取当前用户信息 | 已完成 |
+| PATCH | `/api/me` | 更新当前用户资料 | 已完成 |
+| POST | `/api/me/change_password` | 修改密码 | 已完成 |
+| GET | `/api/me/sessions` | 获取当前登录会话列表 | 已完成 |
+| DELETE | `/api/me/sessions/{session_uuid}` | 删除指定会话 | 已完成 |
+
+### 设置 (§8)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/settings` | 获取当前用户设置 | 已完成 |
+| PATCH | `/api/settings` | 更新当前用户设置 | 已完成 |
+
+### 家长端 (§9)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/parents/me/students` | 获取绑定的学生列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/dashboard` | 学生 Dashboard 聚合数据 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/subjects` | 学生学科列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/subjects/{subject_uuid}` | 某学科详情聚合数据 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/reports` | 报告列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/reports/{report_uuid}` | 报告详情 | 已完成 |
+| POST | `/api/reports/{report_uuid}/read` | 标记报告为已读 | 已完成 |
+| POST | `/api/reports/{report_uuid}/archive` | 归档报告 | 已完成 |
+| POST | `/api/reports/{report_uuid}/unarchive` | 取消归档报告 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/announcements` | 公告/任务列表 | 已完成 |
+| GET | `/api/announcements/{announcement_uuid}` | 公告/任务详情 | 已完成 |
+| POST | `/api/announcements/{announcement_uuid}/read` | 标记公告为已读 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/discussions/teachers` | 学生讨论教师列表 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}` | 与某老师的讨论页 | 已完成 |
+| POST | `/api/threads/{thread_uuid}/posts` | 创建帖子（家长/老师共用） | 已完成 |
+| PATCH | `/api/posts/{post_uuid}` | 编辑帖子（家长/老师共用） | 已完成 |
+| DELETE | `/api/posts/{post_uuid}` | 删除帖子（家长/老师共用） | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（家长视角） | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（家长视角） | 已完成 |
+
+### 老师端 (§10)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/teachers/me/students` | 老师负责的学生列表 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/dashboard` | 老师视角学生 Dashboard | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/discussions/parents` | 学生讨论家长列表 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}` | 与某家长讨论页 | 已完成 |
+| GET | `/api/teachers/me/tags` | 获取可用 Tag 列表 | 已完成 |
+| POST | `/api/teachers/me/tags` | 创建私有 Tag | 已完成 |
+| PATCH | `/api/teachers/me/tags/{tag_uuid}` | 更新私有 Tag | 已完成 |
+| DELETE | `/api/teachers/me/tags/{tag_uuid}` | 删除私有 Tag | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/reports` | 创建报告 | 已完成 |
+| PATCH | `/api/reports/{report_uuid}` | 更新报告（老师/admin 共用） | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/announcements` | 创建公告/任务 | 已完成 |
+| PATCH | `/api/announcements/{announcement_uuid}` | 更新公告/任务（老师/admin 共用） | 已完成 |
+| GET | `/api/teachers/me/classes` | 老师负责的班级列表 | 已完成 |
+| GET | `/api/teachers/me/classes/{class_uuid}/students` | 班级学生列表 | 已完成 |
+| GET | `/api/teachers/me/classes/{class_uuid}/grade-stats` | 班级成绩统计 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（老师视角） | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/exam-scores` | 创建考试成绩 | 已完成 |
+| PATCH | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 更新考试成绩 | 已完成 |
+| DELETE | `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}` | 删除考试成绩 | 已完成 |
+| GET | `/api/teachers/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（老师视角） | 已完成 |
+| POST | `/api/teachers/me/students/{student_uuid}/period-metrics` | 创建/更新周期指标 | 已完成 |
+
+### Admin 端 (§11)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/admin/users` | 获取用户列表 | 已完成 |
+| POST | `/api/admin/users` | 创建用户 | 已完成 |
+| PATCH | `/api/admin/users/{user_uuid}` | 更新用户 | 已完成 |
+| GET | `/api/admin/students` | 获取学生列表 | 已完成 |
+| POST | `/api/admin/students` | 创建学生 | 已完成 |
+| PATCH | `/api/admin/students/{student_uuid}` | 更新学生 | 已完成 |
+| GET | `/api/admin/bindings/parent_student` | Parent-Student 绑定列表 | 已完成 |
+| POST | `/api/admin/bindings/parent_student` | 创建 Parent-Student 绑定 | 已完成 |
+| PATCH | `/api/admin/bindings/parent_student/{binding_uuid}` | 更新 Parent-Student 绑定 | 已完成 |
+| GET | `/api/admin/assignments/teaching` | Teaching Assignment 列表 | 已完成 |
+| POST | `/api/admin/assignments/teaching` | 创建 Teaching Assignment | 已完成 |
+| PATCH | `/api/admin/assignments/teaching/{assignment_uuid}` | 更新 Teaching Assignment | 已完成 |
+| GET | `/api/admin/tags/system` | 获取系统 Tag 列表 | 已完成 |
+| POST | `/api/admin/tags/system` | 创建系统 Tag | 已完成 |
+| PATCH | `/api/admin/tags/system/{tag_uuid}` | 更新系统 Tag | 已完成 |
+| GET | `/api/admin/classes` | 获取班级列表 | 已完成 |
+| POST | `/api/admin/classes` | 创建班级 | 已完成 |
+| PATCH | `/api/admin/classes/{class_uuid}` | 更新班级 | 已完成 |
+| POST | `/api/admin/students/{student_uuid}/transfer-class` | 学生换班（原子操作） | 已完成 |
+
+### AI (§12)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| POST | `/api/teachers/me/students/{student_uuid}/ai-reports` | 手动生成 AI 报告 | 已完成 |
+| POST | `/api/translations/resolve` | 解析/获取资源翻译内容 | 已完成 |
+| GET | `/api/ai/conversations` | 获取 AI 会话列表 | 已完成 |
+| POST | `/api/ai/conversations` | 创建 AI 会话 | 已完成 |
+| GET | `/api/ai/conversations/{conversation_uuid}` | 获取 AI 会话详情 | 已完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/messages` | 发送 AI 消息 | 已完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/archive` | 归档 AI 会话 | 已完成 |
+| POST | `/api/ai/conversations/{conversation_uuid}/unarchive` | 取消归档 AI 会话 | 已完成 |
+| DELETE | `/api/ai/conversations/{conversation_uuid}` | 删除 AI 会话 | 已完成 |
+
+---
+
 ## 2. 系统固定前提
 
 ### 2.1 鉴权方案
@@ -71,6 +186,12 @@
 - `failed`
 - `stale`
 
+补充约定：
+
+- `report` / `announcement` / `post` 的译文缓存统一由独立翻译解析接口负责创建与读取
+- 资源详情接口仅读取当前目标语言已缓存的译文，不主动触发新的翻译写入
+- 默认目标语言优先级：`user_settings.language` > `Accept-Language` > 系统默认值 `en-AU`
+
 ### 2.6 讨论区规则
 
 当前 v1 设计：
@@ -79,7 +200,10 @@
 - 不开放创建 thread 的接口
 - 页面上的帖子在该 thread 下按筛选、排序、分页平铺展示
 - `tag` 只作用于 `post`
-- `important` 等系统 tag 可参与业务逻辑
+- tag 分两种：
+  - **系统 tag**：按初始化数据预置，只有 admin 可修改，**所有用户（parent / teacher）均可使用**
+  - **老师私有 tag**：每个老师自行创建，可被**该老师本人**及**与该老师有关的家长**（即处于同一 thread 的家长）使用
+- `important` 为系统 tag，所有用户均可打，参与 dashboard 展示逻辑
 - 家长不能创建 tag
 - 老师可创建自己的私有 tag
 
@@ -163,7 +287,18 @@
 
 ---
 
-## 4. 统一错误码
+## 4. 错误设计原则
+
+### 4.1 原则
+
+- **`code` 优先，HTTP 状态码为辅**：HTTP 状态码表达错误类别（4xx/5xx），`code` 字段表达具体原因；前端应以 `code` 作为程序逻辑判断的依据。
+- **接口文档不维护 Error 条目**：通用的权限、参数校验、资源不存在等错误遵循本节全局约定，无需在各接口中逐一列出。接口文档仅在存在不明显的业务规则（如特殊状态冲突、条件权限）时，在 `规则` 节中描述，不重复列出 error code。
+- **401 与 403 明确分层**：`401` = 未认证（无身份）；`403` = 已认证但无权（有身份、缺权限）。任何需要登录的接口均可能返回 `401` 系列，任何有角色或资源权限限制的接口均可能返回 `403`。
+- **403 不伪装成 404**：v1 不做防枚举策略。资源不存在始终返回 `404`，权限不足始终返回 `403`。
+- **409 用于状态冲突，422 用于参数校验**：`409` 表示请求在逻辑上引发了资源状态冲突（如重复绑定、已归档）；`422` 表示请求体字段不符合格式或约束。
+- **500 不暴露内部细节**：服务端内部错误统一使用 `internal_error`，不向客户端泄露 stack trace 或数据库错误信息。
+
+### 4.2 错误码一览表
 
 | HTTP | code | 说明 |
 |---:|---|---|
@@ -172,6 +307,7 @@
 | 400 | `invalid_filter` | 筛选参数非法 |
 | 400 | `invalid_pagination` | 分页参数非法 |
 | 400 | `invalid_state_transition` | 状态变更非法 |
+| 400 | `unsupported_preset` | preset 非法或未支持 |
 | 401 | `unauthenticated` | 未登录或 cookie 缺失 |
 | 401 | `access_token_expired` | access token 过期 |
 | 401 | `refresh_token_expired` | refresh token 过期 |
@@ -179,14 +315,20 @@
 | 403 | `forbidden` | 无权限 |
 | 403 | `origin_not_allowed` | Origin 校验失败 |
 | 403 | `role_not_allowed` | 角色不允许 |
+| 403 | `auto_translation_disabled` | 已关闭自动翻译，且当前请求不允许自动创建译文 |
 | 404 | `not_found` | 资源不存在 |
+| 404 | `translation_not_available` | 当前目标语言译文不存在 |
 | 409 | `conflict` | 资源冲突 |
 | 409 | `duplicate_tag_name` | tag 名称冲突 |
 | 409 | `already_archived` | 已归档 |
 | 409 | `already_read` | 已读状态重复提交 |
+| 409 | `conversation_archived` | AI 会话已归档，不允许继续发送消息 |
 | 422 | `validation_error` | body/参数校验失败 |
 | 429 | `rate_limited` | 请求过频 |
 | 500 | `internal_error` | 服务端内部错误 |
+| 500 | `ai_generation_failed` | AI 报告生成失败 |
+| 500 | `ai_translation_failed` | AI 翻译失败 |
+| 500 | `ai_chat_failed` | AI 对话生成失败 |
 
 ---
 
@@ -212,11 +354,14 @@
   "sid": "string | null",
   "full_name": "string",
   "preferred_name": "string | null",
+  "class_uuid": "string | null",
   "class_name": "string | null",
   "grade_level": "string | null",
   "avatar_url": "string | null"
 }
 ```
+
+> 注：`class_name` 与 `grade_level` 从 `classes` 表 JOIN 后平铺返回，前端无需额外请求。
 
 ### 5.3 `teacher_summary`
 
@@ -274,67 +419,19 @@
 
 ---
 
-## 6. Cookie、Path、SameSite、Origin 说明
+## 6. Cookie 与安全传输约定
 
-### 6.1 Cookie 是什么
-
-Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie` 响应头让浏览器保存它，之后浏览器会在满足条件的请求中自动带上它。
-
-本项目中：
-
-- `access_token` 使用 Cookie 传递
-- `refresh_token` 使用 Cookie 传递
-- 前端不直接读取 token，而是让浏览器自动携带
-
-### 6.2 Cookie 的 `Path` 是什么
-
-`Path` 表示该 Cookie 会在访问哪些路径时自动携带。
-
-推荐配置：
-
-- `access_token` 的 `Path=/`
-- `refresh_token` 的 `Path=/api/auth/refresh`
-
-含义：
-
-- `access_token` 可以被所有业务接口使用
-- `refresh_token` 只会在刷新接口中自动携带，减少暴露面
-
-### 6.3 `SameSite` 是什么
-
-`SameSite` 是 Cookie 的安全属性，用于限制浏览器在跨站请求中是否自动带上 Cookie。
-
-本项目使用：
-
-- `SameSite=Lax`
-
-意义：
-
-- 在大多数跨站子请求中不会自动带 Cookie
-- 能降低 CSRF 风险
-- 同时兼顾正常导航场景的可用性
-
-### 6.4 校验 `Origin` 是什么
-
-`Origin` 是浏览器请求头，用于表示请求发起的源（协议 + 域名 + 端口）。
-
-由于本项目使用 Cookie 鉴权，而 Cookie 会自动携带，因此对写操作需要额外检查：
-
-- 请求是否确实来自受信任的前端页面
-- 防止第三方恶意网站借浏览器自动携带 Cookie 发起伪造请求
-
-推荐对所有写操作校验 `Origin`：
-
-- `POST`
-- `PATCH`
-- `PUT`
-- `DELETE`
+- Token 通过 **HttpOnly Cookie** 传递，前端不直接读取
+- `access_token`：`Path=/`，随所有业务请求自动携带
+- `refresh_token`：`Path=/api/auth/refresh`，仅在刷新接口携带，减少暴露面
+- `SameSite=Lax`：降低 CSRF 风险，同时兼顾正常导航
+- 所有写操作（`POST` / `PATCH` / `PUT` / `DELETE`）后端校验 `Origin` 白名单，防止 CSRF
 
 ---
 
 ## 7. 认证与账户接口
 
-### 7.1 登录
+### 7.1 登录（已完成）
 
 **POST** `/api/auth/login`
 
@@ -367,20 +464,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `422 validation_error`
-- `429 rate_limited`
-
-#### 注释
-
-- Postman 测试时需要保留 cookie jar
-- 浏览器端登录后前端不需要自行保存 token
-
 ---
 
-### 7.2 刷新 Access Token
+### 7.2 刷新 Access Token（已完成）
 
 **POST** `/api/auth/refresh`
 
@@ -405,12 +491,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 refresh_token_expired`
-- `401 invalid_token`
-- `403 origin_not_allowed`
-
 #### 注释
 
 - 前端仅在收到 `401 access_token_expired` 后调用
@@ -418,7 +498,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.3 登出当前设备
+### 7.3 登出当前设备（已完成）
 
 **POST** `/api/auth/logout`
 
@@ -440,18 +520,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-
 #### 注释
 
 - 旧 AT 若已被其他地方拿到，理论上最多仍可在剩余 15 分钟内使用
 
 ---
 
-### 7.4 登出所有设备
+### 7.4 登出所有设备（已完成）
 
 **POST** `/api/auth/logout_all`
 
@@ -472,11 +547,6 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-
 #### 注释
 
 - 旧 access token 最多仍可能保留到各自过期时间
@@ -484,7 +554,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 7.5 获取当前用户信息
+### 7.5 获取当前用户信息（已完成）
 
 **GET** `/api/me`
 
@@ -505,14 +575,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `401 access_token_expired`
-
 ---
 
-### 7.6 更新当前用户资料
+### 7.6 更新当前用户资料（已完成）
 
 **PATCH** `/api/me`
 
@@ -543,15 +608,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-- `422 validation_error`
-
 ---
 
-### 7.7 修改密码
+### 7.7 修改密码（已完成）
 
 **POST** `/api/me/change_password`
 
@@ -574,15 +633,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `403 origin_not_allowed`
-- `422 validation_error`
-
 ---
 
-### 7.8 获取当前登录会话列表
+### 7.8 获取当前登录会话列表（已完成）
 
 **GET** `/api/me/sessions`
 
@@ -604,13 +657,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-
 ---
 
-### 7.9 删除指定会话
+### 7.9 删除指定会话（已完成）
 
 **DELETE** `/api/me/sessions/{session_uuid}`
 
@@ -624,17 +673,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
-#### Error
-
-- `401 unauthenticated`
-- `404 not_found`
-- `403 forbidden`
-
 ---
 
 ## 8. 设置接口
 
-### 8.1 获取当前用户设置
+### 8.1 获取当前用户设置（已完成）
 
 **GET** `/api/settings`
 
@@ -651,14 +694,16 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "email_digest_enabled": false,
     "email_post_notification_enabled": false,
     "default_report_time_range": "all_time | 7d | 30d | 90d",
-    "default_announcement_time_range": "all_time | 7d | 30d | 90d"
+    "default_announcement_time_range": "all_time | 7d | 30d | 90d",
+    "ai_chat_style": "default | summary | parent_friendly",
+    "ai_auto_translate_enabled": true
   }
 }
 ```
 
 ---
 
-### 8.2 更新当前用户设置
+### 8.2 更新当前用户设置（已完成）
 
 **PATCH** `/api/settings`
 
@@ -674,7 +719,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "email_digest_enabled": "boolean | null",
   "email_post_notification_enabled": "boolean | null",
   "default_report_time_range": "all_time | 7d | 30d | 90d | null",
-  "default_announcement_time_range": "all_time | 7d | 30d | 90d | null"
+  "default_announcement_time_range": "all_time | 7d | 30d | 90d | null",
+  "ai_chat_style": "default | summary | parent_friendly | null",
+  "ai_auto_translate_enabled": "boolean | null"
 }
 ```
 
@@ -682,11 +729,16 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 返回更新后的完整 settings。
 
+#### 注释
+
+- `language` 为空时，服务端按 `Accept-Language` 推断；仍为空时回退到系统默认值 `en-AU`。
+- `ai_auto_translate_enabled=false` 时，资源详情接口不会自动创建缺失译文；前端若仍需翻译，须显式调用 `POST /api/translations/resolve`。
+
 ---
 
 ## 9. 家长端接口
 
-### 9.1 获取当前家长绑定的学生列表
+### 9.1 获取当前家长绑定的学生列表（已完成）
 
 **GET** `/api/parents/me/students`
 
@@ -707,6 +759,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null"
@@ -723,7 +776,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.2 获取学生 Dashboard 聚合数据
+### 9.2 获取学生 Dashboard 聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/dashboard`
 
@@ -743,12 +796,12 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "sid": "string | null",
       "full_name": "string",
       "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null"
     },
     "dashboard_context": {
-      "last_updated_at": "string",
       "selected_range": "30d",
       "unread_post_count": 2,
       "unread_announcement_count": 3
@@ -757,7 +810,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "overall_performance_index": 85.5,
       "assignment_completion_rate": 0.92,
       "attendance_rate": 0.97,
-      "ai_summary": {
+      "summary": {
+        "report_uuid": "string",
+        "report_title": "string",
         "display_text": "string",
         "original_text": "string",
         "translated_text": "string | null",
@@ -815,7 +870,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.3 获取学生学科列表
+### 9.3 获取学生学科列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/subjects`
 
@@ -828,10 +883,12 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "name": "Mathematics",
       "code": "MATH",
-      "teacher": {
-        "uuid": "string",
-        "display_name": "string"
-      }
+      "teachers": [
+        {
+          "uuid": "string",
+          "display_name": "string"
+        }
+      ]
     }
   ]
 }
@@ -839,7 +896,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 9.4 获取某学科详情聚合数据
+### 9.4 获取某学科详情聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/subjects/{subject_uuid}`
 
@@ -863,11 +920,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "name": "Mathematics",
       "code": "MATH",
-      "teacher": {
-        "uuid": "string",
-        "display_name": "string",
-        "email": "string"
-      }
+      "teachers": [
+        {
+          "uuid": "string",
+          "display_name": "string",
+          "email": "string"
+        }
+      ]
     },
     "overview": {
       "score": 88.0,
@@ -882,7 +941,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
         "progress": 0.72
       }
     ],
-    "ai_summary": {
+    "summary": {
+      "report_uuid": "string",
+      "report_title": "string",
       "display_text": "string",
       "original_text": "string",
       "translated_text": "string | null",
@@ -896,9 +957,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+> 注：`summary` 取该学生该学科最近一条 report（不限 source_type）的正文内容，若无 report 则为 `null`。
+
 ---
 
-### 9.5 获取报告列表
+### 9.5 获取报告列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/reports`
 
@@ -922,12 +985,25 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "title": "string",
       "report_type": "weekly | monthly | custom",
       "source_type": "ai | teacher",
-      "created_at": "string",
-      "is_read": false,
-      "is_archived": false,
+      "period_start": "string | null",
+      "period_end": "string | null",
       "subject": {
-        "uuid": "string | null",
-        "name": "string | null"
+        "uuid": "string",
+        "name": "string",
+        "code": "string | null"
+      },
+      "is_read": false,
+      "read_at": "string | null",
+      "is_archived": false,
+      "archived_at": "string | null",
+      "created_at": "string",
+      "published_at": "string | null",
+      "translation": {
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null"
       }
     }
   ],
@@ -940,9 +1016,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+> 注：列表中的 `translation` 仅反映当前目标语言的已缓存译文状态，不会触发新的翻译写入。若前端需要确保译文存在，应显式调用 `POST /api/translations/resolve`。
+
 ---
 
-### 9.6 获取报告详情
+### 9.6 获取报告详情（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/reports/{report_uuid}`
 
@@ -955,15 +1033,20 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "title": "string",
     "report_type": "weekly | monthly | custom",
     "source_type": "ai | teacher",
-    "created_at": "string",
-    "updated_at": "string",
-    "is_read": false,
-    "is_archived": false,
+    "period_start": "string | null",
+    "period_end": "string | null",
     "subject": {
-      "uuid": "string | null",
-      "name": "string | null"
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
     },
-    "content_markdown": "string",
+    "is_read": false,
+    "read_at": "string | null",
+    "is_archived": false,
+    "archived_at": "string | null",
+    "created_at": "string",
+    "published_at": "string | null",
+    "display_content_markdown": "string",
     "original_content_markdown": "string",
     "translated_content_markdown": "string | null",
     "display_language": "string",
@@ -975,9 +1058,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+> 注：`display_content_markdown` 由后端根据当前目标语言的已缓存译文自动选择 original / translated 版本，前端直接渲染即可。`display_language` 表示当前展示文本所用的语言。详情接口仅读取缓存，不会触发新的翻译写入；若需要生成缺失译文，前端应调用 `POST /api/translations/resolve`。
+
 ---
 
-### 9.7 标记报告为已读
+### 9.7 标记报告为已读（已完成）
 
 **POST** `/api/reports/{report_uuid}/read`
 
@@ -990,16 +1075,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "report_uuid": "string",
-    "is_read": true,
-    "read_at": "string"
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.8 归档报告
+### 9.8 归档报告（已完成）
 
 **POST** `/api/reports/{report_uuid}/archive`
 
@@ -1012,16 +1095,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "report_uuid": "string",
-    "is_archived": true,
-    "archived_at": "string"
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.9 取消归档报告
+### 9.9 取消归档报告（已完成）
 
 **POST** `/api/reports/{report_uuid}/unarchive`
 
@@ -1034,15 +1115,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "report_uuid": "string",
-    "is_archived": false
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.10 获取公告/任务列表
+### 9.10 获取公告/任务列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/announcements`
 
@@ -1065,14 +1145,22 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "category": "announcement | task",
       "title": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string",
+        "code": "string | null"
+      },
+      "is_important": true,
+      "is_read": false,
+      "read_at": "string | null",
       "published_at": "string",
       "due_at": "string | null",
-      "is_read": false,
-      "is_important": true,
-      "author": {
-        "uuid": "string",
-        "display_name": "string",
-        "role": "teacher | admin"
+      "translation": {
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null"
       }
     }
   ],
@@ -1085,9 +1173,11 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+> 注：列表中的 `translation` 仅反映当前目标语言的已缓存译文状态，不会触发新的翻译写入。若前端需要确保译文存在，应显式调用 `POST /api/translations/resolve`。
+
 ---
 
-### 9.11 获取公告/任务详情
+### 9.11 获取公告/任务详情（已完成）
 
 **GET** `/api/announcements/{announcement_uuid}`
 
@@ -1099,30 +1189,38 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "uuid": "string",
     "category": "announcement | task",
     "title": "string",
-    "content_markdown": "string",
+    "subject": {
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
+    },
+    "is_important": true,
+    "is_read": false,
+    "read_at": "string | null",
+    "published_at": "string",
+    "due_at": "string | null",
+    "author": {
+      "uuid": "string",
+      "display_name": "string",
+      "role": "teacher | admin"
+    },
+    "display_content_markdown": "string",
     "original_content_markdown": "string",
     "translated_content_markdown": "string | null",
     "display_language": "string",
     "original_language": "string",
     "translated_language": "string | null",
     "translation_status": "completed",
-    "translated_at": "string | null",
-    "published_at": "string",
-    "due_at": "string | null",
-    "is_read": false,
-    "is_important": true,
-    "author": {
-      "uuid": "string",
-      "display_name": "string",
-      "role": "teacher | admin"
-    }
+    "translated_at": "string | null"
   }
 }
 ```
 
+> 注：`display_content_markdown` 由后端根据当前目标语言的已缓存译文自动选择 original / translated 版本。`display_language` 表示当前展示文本所用的语言。详情接口仅读取缓存，不会触发新的翻译写入；若需要生成缺失译文，前端应调用 `POST /api/translations/resolve`。
+
 ---
 
-### 9.12 标记公告为已读
+### 9.12 标记公告为已读（已完成）
 
 **POST** `/api/announcements/{announcement_uuid}/read`
 
@@ -1135,16 +1233,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
-    "announcement_uuid": "string",
-    "is_read": true,
-    "read_at": "string"
+    "success": true
   }
 }
 ```
 
 ---
 
-### 9.13 获取学生讨论教师列表
+### 9.13 获取学生讨论教师列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/discussions/teachers`
 
@@ -1160,25 +1256,29 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "data": [
     {
-      "teacher": {
-        "uuid": "string",
-        "display_name": "string",
-        "email": "string",
-        "avatar_url": "string | null"
-      },
-      "thread": {
-        "uuid": "string",
-        "last_post_at": "string | null",
-        "unread_post_count": 2
-      }
+      "uuid": "string",
+      "display_name": "string",
+      "avatar_url": "string | null",
+      "subjects": [
+        {
+          "uuid": "string",
+          "name": "string",
+          "code": "string | null"
+        }
+      ],
+      "thread_uuid": "string | null",
+      "last_post_at": "string | null",
+      "unread_post_count": 2
     }
   ]
 }
 ```
 
+> 注：`thread_uuid` 在家长还没有打开过讨论页时为 `null`（懒创建）。`subjects` 为该教师教这个学生的学科列表。
+
 ---
 
-### 9.14 获取与某老师的讨论页聚合数据
+### 9.14 获取与某老师的讨论页聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}`
 
@@ -1197,6 +1297,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 ```json
 {
   "data": {
+    "thread_uuid": "string",
     "student": {
       "uuid": "string",
       "sid": "string | null",
@@ -1205,34 +1306,34 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "teacher": {
       "uuid": "string",
       "display_name": "string",
-      "email": "string",
-      "avatar_url": "string | null"
+      "avatar_url": "string | null",
+      "subjects": [
+        {
+          "uuid": "string",
+          "name": "string",
+          "code": "string | null"
+        }
+      ]
     },
-    "thread": {
-      "uuid": "string",
-      "last_post_at": "string | null"
-    },
-    "available_tags": [
-      {
-        "uuid": "string",
-        "name": "important",
-        "scope": "system | teacher_private",
-        "is_selectable_by_parent": false,
-        "is_selectable_by_teacher": true
-      }
-    ],
     "posts": [
       {
         "uuid": "string",
-        "title": "string | null",
-        "content_markdown": "string",
-        "created_at": "string",
-        "updated_at": "string | null",
         "author": {
           "uuid": "string",
           "display_name": "string",
           "role": "parent | teacher"
         },
+        "title": "string | null",
+        "content_markdown": "string",
+        "original_content_markdown": "string",
+        "translated_content_markdown": "string | null",
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null",
+        "is_deleted": false,
+        "reply_to_post_uuid": "string | null",
         "tags": [
           {
             "uuid": "string",
@@ -1240,22 +1341,27 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
             "scope": "system | teacher_private"
           }
         ],
-        "reply_to_post_uuid": "string | null"
+        "created_at": "string",
+        "updated_at": "string | null"
       }
-    ]
-  },
-  "meta": {
-    "page": 1,
-    "page_size": 20,
-    "total": 10,
-    "total_pages": 1
+    ],
+    "meta": {
+      "page": 1,
+      "page_size": 20,
+      "total": 10,
+      "total_pages": 1
+    }
   }
 }
 ```
 
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
+>
+> **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
+
 ---
 
-### 9.15 家长创建帖子
+### 9.15 家长创建帖子（已完成）
 
 **POST** `/api/threads/{thread_uuid}/posts`
 
@@ -1265,6 +1371,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "title": "string | null",
   "content_markdown": "string",
+  "original_language": "string | null",
   "tag_uuids": ["string"],
   "reply_to_post_uuid": "string | null"
 }
@@ -1272,8 +1379,10 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- 家长只能选择 `is_selectable_by_parent = true` 的 tag
-- 家长不能打 `important`
+- 家长可使用所有系统 tag
+- 家长可使用当前讨论教师的私有 tag
+- 不属于当前讨论教师的私有 tag 返回 403
+- `original_language` 缺失时，后端按 `user_settings.language` > `Accept-Language` > `en-AU` 推断
 
 #### Success 201
 
@@ -1281,15 +1390,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "data": {
     "uuid": "string",
-    "title": "string | null",
-    "content_markdown": "string",
-    "created_at": "string",
-    "updated_at": null,
     "author": {
       "uuid": "string",
       "display_name": "string",
       "role": "parent"
     },
+    "title": "string | null",
+    "content_markdown": "string",
+    "is_deleted": false,
+    "reply_to_post_uuid": "string | null",
     "tags": [
       {
         "uuid": "string",
@@ -1297,14 +1406,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
         "scope": "system"
       }
     ],
-    "reply_to_post_uuid": "string | null"
+    "created_at": "string",
+    "updated_at": null
   }
 }
 ```
 
 ---
 
-### 9.16 家长编辑自己发的帖子
+### 9.16 家长编辑自己发的帖子（已完成）
 
 **PATCH** `/api/posts/{post_uuid}`
 
@@ -1314,19 +1424,27 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "title": "string | null",
   "content_markdown": "string | null",
-  "tag_uuids": ["string"]
+  "original_language": "string | null",
+  "tag_uuids": ["string"] 
 }
 ```
+
+> 注：`tag_uuids` 若提供则整体替换现有标签；若不提供（字段缺失）则保持不变。
 
 #### 规则
 
 - 仅作者可编辑
-- 家长不能修改老师专属 tag
+- 家长只能使用系统 tag 或当前讨论教师的私有 tag
 - 不支持编辑作者角色和 thread 归属
+- 若更新了 `content_markdown`，后端应将该 post 的已有译文缓存全部置为 `stale`
+
+#### Success 200
+
+返回更新后的完整帖子，结构与创建帖子的响应一致（见 §9.15 Success 201）。
 
 ---
 
-### 9.17 家长删除自己发的帖子
+### 9.17 家长删除自己发的帖子（已完成）
 
 **DELETE** `/api/posts/{post_uuid}`
 
@@ -1347,9 +1465,100 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
+### 9.18 获取学生考试成绩列表（家长视角）
+
+**GET** `/api/parents/me/students/{student_uuid}/exam-scores`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `exam_date_from` | string | 否 | 考试日期起 |
+| `exam_date_to` | string | 否 | 考试日期止 |
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+
+#### 规则
+
+- 仅允许查看自己绑定的学生（`parent_student_bindings` 存在且 `is_active=true`），否则返回 `403 forbidden`。
+- 返回该学生所有科目的考试成绩，老师端与 admin 端写入的都会出现。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "exam_name": "string | null",
+      "exam_date": "string",
+      "score": 88.5,
+      "full_score": 100.0,
+      "note": "string | null",
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 9.19 获取学生周期指标列表（家长视角）
+
+**GET** `/api/parents/me/students/{student_uuid}/period-metrics`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `term` | string | 否 | 学期过滤，如 `2025-T1` |
+
+#### 规则
+
+- 仅允许查看自己绑定的学生（`parent_student_bindings` 存在且 `is_active=true`），否则返回 `403 forbidden`。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "term": "string | null",
+      "snapshot_date": "string",
+      "progress": 0.75,
+      "assignment_completion_rate": 0.90,
+      "attendance_rate": 0.95,
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string"
+    }
+  ]
+}
+```
+
+---
+
 ## 10. 老师端接口
 
-### 10.1 获取老师负责的学生列表
+### 10.1 获取老师负责的学生列表（已完成）
 
 **GET** `/api/teachers/me/students`
 
@@ -1358,12 +1567,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
 | `page` | int | 否 | 默认 1 |
-| `page_size` | int | 否 | 默认 20 |
-| `class_name` | string | 否 | 班级精确匹配 |
-| `grade_level` | string | 否 | 年级精确匹配 |
+| `page_size` | int | 否 | 默认 20，最大 100 |
+| `class_uuid` | string | 否 | 班级过滤（UUID） |
 | `subject_uuid` | string | 否 | 学科过滤 |
 | `keyword` | string | 否 | `sid` / 姓名模糊匹配 |
 | `sort` | enum | 否 | `full_name_asc`, `full_name_desc`, `sid_asc`, `sid_desc`, `score_desc`, `score_asc`, `last_activity_at_desc` |
+
+> **注：** `score_desc` / `score_asc` 因 `student_metrics` 表尚未建立，`score` 字段始终返回 `null`，排序回退到 `full_name_asc`。`last_activity_at_desc` 按该教师与该学生最近一条未删除 post 的时间排序，无帖子时排最后。
 
 #### Success 200
 
@@ -1374,9 +1584,12 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "uuid": "string",
       "sid": "string | null",
       "full_name": "string",
+      "preferred_name": "string | null",
+      "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
-      "overall_performance_index": 85.5,
+      "avatar_url": "string | null",
+      "score": null,
       "last_activity_at": "string | null"
     }
   ],
@@ -1391,38 +1604,69 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 10.2 获取老师视角学生 Dashboard
+### 10.2 获取老师视角学生 Dashboard（已完成）
 
 **GET** `/api/teachers/me/students/{student_uuid}/dashboard`
 
 #### Query
 
-同家长 dashboard。
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `range` | enum | 否 | `7d`, `30d`, `90d`, `all_time` |
 
 #### Success 200
 
 ```json
 {
   "data": {
-    "student": {},
-    "dashboard_context": {},
-    "summary_cards": {},
-    "charts": {},
-    "important_post_banners": [],
-    "teacher_actions": {
-      "can_create_report": true,
-      "can_publish_announcement": true,
-      "can_manage_tags": true
+    "student": {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string",
+      "preferred_name": "string | null",
+      "class_uuid": "string | null",
+      "class_name": "string | null",
+      "grade_level": "string | null",
+      "avatar_url": "string | null"
+    },
+    "unread_post_count": 2,
+    "summary_cards": {
+      "overall_performance_index": null,
+      "assignment_completion_rate": null,
+      "attendance_rate": null,
+      "summary": {
+        "report_uuid": "string",
+        "report_title": "string",
+        "display_text": "string",
+        "original_text": "string",
+        "translated_text": "string | null",
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "completed",
+        "translated_at": "string | null"
+      }
     }
   }
 }
 ```
 
+> **注：**
+> - `unread_post_count` = 当前教师在该学生所有 thread 中的未读帖子缓存总数。
+> - `summary` 取该学生**所有来源**的最近一条 `is_published=true` 报告，若无报告则为 `null`。
+> - 聚合指标（`overall_performance_index` 等）待 `student_metrics` 表建好后填充，当前始终为 `null`。
+
 ---
 
-### 10.3 获取老师视角学生讨论家长列表
+### 10.3 获取老师视角学生讨论家长列表（已完成）
 
 **GET** `/api/teachers/me/students/{student_uuid}/discussions/parents`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `sort` | enum | 否 | `last_post_at_desc`, `display_name_asc` |
 
 #### Success 200
 
@@ -1430,45 +1674,96 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "data": [
     {
-      "parent": {
-        "uuid": "string",
-        "display_name": "string",
-        "email": "string",
-        "avatar_url": "string | null"
-      },
-      "thread": {
-        "uuid": "string",
-        "last_post_at": "string | null",
-        "unread_post_count": 2
-      }
+      "uuid": "string",
+      "display_name": "string",
+      "avatar_url": "string | null",
+      "thread_uuid": "string | null",
+      "last_post_at": "string | null",
+      "unread_post_count": 2
     }
   ]
 }
 ```
 
+> 注：`thread_uuid` 在教师还没有打开过讨论页时为 `null`（懒创建）。
+
 ---
 
-### 10.4 获取老师与某家长讨论页
+### 10.4 获取老师与某家长讨论页（已完成）
 
 **GET** `/api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}`
 
 #### Query
 
-与家长讨论页一致：
-
-- `page`
-- `page_size`
-- `sort`
-- `tag`
-- `keyword`
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `sort` | enum | 否 | `created_at_desc`, `created_at_asc` |
+| `tag` | string | 否 | tag 名称过滤 |
+| `keyword` | string | 否 | 标题/正文模糊搜索 |
 
 #### Success 200
 
-结构与家长讨论页一致。
+```json
+{
+  "data": {
+    "thread_uuid": "string",
+    "student": {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string"
+    },
+    "parent": {
+      "uuid": "string",
+      "display_name": "string",
+      "avatar_url": "string | null"
+    },
+    "posts": [
+      {
+        "uuid": "string",
+        "author": {
+          "uuid": "string",
+          "display_name": "string",
+          "role": "parent | teacher"
+        },
+        "title": "string | null",
+        "content_markdown": "string",
+        "original_content_markdown": "string",
+        "translated_content_markdown": "string | null",
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null",
+        "is_deleted": false,
+        "reply_to_post_uuid": "string | null",
+        "tags": [
+          {
+            "uuid": "string",
+            "name": "important",
+            "scope": "system | teacher_private"
+          }
+        ],
+        "created_at": "string",
+        "updated_at": "string | null"
+      }
+    ],
+    "meta": {
+      "page": 1,
+      "page_size": 20,
+      "total": 10,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
 
 ---
 
-### 10.5 老师创建帖子
+### 10.5 老师创建帖子（已完成）
 
 **POST** `/api/threads/{thread_uuid}/posts`
 
@@ -1478,6 +1773,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "title": "string | null",
   "content_markdown": "string",
+  "original_language": "string | null",
   "tag_uuids": ["string"],
   "reply_to_post_uuid": "string | null"
 }
@@ -1485,25 +1781,54 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- 老师可使用系统 tag
-- 老师可使用自己私有 tag
-- `important` 仅老师可打
+- 老师可使用所有系统 tag
+- 老师可使用自己的私有 tag（非自己的 private tag 返回 403）
+- `important` 为系统 tag，老师和家长均可使用
+- `original_language` 缺失时，后端按 `user_settings.language` > `Accept-Language` > `en-AU` 推断
+
+#### Success 201
+
+返回创建的帖子，结构与 §9.15 Success 201 一致。
 
 ---
 
-### 10.6 老师编辑自己发的帖子
+### 10.6 老师编辑自己发的帖子（已完成）
 
 **PATCH** `/api/posts/{post_uuid}`
 
-规则同作者本人可编辑。
+#### Body
+
+同 §9.16，`tag_uuids` 若提供则整体替换现有标签。
+
+#### 规则
+
+- 仅作者可编辑
+- private tag 必须是自己创建的
+- 若更新了 `content_markdown`，后端应将该 post 的已有译文缓存全部置为 `stale`
+
+#### Success 200
+
+返回更新后的完整帖子，结构与 §9.15 Success 201 一致。
 
 ---
 
-### 10.7 老师删除自己发的帖子
+### 10.7 老师删除自己发的帖子（已完成）
 
 **DELETE** `/api/posts/{post_uuid}`
 
-规则同作者本人可删除。
+#### 规则
+
+- 仅作者可删除
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
 
 ---
 
@@ -1515,7 +1840,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| `scope` | enum | 否 | `system`, `teacher_private`, `all` |
+| `scope` | enum | 否 | `system`, `teacher_private`, `all`；默认 `all` |
+
+#### 规则
+
+- `all`：返回 `is_selectable_by_teacher=true` 的系统 tag + 当前教师所有私有 tag
+- `system`：仅返回 `is_selectable_by_teacher=true` 的系统 tag
+- `teacher_private`：仅返回当前教师的私有 tag
+- `is_active=false` 的 tag 不出现在列表中
+- `is_selectable_by_teacher=false` 的系统 tag 不出现在列表中
 
 #### Success 200
 
@@ -1527,7 +1860,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
       "name": "important",
       "scope": "system | teacher_private",
       "owner_teacher_uuid": "string | null",
-      "is_selectable_by_parent": false,
+      "is_selectable_by_parent": true,
       "is_selectable_by_teacher": true,
       "affects_business_logic": true
     }
@@ -1545,15 +1878,16 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ```json
 {
-  "name": "string",
-  "is_selectable_by_parent": false
+  "name": "string"
 }
 ```
 
 #### 规则
 
 - 仅创建 `teacher_private` tag
-- `is_selectable_by_parent` 默认且建议固定为 false
+- `name` 不能为空或纯空格，最大长度 64 字符，前后空格自动 trim
+- 同名私有 tag 已存在（`is_active=true`）时返回 409 `duplicate_tag_name`
+- 创建后的私有 tag 对关联家长（同 thread 下的家长）自动可见，无需额外配置
 
 #### Success 201
 
@@ -1564,7 +1898,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "name": "string",
     "scope": "teacher_private",
     "owner_teacher_uuid": "string",
-    "is_selectable_by_parent": false,
+    "is_selectable_by_parent": true,
     "is_selectable_by_teacher": true,
     "affects_business_logic": false
   }
@@ -1588,7 +1922,13 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 #### 规则
 
 - 只能修改自己的私有 tag
-- 系统 tag 不可修改
+- 更新系统 tag 或他人私有 tag 返回 403 `forbidden`
+- `name` 不能为空或纯空格，最大长度 64 字符，前后空格自动 trim
+- 改名后与当前教师已有 active 同名私有 tag 冲突返回 409 `duplicate_tag_name`
+
+#### Success 200
+
+返回更新后的完整 tag 对象，结构与 §10.9 Success 201 一致。
 
 ---
 
@@ -1598,8 +1938,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- 只能删除自己的私有 tag
-- 系统 tag 不可删除
+- 只能删除自己的私有 tag（软删除：`is_active=false`）
+- 删除系统 tag 或他人私有 tag 返回 403 `forbidden`
+- 软删除后，已有帖子上的该 tag 历史记录保留（不受影响），但该 tag 不再出现在可用列表中
 
 #### Success 200
 
@@ -1613,7 +1954,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 10.12 老师创建报告
+### 10.12 老师创建报告（已完成）
 
 **POST** `/api/teachers/me/students/{student_uuid}/reports`
 
@@ -1624,45 +1965,93 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "title": "string",
   "report_type": "weekly | monthly | custom",
   "subject_uuid": "string | null",
+  "period_start": "string | null",
+  "period_end": "string | null",
   "content_markdown": "string",
-  "original_language": "string",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale",
-  "translated_at": "string | null"
+  "original_language": "string"
+}
+```
+
+#### 规则
+
+- `source_type` 固定为 `teacher`，不可由客户端传入
+- `period_start` / `period_end` 可为空；若仅提供其中一个，返回 422
+- 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
+- 创建后立即发布（`is_published=true`，`published_at=now()`）
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string",
+    "report_type": "weekly | monthly | custom",
+    "source_type": "teacher",
+    "period_start": "string | null",
+    "period_end": "string | null",
+    "subject": {
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
+    },
+    "author": {
+      "uuid": "string",
+      "display_name": "string",
+      "role": "teacher"
+    },
+    "created_at": "string",
+    "published_at": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "not_required",
+    "translated_at": "string | null"
+  }
 }
 ```
 
 ---
 
-### 10.13 老师更新报告
+### 10.13 老师更新报告（已完成）
 
 **PATCH** `/api/reports/{report_uuid}`
 
 #### Body
+
+所有字段均为可选。缺失字段不更新；支持 null 的字段若显式传 `null` 则置为 null。
 
 ```json
 {
   "title": "string | null",
   "report_type": "weekly | monthly | custom | null",
   "subject_uuid": "string | null",
+  "period_start": "string | null",
+  "period_end": "string | null",
   "content_markdown": "string | null",
-  "original_language": "string | null",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale | null",
-  "translated_at": "string | null"
+  "original_language": "string | null"
 }
 ```
 
 #### 规则
 
-- 仅创建者老师或 admin 可更新
-- 不更新家长个人 read/archive 状态
+- 仅报告创建者（teacher）或 admin 可更新
+- **禁止修改** `student`（由创建时的路径决定）和 `source_type`
+- `period_start` / `period_end` 必须同时更新或同时不更新
+- 若更新了 `content_markdown`，后端应将该报告的已有译文缓存全部置为 `stale`
+- 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联；admin 跳过此验证
+- 不影响家长个人 `is_read` / `is_archived` 状态
+
+#### Success 200
+
+返回更新后的完整报告，结构与 §10.12 Success 201 一致。
 
 ---
 
-### 10.14 老师创建公告/任务
+### 10.14 老师创建公告/任务（已完成）
 
 **POST** `/api/teachers/me/students/{student_uuid}/announcements`
 
@@ -1672,12 +2061,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "category": "announcement | task",
   "title": "string",
+  "subject_uuid": "string | null",
   "content_markdown": "string",
   "original_language": "string",
-  "translated_content_markdown": "string | null",
-  "translated_language": "string | null",
-  "translation_status": "not_required | pending | completed | failed | stale",
-  "translated_at": "string | null",
   "published_at": "string | null",
   "due_at": "string | null",
   "is_important": false
@@ -1686,24 +2072,408 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 #### 规则
 
-- `published_at` 为空时默认服务端当前时间
+- `published_at` 为空时默认服务端当前时间（UTC）
+- 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联
 - `is_important` 允许老师设置
+- 创建后立即发布（`is_published=true`）
+- 创建时不会主动写入译文缓存；如前端需要对应目标语言的译文，应显式调用 `POST /api/translations/resolve`
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "category": "announcement | task",
+    "title": "string",
+    "subject": {
+      "uuid": "string",
+      "name": "string",
+      "code": "string | null"
+    },
+    "is_important": false,
+    "author": {
+      "uuid": "string",
+      "display_name": "string",
+      "role": "teacher"
+    },
+    "published_at": "string",
+    "due_at": "string | null",
+    "created_at": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "not_required",
+    "translated_at": "string | null"
+  }
+}
+```
 
 ---
 
-### 10.15 老师更新公告/任务
+### 10.15 老师更新公告/任务（已完成）
 
 **PATCH** `/api/announcements/{announcement_uuid}`
 
 #### Body
 
-同创建字段，全部 nullable patch。
+所有字段均为可选。缺失字段不更新；支持 null 的字段若显式传 `null` 则置为 null。
+
+```json
+{
+  "category": "announcement | task | null",
+  "title": "string | null",
+  "subject_uuid": "string | null",
+  "content_markdown": "string | null",
+  "original_language": "string | null",
+  "published_at": "string | null",
+  "due_at": "string | null",
+  "is_important": "boolean | null"
+}
+```
+
+#### 规则
+
+- 仅公告创建者（teacher）或 admin 可更新
+- **禁止修改** `student` 和 `author`
+- 若更新了 `content_markdown`，后端应将该公告的已有译文缓存全部置为 `stale`
+- 若提供 `subject_uuid`，验证 `teaching_assignment` 三元关联；admin 跳过此验证
+
+#### Success 200
+
+返回更新后的完整公告，结构与 §10.14 Success 201 一致。
+
+---
+
+
+### 10.16 获取老师负责的班级列表
+
+**GET** `/api/teachers/me/classes`
+
+#### 规则
+
+- 返回当前老师在 `teaching_assignments` 中有 active 记录的所有不重复班级。
+- 若老师同时是某班班主任（`classes.homeroom_teacher_user_id`），响应中 `is_homeroom` 为 `true`。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "name": "string",
+      "grade_level": "string | null",
+      "academic_year": "string | null",
+      "is_homeroom": false,
+      "student_count": 12
+    }
+  ]
+}
+```
+
+---
+
+### 10.17 获取班级学生列表（老师视角）
+
+**GET** `/api/teachers/me/classes/{class_uuid}/students`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 50 |
+| `subject_uuid` | string | 否 | 进一步过滤：只返回该老师同时教该科目的学生 |
+| `keyword` | string | 否 | `sid` / 姓名模糊匹配 |
+
+#### 规则
+
+- 只返回该老师在此班有 active `teaching_assignment` 的学生。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string",
+      "preferred_name": "string | null",
+      "avatar_url": "string | null",
+      "subjects": [
+        {
+          "uuid": "string",
+          "name": "string"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 50,
+    "total": 30,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 10.18 获取班级成绩统计（老师视角）
+
+**GET** `/api/teachers/me/classes/{class_uuid}/grade-stats`
+
+按班级汇总该老师负责科目的考试成绩统计，可用于成绩排行和班级横向对比。
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 限定科目；不传则汇总该老师在此班所有科目 |
+| `exam_date_from` | string | 否 | 考试日期起（ISO 8601 date） |
+| `exam_date_to` | string | 否 | 考试日期止 |
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class": {
+      "uuid": "string",
+      "name": "string",
+      "grade_level": "string | null"
+    },
+    "summary": {
+      "student_count": 12,
+      "avg_score": 82.5,
+      "max_score": 98.0,
+      "min_score": 61.0,
+      "exam_count": 3
+    },
+    "students": [
+      {
+        "student_uuid": "string",
+        "full_name": "string",
+        "sid": "string | null",
+        "subject_scores": [
+          {
+            "subject_uuid": "string",
+            "subject_name": "string",
+            "avg_score": 88.5,
+            "latest_score": 90.0,
+            "exam_count": 3
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 10.19 获取学生考试成绩列表（老师视角）
+
+**GET** `/api/teachers/me/students/{student_uuid}/exam-scores`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `exam_date_from` | string | 否 | 考试日期起 |
+| `exam_date_to` | string | 否 | 考试日期止 |
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "exam_name": "string | null",
+      "exam_date": "string",
+      "score": 88.5,
+      "full_score": 100.0,
+      "note": "string | null",
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string",
+      "updated_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 10.20 创建学生考试成绩（老师视角）
+
+**POST** `/api/teachers/me/students/{student_uuid}/exam-scores`
+
+#### Body
+
+```json
+{
+  "subject_uuid": "string",
+  "exam_name": "string | null",
+  "exam_date": "string",
+  "score": 88.5,
+  "full_score": 100.0,
+  "note": "string | null"
+}
+```
+
+#### 规则
+
+- 后端验证 `teaching_assignment(teacher, student, subject)` 三元组存在且 active，否则返回 `403 forbidden`。
+- `exam_date` 为必填，格式 ISO 8601 date（`YYYY-MM-DD`）。
+- `score` 必须 <= `full_score`；`full_score` 默认 100，必须 > 0。
+
+#### Success 201
+
+返回创建的成绩条目，结构与 §10.19 Success 200 中的单条记录一致。
+
+---
+
+### 10.21 更新考试成绩（老师视角）
+
+**PATCH** `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}`
+
+#### Body
+
+所有字段均为可选。
+
+```json
+{
+  "exam_name": "string | null",
+  "exam_date": "string | null",
+  "score": "number | null",
+  "full_score": "number | null",
+  "note": "string | null"
+}
+```
+
+#### 规则
+
+- 只有创建者（teacher）或 admin 可修改。
+- 不允许修改 `subject_uuid`（科目不可变）。
+
+#### Success 200
+
+返回更新后的完整成绩条目。
+
+---
+
+### 10.22 删除考试成绩（老师视角）
+
+**DELETE** `/api/teachers/me/students/{student_uuid}/exam-scores/{score_uuid}`
+
+#### 规则
+
+- 只有创建者（teacher）或 admin 可删除（物理删除）。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+### 10.23 获取学生周期指标列表（老师视角）
+
+**GET** `/api/teachers/me/students/{student_uuid}/period-metrics`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `subject_uuid` | string | 否 | 科目过滤 |
+| `term` | string | 否 | 学期过滤，如 `2025-T1` |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "subject": {
+        "uuid": "string",
+        "name": "string"
+      },
+      "term": "string | null",
+      "snapshot_date": "string",
+      "progress": 0.75,
+      "assignment_completion_rate": 0.90,
+      "attendance_rate": 0.95,
+      "author": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "created_at": "string"
+    }
+  ]
+}
+```
+
+---
+
+### 10.24 创建/更新学生周期指标（老师视角）
+
+**POST** `/api/teachers/me/students/{student_uuid}/period-metrics`
+
+#### Body
+
+```json
+{
+  "subject_uuid": "string",
+  "term": "string | null",
+  "snapshot_date": "string",
+  "progress": "number | null",
+  "assignment_completion_rate": "number | null",
+  "attendance_rate": "number | null"
+}
+```
+
+#### 规则
+
+- UPSERT 语义：`(student_id, subject_id, snapshot_date)` 已存在则更新，否则新建。
+- 后端验证 `teaching_assignment(teacher, student, subject)` 三元组存在且 active。
+- 所有比率字段须在 `[0.0, 1.0]` 范围内；`progress` 同上。
+
+#### Success 200/201
+
+返回创建或更新后的指标条目，结构与 §10.23 Success 200 中的单条一致。
 
 ---
 
 ## 11. Admin 接口
 
-### 11.1 获取用户列表
+> **权限要求：本节所有接口仅允许 `admin` 角色访问。非 admin 角色一律返回 `403 role_not_allowed`。**
+
+---
+
+### 11.1 获取用户列表（已完成）
 
 **GET** `/api/admin/users`
 
@@ -1735,7 +2505,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.2 创建用户
+### 11.2 创建用户（已完成）
 
 **POST** `/api/admin/users`
 
@@ -1751,9 +2521,18 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 }
 ```
 
+#### 密码强度规则
+
+- 最少 **8** 个字符
+- 至少包含 **1** 个大写字母
+- 至少包含 **1** 个小写字母
+- 至少包含 **1** 个数字
+
+不满足时返回 `422 validation_error`，`details` 中说明具体失败项。
+
 ---
 
-### 11.3 更新用户
+### 11.3 更新用户（已完成）
 
 **PATCH** `/api/admin/users/{user_uuid}`
 
@@ -1770,7 +2549,44 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.4 创建学生
+### 11.4 获取学生列表（已完成）
+
+**GET** `/api/admin/students`
+
+#### Query
+
+- `page`
+- `page_size`
+- `keyword`（模糊匹配 `full_name`、`preferred_name`、`sid`）
+- `class_uuid`
+- `is_active`
+- `sort=created_at_desc|created_at_asc|full_name_asc`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "sid": "string | null",
+      "full_name": "string",
+      "preferred_name": "string | null",
+      "class_uuid": "string | null",
+      "class_name": "string | null",
+      "grade_level": "string | null",
+      "avatar_url": "string | null",
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.5 创建学生（已完成）
 
 **POST** `/api/admin/students`
 
@@ -1781,15 +2597,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "sid": "string | null",
   "full_name": "string",
   "preferred_name": "string | null",
-  "class_name": "string | null",
-  "grade_level": "string | null",
-  "avatar_url": "string | null"
+  "class_uuid": "string | null",
+  "avatar_url": "string | null",
+  "date_of_birth": "string | null"
 }
 ```
 
 ---
 
-### 11.5 更新学生
+### 11.6 更新学生（已完成）
 
 **PATCH** `/api/admin/students/{student_uuid}`
 
@@ -1800,15 +2616,51 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
   "sid": "string | null",
   "full_name": "string | null",
   "preferred_name": "string | null",
-  "class_name": "string | null",
-  "grade_level": "string | null",
-  "avatar_url": "string | null"
+  "class_uuid": "string | null",
+  "avatar_url": "string | null",
+  "date_of_birth": "string | null",
+  "is_active": "boolean | null"
+}
+```
+
+> **注：** 若需要"换班"操作（修改 `class_uuid`），请使用专用的 `POST /api/admin/students/{student_uuid}/transfer-class` 接口，该接口会原子性地更新学生班级并重建 `teaching_assignments`（见 §11.19）。直接 PATCH `class_uuid` 仅适用于初始分班或纠错，不会自动处理 `teaching_assignments`。
+
+---
+
+### 11.7 获取 Parent-Student 绑定列表（已完成）
+
+**GET** `/api/admin/bindings/parent_student`
+
+#### Query
+
+- `page`
+- `page_size`
+- `parent_uuid`
+- `student_uuid`
+- `is_active`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "parent_uuid": "string",
+      "student_uuid": "string",
+      "relationship_label": "string | null",
+      "is_primary": true,
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
 }
 ```
 
 ---
 
-### 11.6 创建 Parent-Student 绑定
+### 11.8 创建 Parent-Student 绑定（已完成）
 
 **POST** `/api/admin/bindings/parent_student`
 
@@ -1818,10 +2670,15 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "parent_uuid": "string",
   "student_uuid": "string",
-  "relationship_type": "father | mother | guardian | other",
-  "is_primary_contact": true
+  "relationship_label": "string | null",
+  "is_primary": true
 }
 ```
+
+#### 规则
+
+- `parent_uuid` 指向的用户 role 必须是 `parent`，否则返回 `400 bad_request`
+- 同一 `student_uuid` 最多有一条 `is_active=true` 的绑定，否则返回 `409 conflict`
 
 #### Success 201
 
@@ -1831,8 +2688,9 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "uuid": "string",
     "parent_uuid": "string",
     "student_uuid": "string",
-    "relationship_type": "father | mother | guardian | other",
-    "is_primary_contact": true,
+    "relationship_label": "string | null",
+    "is_primary": true,
+    "is_active": true,
     "created_at": "string"
   }
 }
@@ -1840,7 +2698,60 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.7 创建 Teacher-Student-Subject 分配
+### 11.9 更新 Parent-Student 绑定（已完成）
+
+**PATCH** `/api/admin/bindings/parent_student/{binding_uuid}`
+
+#### Body
+
+```json
+{
+  "relationship_label": "string | null",
+  "is_primary": "boolean | null",
+  "is_active": "boolean | null"
+}
+```
+
+#### 规则
+
+- 停用绑定（`is_active=false`）不自动级联处理 discussion thread
+
+---
+
+### 11.10 获取 Teaching Assignment 列表（已完成）
+
+**GET** `/api/admin/assignments/teaching`
+
+#### Query
+
+- `page`
+- `page_size`
+- `teacher_uuid`
+- `student_uuid`
+- `subject_uuid`
+- `is_active`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "teacher_uuid": "string",
+      "student_uuid": "string",
+      "subject_uuid": "string",
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.11 创建 Teaching Assignment（已完成）
 
 **POST** `/api/admin/assignments/teaching`
 
@@ -1850,10 +2761,14 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 {
   "teacher_uuid": "string",
   "student_uuid": "string",
-  "subject_uuid": "string",
-  "role": "subject_teacher | homeroom_teacher"
+  "subject_uuid": "string"
 }
 ```
+
+#### 规则
+
+- `teacher_uuid` 指向的用户 role 必须是 `teacher`，否则返回 `400 bad_request`
+- `(teacher_uuid, student_uuid, subject_uuid)` 三元组唯一，重复创建返回 `409 conflict`
 
 #### Success 201
 
@@ -1864,7 +2779,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
     "teacher_uuid": "string",
     "student_uuid": "string",
     "subject_uuid": "string",
-    "role": "subject_teacher | homeroom_teacher",
+    "is_active": true,
     "created_at": "string"
   }
 }
@@ -1872,13 +2787,27 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.8 获取系统 Tag 列表
+### 11.12 更新 Teaching Assignment（已完成）
+
+**PATCH** `/api/admin/assignments/teaching/{assignment_uuid}`
+
+#### Body
+
+```json
+{
+  "is_active": "boolean | null"
+}
+```
+
+---
+
+### 11.13 获取系统 Tag 列表（已完成）
 
 **GET** `/api/admin/tags/system`
 
 ---
 
-### 11.9 创建系统 Tag
+### 11.14 创建系统 Tag（已完成）
 
 **POST** `/api/admin/tags/system`
 
@@ -1899,7 +2828,7 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-### 11.10 更新系统 Tag
+### 11.15 更新系统 Tag（已完成）
 
 **PATCH** `/api/admin/tags/system/{tag_uuid}`
 
@@ -1916,9 +2845,460 @@ Cookie 是浏览器保存的一小段状态数据。服务器通过 `Set-Cookie`
 
 ---
 
-## 12. 关键实现规则
 
-### 12.1 403 与 404 的边界
+### 11.16 获取班级列表
+
+**GET** `/api/admin/classes`
+
+#### Query
+
+- `page`
+- `page_size`
+- `grade_level`
+- `academic_year`
+- `homeroom_teacher_uuid`
+- `is_active`
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "name": "string",
+      "grade_level": "string | null",
+      "academic_year": "string | null",
+      "homeroom_teacher": {
+        "uuid": "string",
+        "display_name": "string"
+      },
+      "student_count": 12,
+      "is_active": true,
+      "created_at": "string"
+    }
+  ],
+  "meta": {}
+}
+```
+
+---
+
+### 11.17 创建班级
+
+**POST** `/api/admin/classes`
+
+#### Body
+
+```json
+{
+  "name": "string",
+  "grade_level": "string | null",
+  "academic_year": "string | null",
+  "homeroom_teacher_uuid": "string | null"
+}
+```
+
+#### 规则
+
+- `homeroom_teacher_uuid` 若提供，必须指向 role=`teacher` 的 active 用户。
+- `name` 不可为空字符串，最长 100 字符。
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "name": "string",
+    "grade_level": "string | null",
+    "academic_year": "string | null",
+    "homeroom_teacher": {
+      "uuid": "string",
+      "display_name": "string"
+    },
+    "is_active": true,
+    "created_at": "string"
+  }
+}
+```
+
+---
+
+### 11.18 更新班级
+
+**PATCH** `/api/admin/classes/{class_uuid}`
+
+#### Body
+
+```json
+{
+  "name": "string | null",
+  "grade_level": "string | null",
+  "academic_year": "string | null",
+  "homeroom_teacher_uuid": "string | null",
+  "is_active": "boolean | null"
+}
+```
+
+#### 规则
+
+- `homeroom_teacher_uuid` 若提供，必须指向 role=`teacher` 的 active 用户；传 `null` 则清除班主任。
+- 停用班级（`is_active=false`）不自动级联处理 `teaching_assignments` 或 `students`。
+
+#### Success 200
+
+返回更新后的完整班级对象，结构与 §11.17 Success 201 一致。
+
+---
+
+### 11.19 学生换班（原子操作）
+
+**POST** `/api/admin/students/{student_uuid}/transfer-class`
+
+将学生迁移至新班级，并原子性地完成以下三个操作：
+1. 更新 `students.class_id` 到新班级
+2. 将该学生的所有旧 `teaching_assignments` 设置 `is_active = false`
+3. 为新班级对应的 active 老师（通过 `teaching_assignments` 推断）重新创建 `teaching_assignments`
+
+#### Body
+
+```json
+{
+  "new_class_uuid": "string"
+}
+```
+
+#### 规则
+
+- 新班级必须存在且 `is_active=true`。
+- 若新班级的老师 `teaching_assignments` 无法推断（新班级还没有老师），则只执行步骤 1/2，步骤 3 跳过；调用者须手动补充 `teaching_assignments`。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "student_uuid": "string",
+    "new_class_uuid": "string",
+    "deactivated_assignment_count": 5,
+    "created_assignment_count": 4
+  }
+}
+```
+
+---
+
+## 12. AI 相关接口
+
+### 12.1 老师手动生成 AI 报告
+
+**POST** `/api/teachers/me/students/{student_uuid}/ai-reports`
+
+#### Body
+
+```json
+{
+  "report_type": "weekly | monthly | custom",
+  "subject_uuid": "string | null",
+  "period_start": "string",
+  "period_end": "string",
+  "extra_instruction": "string | null"
+}
+```
+
+#### 规则
+
+- 仅 `teacher` 可调用
+- `title` 由后端自动生成；前端只传递生成意图，不拼接完整 prompt
+- `source_type` 固定为 `ai`，不可由客户端传入
+- `subject_uuid = null` 表示学生整体 AI 报告；非 null 表示该学生该学科 AI 报告
+- 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
+- 同一 `student + subject(含 null) + period_start + period_end + report_type` 只允许存在一条 AI report；若已存在，则覆盖同一条 report，而不是创建新记录
+- 自动定时生成任务与手动接口共用同一套生成逻辑与唯一性规则
+- 覆盖已有 AI report 后，后端必须将该 report 的所有 `report_user_states.is_read=false`、`read_at=null`、`is_archived=false`、`archived_at=null`
+- 手动生成时 `author` 记录为当前 teacher；自动定时生成时 `author` 记录为 system/admin
+- 生成完成后立即发布（`published_at=now()`）
+
+#### Success 201
+
+返回生成后的完整报告对象，结构与 §10.12 Success 201 一致，但 `source_type` 固定为 `ai`。
+
+---
+
+### 12.2 解析/获取资源翻译内容
+
+**POST** `/api/translations/resolve`
+
+#### Body
+
+```json
+{
+  "resource_type": "report | announcement | post",
+  "resource_uuid": "string"
+}
+```
+
+#### 规则
+
+- 目标语言优先级：`user_settings.language` > `Accept-Language` > 系统默认值 `en-AU`
+- 仅支持 `report`、`announcement`、`post` 三类资源
+- 若当前目标语言译文已存在缓存，则直接读取并返回
+- 若缓存不存在且 `ai_auto_translate_enabled=false`，返回 `403 auto_translation_disabled`
+- 若缓存不存在且允许自动翻译，则执行翻译、写入缓存并返回
+- 若翻译失败，返回 `500 ai_translation_failed`
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "resource_type": "report | announcement | post",
+    "resource_uuid": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "not_required | pending | completed | failed | stale",
+    "translated_at": "string | null"
+  }
+}
+```
+
+---
+
+### 12.3 获取 AI 会话列表
+
+**GET** `/api/ai/conversations`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `archived` | boolean | 否 | 默认 false |
+| `context_type` | enum | 否 | `global`, `student`, `subject` |
+| `student_uuid` | string | 否 | 按学生过滤 |
+| `subject_uuid` | string | 否 | 仅当 `context_type=subject` 时有意义 |
+| `sort` | enum | 否 | `updated_at_desc`, `updated_at_asc` |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "title": "string | null",
+      "context_type": "global | student | subject",
+      "student_uuid": "string | null",
+      "subject_uuid": "string | null",
+      "is_archived": false,
+      "last_message_at": "string | null",
+      "created_at": "string",
+      "updated_at": "string"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 3,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 12.4 创建 AI 会话
+
+**POST** `/api/ai/conversations`
+
+#### Body
+
+```json
+{
+  "context_type": "global | student | subject",
+  "student_uuid": "string | null",
+  "subject_uuid": "string | null",
+  "title": "string | null"
+}
+```
+
+#### 规则
+
+- `context_type=global` 时，`student_uuid` / `subject_uuid` 必须均为 null
+- `context_type=student` 时，`student_uuid` 必填，`subject_uuid` 必须为 null
+- `context_type=subject` 时，`student_uuid` 与 `subject_uuid` 必须同时提供
+- `context_type=subject` 时，teacher 需校验 `teaching_assignment`；parent 需校验对该学生的绑定访问权
+- 允许同一用户在相同 context 下创建多条 conversation
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string | null",
+    "context_type": "global | student | subject",
+    "student_uuid": "string | null",
+    "subject_uuid": "string | null",
+    "is_archived": false,
+    "last_message_at": null,
+    "created_at": "string",
+    "updated_at": "string"
+  }
+}
+```
+
+---
+
+### 12.5 获取 AI 会话详情
+
+**GET** `/api/ai/conversations/{conversation_uuid}`
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string | null",
+    "context_type": "global | student | subject",
+    "student_uuid": "string | null",
+    "subject_uuid": "string | null",
+    "is_archived": false,
+    "last_message_at": "string | null",
+    "created_at": "string",
+    "updated_at": "string",
+    "messages": [
+      {
+        "uuid": "string",
+        "role": "user | assistant",
+        "preset": "default | summary | parent_friendly | null",
+        "content_markdown": "string",
+        "created_at": "string"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 12.6 发送 AI 消息
+
+**POST** `/api/ai/conversations/{conversation_uuid}/messages`
+
+#### Body
+
+```json
+{
+  "message": "string",
+  "preset": "default | summary | parent_friendly"
+}
+```
+
+#### 规则
+
+- 前端只传用户输入与 preset；实际 prompt 组织、上下文查询、系统 prompt 拼接全部由后端完成
+- 当前 v1 采用普通 JSON 同步返回，不采用流式输出
+- 若 conversation 已归档，返回 `409 conversation_archived`
+- AI 输出语言优先使用 `user_settings.language`；为空时按 `Accept-Language`，仍为空时回退到 `en-AU`
+- 若设置了 `ai_chat_style`，后端应将其作为对话风格偏好参与 prompt 组织
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "conversation_uuid": "string",
+    "user_message": {
+      "uuid": "string",
+      "role": "user",
+      "preset": "default | summary | parent_friendly",
+      "content_markdown": "string",
+      "created_at": "string"
+    },
+    "assistant_message": {
+      "uuid": "string",
+      "role": "assistant",
+      "preset": null,
+      "content_markdown": "string",
+      "created_at": "string"
+    }
+  }
+}
+```
+
+---
+
+### 12.7 归档 AI 会话
+
+**POST** `/api/ai/conversations/{conversation_uuid}/archive`
+
+#### Body
+
+无
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+### 12.8 取消归档 AI 会话
+
+**POST** `/api/ai/conversations/{conversation_uuid}/unarchive`
+
+#### Body
+
+无
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+### 12.9 删除 AI 会话
+
+**DELETE** `/api/ai/conversations/{conversation_uuid}`
+
+#### 规则
+
+- v1 采用软删除，删除后用户不可在列表中继续看到该 conversation
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+## 13. 关键实现规则
+
+### 13.1 403 与 404 的边界
 
 v1 统一约定：
 
@@ -1927,7 +3307,7 @@ v1 统一约定：
 
 当前不做“为了防枚举而把 403 伪装成 404”的额外策略。
 
-### 12.2 筛选、排序、搜索全部由后端完成
+### 13.2 筛选、排序、搜索全部由后端完成
 
 前端只负责传 query 参数：
 
@@ -1943,22 +3323,22 @@ v1 统一约定：
 - 排序
 - 分页
 
-### 12.3 已读与归档必须是用户个人状态
+### 13.3 已读与归档必须是用户个人状态
 
 对于：
 
 - report
-n- announcement
+- announcement
 
 其 `is_read`、`is_archived` 等状态必须由用户个人状态表维护，不能直接写回资源主表作为全局状态。
 
-### 12.4 Post 删除规则
+### 13.4 Post 删除规则
 
 - 只允许作者删除自己发的帖子
 - 当前不支持“老师删除家长帖子”的额外管理特权
 - 若将来需要 moderation，再单独设计接口与权限规则
 
-### 12.5 Discussion Thread 创建策略
+### 13.5 Discussion Thread 创建策略
 
 v1 推荐：**懒创建**
 
@@ -1967,215 +3347,56 @@ v1 推荐：**懒创建**
 - 当 parent / teacher 第一次访问讨论页时，如果 thread 不存在，则服务端自动创建
 - 不由前端显式调用创建 thread 接口
 
----
+### 13.6 AI Report 周期唯一与覆盖规则
 
-## 13. 推荐实现顺序
+- `AI report` 的唯一业务键为：`student + subject(含 null) + report_type + period_start + period_end`
+- 自动定时生成与手动生成必须共用同一套唯一性规则
+- 命中同一业务键时，覆盖同一条 AI report，而不是新增第二条记录
+- 覆盖后必须重置所有用户的 `report_user_states` 已读/归档状态
 
-这一部分是前后端都应参考的推荐开发顺序。
+### 13.7 详情接口与翻译解析接口必须读写分离
 
-目标：
+- `GET` 详情接口（report / announcement / discussion）只负责读取当前目标语言已缓存的译文
+- 缺失译文时，不由详情接口隐式写库
+- 创建缺失译文统一通过 `POST /api/translations/resolve` 完成
 
-- 先打通最小闭环
-- 再逐步叠加页面与管理能力
-- 尽量避免一开始就实现全部接口导致开发失控
+### 13.8 AI 会话上下文约束
 
-### 阶段 1：认证与全局基础设施
-
-推荐优先实现：
-
-1. `POST /api/auth/login`
-2. `POST /api/auth/refresh`
-3. `POST /api/auth/logout`
-4. `POST /api/auth/logout_all`
-5. `GET /api/me`
-6. `GET /api/settings`
-7. `PATCH /api/settings`
-
-同时完成：
-
-- Cookie 配置
-- CORS + `credentials: include`
-- `Origin` 校验中间件
-- JWT 生成与验证
-- refresh token 持久化
-- 会话表设计
-- 统一错误码与错误响应中间件
-
-这是整个项目的底座，必须最先稳定。
+- `global` 会话不绑定 student / subject
+- `student` 会话必须绑定 `student_uuid`
+- `subject` 会话必须同时绑定 `student_uuid + subject_uuid`
+- AI 会话独立于 discussion thread，不复用 `thread / post` 表结构
 
 ---
 
-### 阶段 2：家长主流程闭环
+## 14. 实现差异备注（截至 2026-04）
 
-推荐实现：
+本节记录当前实现与文档设计之间存在的关键差异，供下阶段迭代参考。
 
-1. `GET /api/parents/me/students`
-2. `GET /api/parents/me/students/{student_uuid}/dashboard`
-3. `GET /api/parents/me/students/{student_uuid}/subjects`
-4. `GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid}`
-5. `GET /api/parents/me/students/{student_uuid}/reports`
-6. `GET /api/parents/me/students/{student_uuid}/reports/{report_uuid}`
-7. `POST /api/reports/{report_uuid}/read`
-8. `POST /api/reports/{report_uuid}/archive`
-9. `POST /api/reports/{report_uuid}/unarchive`
-10. `GET /api/parents/me/students/{student_uuid}/announcements`
-11. `GET /api/announcements/{announcement_uuid}`
-12. `POST /api/announcements/{announcement_uuid}/read`
+### 14.1 API 层：translation 缓存未在内容变更时置为 stale
 
-完成这一阶段后，家长端至少可以：
+设计文档 §4.9 规定：
 
-- 登录
-- 看到自己的学生
-- 打开 dashboard
-- 看学科详情
-- 看报告
-- 看公告/任务
-- 标记已读与归档
+> 当原文资源内容发生变化时，后端应将对应资源的全部译文缓存标记为 `stale`。
 
-这是第一个可展示的 MVP 主闭环。
+**当前实现存在缺口**：
 
----
+- `PATCH /api/reports/{report_uuid}` 更新 `content_markdown` 后，**未**将对应 `resource_translations` 记录标记为 `stale`。
+- `PATCH /api/announcements/{announcement_uuid}` 同上。
 
-### 阶段 3：讨论区闭环
+影响：若老师编辑了报告或公告的正文，前端通过 `POST /api/translations/resolve` 拿到的可能仍是旧版本的译文，直到该译文缓存被其他机制清理前均不会更新。
 
-推荐实现：
+**建议修复**：在 `teacher_crud.update_report` / `update_announcement` 中，若 `content_markdown` 发生变更，则同步调用 `translation_crud` 将该资源所有 `resource_translations` 的 `translation_status` 置为 `stale`。
 
-1. `GET /api/parents/me/students/{student_uuid}/discussions/teachers`
-2. `GET /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}`
-3. `POST /api/threads/{thread_uuid}/posts`
-4. `PATCH /api/posts/{post_uuid}`
-5. `DELETE /api/posts/{post_uuid}`
-6. `GET /api/teachers/me/students/{student_uuid}/discussions/parents`
-7. `GET /api/teachers/me/students/{student_uuid}/discussions/parents/{parent_uuid}`
+### 14.2 ORM 层：content_markdown 与 original_content_markdown 始终同步
 
-这一阶段重点是：
+在 `teacher_crud.create_report`、`update_report`、`create_announcement`、`update_announcement` 中，`content_markdown` 与 `original_content_markdown` 始终被赋同一值，两个字段当前实际上等价。
 
-- thread 懒创建逻辑
-- post 权限控制
-- tag 过滤、排序、搜索
-- 家长与老师都能在同一 thread 容器下交流
+设计文档中两个字段的预期语义差异如下：
 
-完成这一阶段后，家校沟通主功能基本成立。
+- `original_content_markdown`：应在创建时固定，后续只作为翻译源使用，不随编辑变动（用于 stale 检测）。
+- `content_markdown`：可随老师编辑更新的"当前正文"。
+
+如果需要精确的翻译 stale 检测（即仅当 `original_content_markdown` 改变时才置 stale），需要拆分这两个字段的写入逻辑。v1 当前两者恒等，stale 检测应以 `content_markdown` 是否变化为触发条件。
 
 ---
-
-### 阶段 4：老师内容生产能力
-
-推荐实现：
-
-1. `GET /api/teachers/me/students`
-2. `GET /api/teachers/me/students/{student_uuid}/dashboard`
-3. `GET /api/teachers/me/tags`
-4. `POST /api/teachers/me/tags`
-5. `PATCH /api/teachers/me/tags/{tag_uuid}`
-6. `DELETE /api/teachers/me/tags/{tag_uuid}`
-7. `POST /api/teachers/me/students/{student_uuid}/reports`
-8. `PATCH /api/reports/{report_uuid}`
-9. `POST /api/teachers/me/students/{student_uuid}/announcements`
-10. `PATCH /api/announcements/{announcement_uuid}`
-
-完成这一阶段后，老师端可以：
-
-- 查看负责的学生
-- 维护自己的私有 tag
-- 发布报告
-- 发布公告/任务
-- 参与讨论区交流
-
----
-
-### 阶段 5：Admin 管理能力
-
-推荐实现：
-
-1. `GET /api/admin/users`
-2. `POST /api/admin/users`
-3. `PATCH /api/admin/users/{user_uuid}`
-4. `POST /api/admin/students`
-5. `PATCH /api/admin/students/{student_uuid}`
-6. `POST /api/admin/bindings/parent_student`
-7. `POST /api/admin/assignments/teaching`
-8. `GET /api/admin/tags/system`
-9. `POST /api/admin/tags/system`
-10. `PATCH /api/admin/tags/system/{tag_uuid}`
-
-这一阶段主要用于支撑：
-
-- 初始化系统数据
-- 管理用户和学生
-- 管理绑定关系与教学关系
-- 管理系统 tag
-
-如果时间紧，这一阶段可以后置。
-
----
-
-### 阶段 6：补充优化项
-
-推荐最后再做：
-
-- `GET /api/me/sessions`
-- `DELETE /api/me/sessions/{session_uuid}`
-- 更完善的 unread 计数
-- 更细粒度的 moderation
-- 更细的语言 fallback 逻辑
-- 更完善的 translation 状态机
-- 更丰富的 dashboard 图表与聚合
-
----
-
-## 14. 建议的开发策略
-
-### 后端建议
-
-- 先把 Schema / DTO 定死
-- 再实现权限中间件
-- 再补 service 层和 repository 层
-- 聚合接口尽量在 service 层封装
-
-### 前端建议
-
-- 先按本文档写 TypeScript 类型
-- 优先开发登录与家长主流程页面
-- 先用 mock 数据对齐字段
-- 再接真实接口
-
-### 联调建议
-
-优先联调顺序：
-
-1. 登录 / `/api/me`
-2. 家长学生列表
-3. dashboard
-4. 报告列表 / 详情
-5. 公告列表 / 详情
-6. 讨论区页面
-7. 老师端
-8. admin 端
-
----
-
-## 15. 本文档的使用方式
-
-本文档应作为：
-
-- 前端实现接口请求的依据
-- 后端实现 DTO 与响应结构的依据
-- 联调阶段验收字段是否对齐的依据
-
-建议后续若有变动：
-
-- 直接维护本文档版本号
-- 明确变更点
-- 不要让口头约定替代文档
-
----
-
-## 16. 当前版本备注
-
-- 当前 thread 为固定会话容器，不支持用户创建新 thread
-- 当前 logout_all 只保证 refresh token 全部失效，不保证旧 access token 立刻失效
-- 当前 parent / student 虽然业务上按 1:1 使用，但结构上保留绑定表
-- 当前 tag 只作用于 post，不作用于 thread
-- `important` 建议作为系统初始化 tag，不通过普通老师私有 tag 流程创建
-
