@@ -4,13 +4,16 @@
 
 import { useState, useEffect } from 'react';
 import { admin as adminApi } from '@/lib/api';
-import type { AdminParent, AdminStudent, CreateParentRequest } from '@/types/api';
+import type { AdminUser, AdminStudent, CreateUserRequest, UserRole, ParentStudentBinding } from '@/types/api';
 
-const EMPTY_FORM: CreateParentRequest = { display_name: '', email: '', password: '', phone_number: '' };
+const EMPTY_FORM: Omit<CreateUserRequest, 'role'> & { uuid?: string } = {
+  display_name: '', email: '', password: '', phone_number: '',
+};
 
 export function AdminParentsScreen() {
-  const [parents,  setParents]  = useState<AdminParent[]>([]);
+  const [parents,  setParents]  = useState<AdminUser[]>([]);
   const [students, setStudents] = useState<AdminStudent[]>([]);
+  const [bindings, setBindings] = useState<ParentStudentBinding[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
 
   const [form,     setForm]     = useState(EMPTY_FORM);
@@ -18,22 +21,27 @@ export function AdminParentsScreen() {
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
-  // bind picker
-  const [bindSid, setBindSid] = useState('');
-  const [binding, setBinding] = useState(false);
+  const [bindSid,  setBindSid]  = useState('');
+  const [binding,  setBinding]  = useState(false);
 
   useEffect(() => {
-    adminApi.getParents().then(r  => setParents(r.data)).catch(() => {});
+    adminApi.getUsers({ role: 'parent' }).then(r => setParents(r.data)).catch(() => {});
     adminApi.getStudents().then(r => setStudents(r.data)).catch(() => {});
+    adminApi.getBindings({ is_active: true }).then(r => setBindings(r.data)).catch(() => {});
   }, []);
 
-  const current = parents.find(p => p.uuid === selected) ?? null;
+  const current        = parents.find(p => p.uuid === selected) ?? null;
+  const currentBindings = bindings.filter(b => b.parent_uuid === selected);
+  const boundUuids      = new Set(currentBindings.map(b => b.student_uuid));
+  const bindable        = students.filter(s => !boundUuids.has(s.uuid));
 
   const handleCreate = async () => {
     if (!form.display_name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
+    if (!form.password.trim()) { setError('Password is required.'); return; }
     setSaving(true); setError('');
+    const phoneOrNull = form.phone_number?.trim() || null;
     try {
-      const res = await adminApi.createParent(form);
+      const res = await adminApi.createUser({ ...form, phone_number: phoneOrNull, role: 'parent' as UserRole });
       setParents(prev => [...prev, res.data]);
       setForm(EMPTY_FORM); setShowForm(false);
     } catch (e: unknown) {
@@ -46,10 +54,8 @@ export function AdminParentsScreen() {
     if (!selected || !bindSid) return;
     setBinding(true);
     try {
-      await adminApi.bindStudent(selected, bindSid);
-      // refresh parents
-      const res = await adminApi.getParents();
-      setParents(res.data);
+      const res = await adminApi.createBinding({ parent_uuid: selected, student_uuid: bindSid });
+      setBindings(prev => [...prev, res.data]);
       setBindSid('');
     } catch {}
     finally { setBinding(false); }
@@ -58,14 +64,13 @@ export function AdminParentsScreen() {
   const handleUnbind = async (studentUuid: string) => {
     if (!selected) return;
     try {
-      await adminApi.unbindStudent(selected, studentUuid);
-      const res = await adminApi.getParents();
-      setParents(res.data);
+      const res = await adminApi.getBindings({ parent_uuid: selected, student_uuid: studentUuid, is_active: true });
+      const b = res.data[0];
+      if (!b) return;
+      await adminApi.updateBinding(b.uuid, { is_active: false });
+      setBindings(prev => prev.filter(x => x.uuid !== b.uuid));
     } catch {}
   };
-
-  const currentParentStudentUuids = current?.students.map(s => s.uuid) ?? [];
-  const bindable = students.filter(s => !currentParentStudentUuids.includes(s.uuid));
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16, alignItems: 'start' }}>
@@ -84,7 +89,7 @@ export function AdminParentsScreen() {
               { key: 'display_name', label: 'Full Name *', placeholder: 'Li Wei', type: 'text' },
               { key: 'email',        label: 'Email *',     placeholder: 'parent@email.com', type: 'email' },
               { key: 'phone_number', label: 'Phone',       placeholder: '+61 4xx xxx xxx', type: 'text' },
-              { key: 'password',     label: 'Password',    placeholder: 'password123', type: 'password' },
+              { key: 'password',     label: 'Password *',  placeholder: '≥8 chars, upper + lower + digit', type: 'password' },
             ] as const).map(f => (
               <div key={f.key} style={{ marginBottom: 8 }}>
                 <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{f.label}</label>
@@ -108,20 +113,23 @@ export function AdminParentsScreen() {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {parents.map(p => (
-            <div
-              key={p.uuid}
-              className="card-sm"
-              style={{ cursor: 'pointer', borderColor: selected === p.uuid ? 'var(--a3)' : 'var(--bd)', background: selected === p.uuid ? 'rgba(61,182,168,0.04)' : 'var(--card)' }}
-              onClick={() => { setSelected(p.uuid); setBindSid(''); }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{p.display_name}</div>
-              <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 1 }}>{p.email}</div>
-              <div style={{ fontSize: 11, color: 'var(--tx2)', marginTop: 2 }}>
-                {p.students.length > 0 ? `${p.students.length} child${p.students.length > 1 ? 'ren' : ''}` : 'No children linked'}
+          {parents.map(p => {
+            const childCount = bindings.filter(b => b.parent_uuid === p.uuid).length;
+            return (
+              <div
+                key={p.uuid}
+                className="card-sm"
+                style={{ cursor: 'pointer', borderColor: selected === p.uuid ? 'var(--a3)' : 'var(--bd)', background: selected === p.uuid ? 'rgba(61,182,168,0.04)' : 'var(--card)' }}
+                onClick={() => { setSelected(p.uuid); setBindSid(''); }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{p.display_name}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 1 }}>{p.email}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx2)', marginTop: 2 }}>
+                  {childCount > 0 ? `${childCount} child${childCount > 1 ? 'ren' : ''}` : 'No children linked'}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -140,14 +148,14 @@ export function AdminParentsScreen() {
           </div>
 
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-            Linked Children ({current.students.length})
+            Linked Children ({currentBindings.length})
           </div>
 
           {/* Bind student */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <select className="input-field" value={bindSid} onChange={e => setBindSid(e.target.value)} style={{ flex: 1 }}>
               <option value="">— Link a student —</option>
-              {bindable.map(s => <option key={s.uuid} value={s.uuid}>{s.full_name} ({s.sid})</option>)}
+              {bindable.map(s => <option key={s.uuid} value={s.uuid}>{s.full_name}{s.sid ? ` (${s.sid})` : ''}</option>)}
             </select>
             <button
               className="btn-primary"
@@ -160,25 +168,29 @@ export function AdminParentsScreen() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {current.students.map(s => (
-              <div key={s.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg2)', borderRadius: 8 }}>
-                <div className="avatar" style={{ width: 30, height: 30, fontSize: 12, background: 'var(--a2)', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {s.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
+            {currentBindings.map(b => {
+              const s = students.find(st => st.uuid === b.student_uuid);
+              if (!s) return null;
+              return (
+                <div key={b.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg2)', borderRadius: 8 }}>
+                  <div className="avatar" style={{ width: 30, height: 30, fontSize: 12, background: 'var(--a2)', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {s.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{s.full_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{s.sid}</div>
+                  </div>
+                  <button
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a1)', fontSize: 16, padding: '2px 4px' }}
+                    title="Unlink student"
+                    onClick={() => handleUnbind(s.uuid)}
+                  >
+                    ×
+                  </button>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{s.full_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{s.sid}</div>
-                </div>
-                <button
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a1)', fontSize: 16, padding: '2px 4px' }}
-                  title="Unlink student"
-                  onClick={() => handleUnbind(s.uuid)}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            {current.students.length === 0 && (
+              );
+            })}
+            {currentBindings.length === 0 && (
               <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
                 No children linked. Use the picker above to link a student.
               </div>

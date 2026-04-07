@@ -4,10 +4,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { mockTeacherStudents, SUBJECT_COLORS } from '@/lib/mock-data';
 import { teacher as teacherApi, posts as postsApi } from '@/lib/api';
-import type { TeacherStudentItem, ThreadPost, TeacherDiscussionParentItem } from '@/types/api';
-import { LineChart } from '@/components/charts/LineChart';
+import type { TeacherStudentListItem, ThreadPost, DiscussionParentItem } from '@/types/api';
 import { translateText, useTranslatedText } from '@/lib/translate';
 
 const POLL_INTERVAL = 5_000;
@@ -64,14 +62,9 @@ function StudentChartModal({
   student,
   onClose,
 }: {
-  student: TeacherStudentItem;
+  student: TeacherStudentListItem;
   onClose: () => void;
 }) {
-  const trend = [
-    { label: 'Wk1', value: 65 }, { label: 'Wk2', value: 68 }, { label: 'Wk3', value: 64 },
-    { label: 'Wk4', value: 70 }, { label: 'Wk5', value: 69 }, { label: 'Wk6', value: 72 },
-    { label: 'Wk7', value: 71 }, { label: 'Wk8', value: student.overall_score },
-  ];
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
@@ -79,14 +72,13 @@ function StudentChartModal({
     >
       <div className="card" style={{ width: 360, padding: 24 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)' }}>{student.student.display_name} — Overview</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)' }}>{student.full_name} — Overview</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--tx3)' }}>×</button>
         </div>
         <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: 16 }}>
-          Overall score: <strong style={{ color: 'var(--a1)' }}>{student.overall_score}%</strong>
-          {student.at_risk && <span className="badge badge-warn" style={{ marginLeft: 8, fontSize: 10 }}>At Risk</span>}
+          Class: <strong style={{ color: 'var(--a1)' }}>{student.class_name ?? '—'}</strong>
+          {student.score != null && <span style={{ marginLeft: 8, color: 'var(--tx3)' }}>Score: {student.score}%</span>}
         </div>
-        <LineChart data={trend} color={SUBJECT_COLORS.math} height={140} label="Score trend" />
       </div>
     </div>
   );
@@ -95,8 +87,8 @@ function StudentChartModal({
 export function TeacherMessagesScreen() {
   const { markThreadRead, threadUnreadCounts, language } = useApp();
 
-  const [students, setStudents] = useState<TeacherStudentItem[]>(mockTeacherStudents);
-  const [activeStudentUuid, setActiveStudentUuid] = useState(mockTeacherStudents[0].student.uuid);
+  const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
+  const [activeStudentUuid, setActiveStudentUuid] = useState('');
 
   // Sidebar summary per student (thread UUID, parent name, preview, unread)
   const [summaries, setSummaries] = useState<Record<string, StudentConvoSummary>>({});
@@ -106,7 +98,7 @@ export function TeacherMessagesScreen() {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [showAiChips, setShowAiChips] = useState(false);
-  const [modalStudent, setModalStudent] = useState<TeacherStudentItem | null>(null);
+  const [modalStudent, setModalStudent] = useState<TeacherStudentListItem | null>(null);
 
   const txTranslate = useTranslatedText('Translate', language);
   const txHide = useTranslatedText('Hide translation', language);
@@ -131,7 +123,7 @@ export function TeacherMessagesScreen() {
     teacherApi.getStudents().then(res => {
       if (res.data.length > 0) {
         setStudents(res.data);
-        setActiveStudentUuid(res.data[0].student.uuid);
+        setActiveStudentUuid(res.data[0].uuid);
       }
     }).catch(() => {});
   }, []);
@@ -139,15 +131,15 @@ export function TeacherMessagesScreen() {
   // Fetch sidebar summary for one student (parent name, preview, thread UUID)
   const fetchSummary = useCallback(async (studentUuid: string): Promise<StudentConvoSummary | null> => {
     try {
-      const res = await teacherApi.getDiscussionParentsList(studentUuid);
-      const first: TeacherDiscussionParentItem = res.data[0];
+      const res = await teacherApi.getDiscussionParents(studentUuid);
+      const first: DiscussionParentItem = res.data[0];
       if (!first) return null;
       const summary: StudentConvoSummary = {
-        threadUuid: first.thread.uuid,
-        parentUuid: first.parent.uuid,
-        parentName: first.parent.display_name,
-        preview: first.latest_message_preview ?? null,
-        unread: first.thread.unread_post_count,
+        threadUuid: first.thread_uuid ?? '',
+        parentUuid: first.uuid,
+        parentName: first.display_name,
+        preview: null,
+        unread: first.unread_post_count,
       };
       setSummaries(prev => ({ ...prev, [studentUuid]: summary }));
       return summary;
@@ -156,7 +148,7 @@ export function TeacherMessagesScreen() {
 
   // Pre-fetch summaries for all students when student list changes
   useEffect(() => {
-    for (const s of students) fetchSummary(s.student.uuid);
+    for (const s of students) fetchSummary(s.uuid);
   }, [students, fetchSummary]);
 
   // Fetch messages for active thread
@@ -198,12 +190,12 @@ export function TeacherMessagesScreen() {
     const id = setInterval(async () => {
       await fetchMessages(activeStudentUuid, false);
       // Refresh all summaries for unread counts
-      for (const s of students) fetchSummary(s.student.uuid);
+      for (const s of students) fetchSummary(s.uuid);
     }, POLL_INTERVAL);
     return () => clearInterval(id);
   }, [activeStudentUuid, students, fetchMessages, fetchSummary]);
 
-  const activeStudent = students.find(s => s.student.uuid === activeStudentUuid) ?? students[0];
+  const activeStudent = students.find(s => s.uuid === activeStudentUuid) ?? students[0];
   const activeSummary = summaries[activeStudentUuid];
 
   const sendReply = async (text: string) => {
@@ -248,25 +240,25 @@ export function TeacherMessagesScreen() {
             Parent conversations
           </div>
           {students.map(item => {
-            const summary = summaries[item.student.uuid];
-            const unreadCount = threadUnreadCounts[item.student.uuid] ?? summary?.unread ?? 0;
+            const summary = summaries[item.uuid];
+            const unreadCount = threadUnreadCounts[item.uuid] ?? summary?.unread ?? 0;
             return (
               <div
-                key={item.student.uuid}
-                className={`convo-item ${activeStudentUuid === item.student.uuid ? 'active' : ''}`}
-                onClick={() => setActiveStudentUuid(item.student.uuid)}
+                key={item.uuid}
+                className={`convo-item ${activeStudentUuid === item.uuid ? 'active' : ''}`}
+                onClick={() => setActiveStudentUuid(item.uuid)}
               >
                 <div
                   className="avatar"
-                  style={{ background: SUBJECT_COLORS.math + '18', color: SUBJECT_COLORS.math, flexShrink: 0, cursor: 'pointer' }}
+                  style={{ background: 'var(--a1)18', color: 'var(--a1)', flexShrink: 0, cursor: 'pointer' }}
                   onClick={e => { e.stopPropagation(); setModalStudent(item); }}
-                  title="View student chart"
+                  title="View student info"
                 >
-                  {initials(item.student.display_name)}
+                  {initials(item.full_name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{item.student.display_name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{item.full_name}</div>
                     {summary?.threadUuid && (
                       <div style={{ fontSize: 10, color: 'var(--tx3)', flexShrink: 0 }}>
                         {timeAgo(summary.preview ? new Date().toISOString() : undefined)}
@@ -278,7 +270,7 @@ export function TeacherMessagesScreen() {
                       ? summary.preview.slice(0, 40) + (summary.preview.length > 40 ? '…' : '')
                       : summary?.parentName
                         ? `Parent: ${summary.parentName}`
-                        : item.student.class_name}
+                        : item.class_name}
                   </div>
                 </div>
                 {unreadCount > 0 && (
@@ -294,20 +286,15 @@ export function TeacherMessagesScreen() {
         {/* Message thread */}
         <div className="message-thread">
           <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)' }}>
-            <div className="avatar" style={{ background: 'var(--a1)', color: '#fff', cursor: 'pointer' }} onClick={() => setModalStudent(activeStudent)}>
-              {initials(activeStudent.student.display_name)}
+            <div className="avatar" style={{ background: 'var(--a1)', color: '#fff', cursor: 'pointer' }} onClick={() => activeStudent && setModalStudent(activeStudent)}>
+              {activeStudent ? initials(activeStudent.full_name) : '?'}
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{activeStudent.student.display_name}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{activeStudent?.full_name ?? '—'}</div>
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                {activeSummary ? `Parent: ${activeSummary.parentName}` : activeStudent.student.class_name}
-                {' · '}
-                {activeStudent.student.class_name}
+                {activeSummary ? `Parent: ${activeSummary.parentName}` : activeStudent?.class_name ?? '—'}
               </div>
             </div>
-            {activeStudent.at_risk && (
-              <span className="badge badge-warn" style={{ marginLeft: 'auto', fontSize: 11 }}>⚠ At Risk</span>
-            )}
           </div>
 
           <div className="thread-messages">

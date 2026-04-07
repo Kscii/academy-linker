@@ -4,14 +4,14 @@
 
 import { useState, useEffect } from 'react';
 import { admin as adminApi } from '@/lib/api';
-import type { AdminTeacher, CreateTeacherRequest } from '@/types/api';
+import type { AdminUser, CreateUserRequest, UserRole } from '@/types/api';
 
-const EMPTY_FORM: CreateTeacherRequest & { uuid?: string } = {
+const EMPTY_FORM: Omit<CreateUserRequest, 'role'> & { uuid?: string } = {
   display_name: '', email: '', password: '', phone_number: '',
 };
 
 export function AdminTeachersScreen() {
-  const [teachers, setTeachers]   = useState<AdminTeacher[]>([]);
+  const [teachers, setTeachers]   = useState<AdminUser[]>([]);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [editing, setEditing]     = useState(false);
   const [saving, setSaving]       = useState(false);
@@ -19,7 +19,7 @@ export function AdminTeachersScreen() {
   const [showForm, setShowForm]   = useState(false);
 
   useEffect(() => {
-    adminApi.getTeachers().then(r => setTeachers(r.data)).catch(() => {});
+    adminApi.getUsers({ role: 'teacher' }).then(r => setTeachers(r.data)).catch(() => {});
   }, []);
 
   const openCreate = () => {
@@ -29,7 +29,7 @@ export function AdminTeachersScreen() {
     setShowForm(true);
   };
 
-  const openEdit = (t: AdminTeacher) => {
+  const openEdit = (t: AdminUser) => {
     setForm({ uuid: t.uuid, display_name: t.display_name, email: t.email, phone_number: t.phone_number ?? '', password: '' });
     setEditing(true);
     setError('');
@@ -38,16 +38,18 @@ export function AdminTeachersScreen() {
 
   const handleSave = async () => {
     if (!form.display_name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
+    if (!editing && !form.password.trim()) { setError('Password is required.'); return; }
     setSaving(true); setError('');
+    const phoneOrNull = form.phone_number?.trim() || null;
     try {
       if (editing && form.uuid) {
-        const res = await adminApi.updateTeacher(form.uuid, {
-          display_name: form.display_name, email: form.email,
-          phone_number: form.phone_number, password: form.password || undefined,
+        const res = await adminApi.updateUser(form.uuid, {
+          display_name: form.display_name,
+          phone_number: phoneOrNull,
         });
         setTeachers(prev => prev.map(t => t.uuid === form.uuid ? res.data : t));
       } else {
-        const res = await adminApi.createTeacher(form);
+        const res = await adminApi.createUser({ ...form, phone_number: phoneOrNull, role: 'teacher' as UserRole });
         setTeachers(prev => [...prev, res.data]);
       }
       setShowForm(false);
@@ -119,17 +121,11 @@ export function AdminTeachersScreen() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{t.display_name}</div>
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t.email}</div>
-              {t.subjects.length > 0 && (
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                  {t.subjects.map(s => (
-                    <span key={s} className="badge" style={{ background: 'var(--a4)18', color: 'var(--a4)', fontSize: 10 }}>{s}</span>
-                  ))}
-                </div>
-              )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: 'right', flexShrink: 0 }}>
-              <div>{t.student_count} student{t.student_count !== 1 ? 's' : ''}</div>
-              {t.phone_number && <div style={{ marginTop: 2 }}>{t.phone_number}</div>}
+              <span className="badge" style={{ background: t.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: t.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
+                {t.is_active ? 'Active' : 'Inactive'}
+              </span>
             </div>
             <button
               className="btn-secondary"

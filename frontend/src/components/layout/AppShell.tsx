@@ -32,7 +32,7 @@ const PARENT_NAV: NavItem[] = [
 const TEACHER_NAV: NavItem[] = [
   { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '🏠', path: '/teacher/dashboard' },
   { id: 'messages',     labelKey: 'nav:messages',     icon: '💬', path: '/teacher/messages' },
-  { id: 'posts',        labelKey: 'nav:posts',        icon: '📝', path: '/teacher/posts' },
+  { id: 'announcements', labelKey: 'nav:announcements', icon: '📢', path: '/teacher/posts' },
   { id: 'find-student', labelKey: 'nav:findStudent',  icon: '🔍', path: '/teacher/find-student' },
 ];
 

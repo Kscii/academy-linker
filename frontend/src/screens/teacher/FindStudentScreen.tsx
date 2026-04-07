@@ -2,23 +2,28 @@
 // FindStudentScreen — search input, student result cards
 // ============================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockTeacherStudents, SUBJECT_COLORS } from '@/lib/mock-data';
+import { teacher as teacherApi } from '@/lib/api';
+import type { TeacherStudentListItem } from '@/types/api';
 
 export function FindStudentScreen() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<TeacherStudentListItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const results = useMemo(() => {
-    if (!query.trim()) return mockTeacherStudents;
-    const q = query.toLowerCase();
-    return mockTeacherStudents.filter(
-      s =>
-        s.student.display_name.toLowerCase().includes(q) ||
-        s.student.class_name?.toLowerCase().includes(q) ||
-        s.student.grade?.toLowerCase().includes(q)
-    );
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setLoading(true);
+      teacherApi.getStudents({ keyword: query.trim() || undefined })
+        .then(res => setResults(res.data))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
   function initials(name: string) {
@@ -54,71 +59,53 @@ export function FindStudentScreen() {
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 14, fontWeight: 700 }}>
-        {results.length} {results.length === 1 ? 'student' : 'students'} found
+        {loading ? 'Searching…' : `${results.length} ${results.length === 1 ? 'student' : 'students'} found`}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-        {results.map(item => {
-          const subjectColor = SUBJECT_COLORS.math;
-          return (
+        {results.map(item => (
             <div
-              key={item.student.uuid}
+              key={item.uuid}
               className="card-sm"
               style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onClick={() => navigate(`/teacher/students/${item.student.uuid}`)}
+              onClick={() => navigate(`/teacher/students/${item.uuid}`)}
               onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--a1)')}
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--bd)')}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   className="avatar avatar-lg"
-                  style={{
-                    background: item.at_risk ? 'rgba(192,57,43,0.12)' : subjectColor + '18',
-                    color: item.at_risk ? 'var(--warn)' : subjectColor,
-                    fontWeight: 700,
-                  }}
+                  style={{ background: 'var(--a1)18', color: 'var(--a1)', fontWeight: 700 }}
                 >
-                  {initials(item.student.display_name)}
+                  {initials(item.full_name)}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 2 }}>
-                    {item.student.display_name}
+                    {item.full_name}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                    {item.student.grade} · {item.student.class_name}
+                    {item.grade_level ?? '—'} · {item.class_name ?? '—'}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
-                    <div className="progress-bar" style={{ flex: 1 }}>
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${item.overall_score}%`,
-                          background: item.at_risk ? 'var(--warn)' : subjectColor,
-                        }}
-                      />
+                  {item.score != null && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
+                      <div className="progress-bar" style={{ flex: 1 }}>
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${item.score}%`, background: 'var(--a1)' }}
+                        />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--a1)', width: 36 }}>
+                        {item.score}%
+                      </span>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: item.at_risk ? 'var(--warn)' : subjectColor, width: 36 }}>
-                      {item.overall_score}%
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-                  {item.at_risk && (
-                    <span className="badge badge-warn" style={{ fontSize: 10 }}>At Risk</span>
-                  )}
-                  {item.unread_messages > 0 && (
-                    <span className="badge" style={{ background: 'var(--a1)', color: '#fff', fontSize: 10 }}>
-                      {item.unread_messages} msg
-                    </span>
                   )}
                 </div>
               </div>
             </div>
-          );
-        })}
+          ))}
       </div>
 
-      {results.length === 0 && (
+      {!loading && results.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--tx3)' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>No students found</div>

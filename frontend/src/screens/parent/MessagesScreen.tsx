@@ -8,6 +8,7 @@ import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi } from '@/lib/api';
 import type { DiscussionTeacherItem } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
+import { SUBJECT_COLORS } from '@/lib/constants';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -38,7 +39,11 @@ export function MessagesScreen() {
     parentApi.getDiscussionTeachers(sid).then(res => {
       setItems(res.data);
       updateThreadUnreadCounts(
-        Object.fromEntries(res.data.map(t => [t.thread_uuid, t.unread_count]))
+        Object.fromEntries(
+          res.data
+            .filter(t => t.thread_uuid != null)
+            .map(t => [t.thread_uuid!, t.unread_post_count])
+        )
       );
     }).catch(() => {});
   }, [sid]);
@@ -47,13 +52,15 @@ export function MessagesScreen() {
     setTxItems(items);
     if (language === 'en') return;
     const texts = items.flatMap(i => [
-      i.subject.name,
+      i.subjects[0]?.name ?? '',
       i.latest_message_preview ?? '',
     ]);
     translateBatch(texts, language).then(results => {
       setTxItems(items.map((item, i) => ({
         ...item,
-        subject: { ...item.subject, name: results[i * 2] || item.subject.name },
+        subjects: item.subjects.length > 0
+          ? [{ ...item.subjects[0], name: results[i * 2] || item.subjects[0].name }, ...item.subjects.slice(1)]
+          : item.subjects,
         latest_message_preview: results[i * 2 + 1] || item.latest_message_preview,
       })));
     });
@@ -63,9 +70,15 @@ export function MessagesScreen() {
   const txSubtitle = useTranslatedText("Your conversations with your student's teachers", language);
 
   const handleOpen = (item: DiscussionTeacherItem) => {
+    if (!item.thread_uuid) return;
     markThreadRead(item.thread_uuid);
     navigate(`/parent/students/${sid}/conversations/${item.thread_uuid}`, {
-      state: { teacher: item.teacher, subject: item.subject },
+      state: {
+        teacher: { uuid: item.uuid, display_name: item.display_name },
+        subjectCode: item.subjects[0]?.code,
+        subjectName: item.subjects[0]?.name,
+        subjectUuid: item.subjects[0]?.uuid,
+      },
     });
   };
 
@@ -81,9 +94,13 @@ export function MessagesScreen() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {txItems.map(item => (
+        {txItems.map(item => {
+          const subjectCode = item.subjects[0]?.code ?? '';
+          const subjectName = item.subjects[0]?.name ?? '';
+          const subjectColor = SUBJECT_COLORS[subjectCode] ?? 'var(--a1)';
+          return (
           <div
-            key={item.teacher.uuid}
+            key={item.uuid}
             className="card-sm"
             style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}
             onClick={() => handleOpen(item)}
@@ -92,29 +109,29 @@ export function MessagesScreen() {
               <div
                 className="avatar avatar-lg"
                 style={{
-                  background: item.subject.color + '20',
-                  color: item.subject.color,
+                  background: subjectColor + '20',
+                  color: subjectColor,
                   fontWeight: 700,
                 }}
               >
-                {initials(item.teacher.display_name)}
+                {initials(item.display_name)}
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
-                    {item.teacher.display_name}
+                    {item.display_name}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
-                    {timeAgo(item.last_post_at)}
+                    {timeAgo(item.last_post_at ?? undefined)}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span
                     className="subject-chip"
-                    style={{ background: item.subject.color + '18', color: item.subject.color }}
+                    style={{ background: subjectColor + '18', color: subjectColor }}
                   >
-                    {item.subject.name}
+                    {subjectName}
                   </span>
                 </div>
                 <div style={{
@@ -126,21 +143,22 @@ export function MessagesScreen() {
                 </div>
               </div>
 
-              {(threadUnreadCounts[item.thread_uuid] ?? item.unread_count) > 0 && (
+              {(threadUnreadCounts[item.thread_uuid ?? ''] ?? item.unread_post_count) > 0 && (
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%',
                   background: 'var(--a1)', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 11, fontWeight: 700, flexShrink: 0,
                 }}>
-                  {threadUnreadCounts[item.thread_uuid] ?? item.unread_count}
+                  {threadUnreadCounts[item.thread_uuid ?? ''] ?? item.unread_post_count}
                 </div>
               )}
 
               <span style={{ fontSize: 14, color: 'var(--tx3)' }}>›</span>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );

@@ -76,20 +76,20 @@ function AppLayout() {
     else if (pathname.startsWith('/admin')) setRole('admin');
   }, [pathname, setRole]);
 
-  // Extract student UUID from URL: /parent/students/:sid/...
+  // Extract student UUID from URL: /parent/students/:sid/... or /teacher/students/:sid/...
   const sidMatch = pathname.match(/\/students\/([^/]+)/);
   const studentUuid = sidMatch?.[1] ?? '';
 
-  // Extract report UUID from URL: .../reports/:rid
-  const reportMatch = pathname.match(/\/reports\/([^/]+)/);
-  const reportUuid = reportMatch?.[1] ?? '';
+  // Extract subject UUID from URL: .../subjects/:subjectUuid
+  const subjectMatch = pathname.match(/\/subjects\/([^/]+)/);
+  const subjectUuid = subjectMatch?.[1] ?? '';
 
   return (
     <>
       <AppShell />
       <AIPanel
-        studentUuid={studentUuid}
-        reportUuid={reportUuid || undefined}
+        studentUuid={studentUuid || undefined}
+        subjectUuid={subjectUuid || undefined}
         uiLanguage={language}
       />
     </>

@@ -4,13 +4,13 @@
 
 import { useState, useEffect } from 'react';
 import { admin as adminApi } from '@/lib/api';
-import type { AdminClass, AdminTeacher, AdminStudent } from '@/types/api';
+import type { AdminClass, AdminUser, AdminStudent } from '@/types/api';
 
 export function AdminClassesScreen() {
-  const [classes,  setClasses]   = useState<AdminClass[]>([]);
-  const [teachers, setTeachers]  = useState<AdminTeacher[]>([]);
-  const [students, setStudents]  = useState<AdminStudent[]>([]);
-  const [selected, setSelected]  = useState<string | null>(null);
+  const [classes,     setClasses]     = useState<AdminClass[]>([]);
+  const [teachers,    setTeachers]    = useState<AdminUser[]>([]);
+  const [allStudents, setAllStudents] = useState<AdminStudent[]>([]);
+  const [selected,    setSelected]    = useState<string | null>(null);
 
   // create form
   const [showCreate, setShowCreate] = useState(false);
@@ -21,24 +21,33 @@ export function AdminClassesScreen() {
   const [error,      setError]      = useState('');
 
   // add-student picker
-  const [addSid,  setAddSid]  = useState('');
-  const [adding,  setAdding]  = useState(false);
+  const [addSid,   setAddSid]   = useState('');
+  const [adding,   setAdding]   = useState(false);
   const [hrSaving, setHrSaving] = useState(false);
   const [hrEdit,   setHrEdit]   = useState('');
 
   useEffect(() => {
-    adminApi.getClasses().then(r  => setClasses(r.data)).catch(() => {});
-    adminApi.getTeachers().then(r => setTeachers(r.data)).catch(() => {});
-    adminApi.getStudents().then(r => setStudents(r.data)).catch(() => {});
+    adminApi.getClasses().then(r => setClasses(r.data)).catch(() => {});
+    adminApi.getUsers({ role: 'teacher' }).then(r => setTeachers(r.data)).catch(() => {});
+    adminApi.getStudents().then(r => setAllStudents(r.data)).catch(() => {});
   }, []);
 
   const current = classes.find(c => c.uuid === selected) ?? null;
+
+  // Students currently enrolled in selected class
+  const classStudents = allStudents.filter(s => s.class_uuid === selected);
+  // Students not yet in the selected class (available to add)
+  const enrollable = allStudents.filter(s => s.class_uuid !== selected);
 
   const handleCreate = async () => {
     if (!newName.trim()) { setError('Class name is required.'); return; }
     setSaving(true); setError('');
     try {
-      const res = await adminApi.createClass({ name: newName.trim(), grade_level: newGrade.trim(), homeroom_teacher_uuid: newHR || undefined });
+      const res = await adminApi.createClass({
+        name: newName.trim(),
+        grade_level: newGrade.trim() || null,
+        homeroom_teacher_uuid: newHR || null,
+      });
       setClasses(prev => [...prev, res.data]);
       setShowCreate(false); setNewName(''); setNewGrade(''); setNewHR('');
     } catch { setError('Failed to create class.'); }
@@ -49,8 +58,14 @@ export function AdminClassesScreen() {
     if (!selected || !addSid) return;
     setAdding(true);
     try {
-      const res = await adminApi.updateClass(selected, { add_student_uuid: addSid });
-      setClasses(prev => prev.map(c => c.uuid === selected ? res.data : c));
+      await adminApi.transferClass(addSid, selected);
+      // Re-fetch both to get accurate student_count and updated class_uuid
+      const [studentsRes, classesRes] = await Promise.all([
+        adminApi.getStudents(),
+        adminApi.getClasses(),
+      ]);
+      setAllStudents(studentsRes.data);
+      setClasses(classesRes.data);
       setAddSid('');
     } catch {}
     finally { setAdding(false); }
@@ -59,8 +74,13 @@ export function AdminClassesScreen() {
   const handleRemoveStudent = async (studentUuid: string) => {
     if (!selected) return;
     try {
-      const res = await adminApi.updateClass(selected, { remove_student_uuid: studentUuid });
-      setClasses(prev => prev.map(c => c.uuid === selected ? res.data : c));
+      await adminApi.updateStudent(studentUuid, { class_uuid: null });
+      setAllStudents(prev => prev.map(s =>
+        s.uuid === studentUuid ? { ...s, class_uuid: null, class_name: null } : s
+      ));
+      setClasses(prev => prev.map(c =>
+        c.uuid === selected ? { ...c, student_count: c.student_count - 1 } : c
+      ));
     } catch {}
   };
 
@@ -73,9 +93,6 @@ export function AdminClassesScreen() {
     } catch {}
     finally { setHrSaving(false); }
   };
-
-  // Students not yet in current class
-  const enrollable = students.filter(s => !current?.students.some(cs => cs.uuid === s.uuid));
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 16, alignItems: 'start' }}>
@@ -112,11 +129,11 @@ export function AdminClassesScreen() {
               key={c.uuid}
               className="card-sm"
               style={{ cursor: 'pointer', borderColor: selected === c.uuid ? 'var(--a1)' : 'var(--bd)', background: selected === c.uuid ? 'rgba(232,97,78,0.04)' : 'var(--card)' }}
-              onClick={() => { setSelected(c.uuid); setHrEdit(c.homeroom_teacher_uuid ?? ''); setAddSid(''); }}
+              onClick={() => { setSelected(c.uuid); setHrEdit(c.homeroom_teacher?.uuid ?? ''); setAddSid(''); }}
             >
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{c.name}</div>
               <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>{c.grade_level} · {c.student_count} students</div>
-              {c.homeroom_teacher_name && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 1 }}>HR: {c.homeroom_teacher_name}</div>}
+              {c.homeroom_teacher && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 1 }}>HR: {c.homeroom_teacher.display_name}</div>}
             </div>
           ))}
         </div>
@@ -156,7 +173,7 @@ export function AdminClassesScreen() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <select className="input-field" value={addSid} onChange={e => setAddSid(e.target.value)} style={{ flex: 1 }}>
               <option value="">— Add a student —</option>
-              {enrollable.map(s => <option key={s.uuid} value={s.uuid}>{s.full_name} ({s.sid})</option>)}
+              {enrollable.map(s => <option key={s.uuid} value={s.uuid}>{s.full_name}{s.sid ? ` (${s.sid})` : ''}</option>)}
             </select>
             <button
               className="btn-primary"
@@ -169,7 +186,7 @@ export function AdminClassesScreen() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {current.students.map(s => (
+            {classStudents.map(s => (
               <div key={s.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg2)', borderRadius: 8 }}>
                 <div className="avatar" style={{ width: 30, height: 30, fontSize: 12, background: 'var(--a2)', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {s.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
@@ -187,7 +204,7 @@ export function AdminClassesScreen() {
                 </button>
               </div>
             ))}
-            {current.students.length === 0 && (
+            {classStudents.length === 0 && (
               <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>No students enrolled yet.</div>
             )}
           </div>

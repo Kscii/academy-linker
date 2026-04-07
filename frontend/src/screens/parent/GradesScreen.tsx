@@ -8,10 +8,10 @@ import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { parent as parentApi } from '@/lib/api';
-import type { DashboardResponse } from '@/types/api';
+import type { DashboardResponse, SubjectSummary, ChartDataPoint } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
-import { mockParentDashboard, mockStudents, SUBJECT_COLORS } from '@/lib/mock-data';
+import { SUBJECT_COLORS } from '@/lib/constants';
 
 const ACCENT_COLORS: Record<string, string> = {
   a1: 'var(--a1)', a2: 'var(--a2)', a3: 'var(--a3)', a4: 'var(--a4)',
@@ -23,15 +23,33 @@ export function GradesScreen() {
   const { language } = useApp();
   const { t } = useTranslation('dashboard');
 
-  const [dashboard, setDashboard] = useState<DashboardResponse>(mockParentDashboard);
-  const [studentName, setStudentName] = useState(mockStudents[0].display_name);
+  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
+  const [studentName, setStudentName] = useState('');
 
   useEffect(() => {
     if (!sid) return;
-    parentApi.getDashboard(sid).then(res => {
-      setDashboard(res.data);
-      if (res.data.student?.display_name) setStudentName(res.data.student.display_name);
-    }).catch(() => {});
+    Promise.all([
+      parentApi.getDashboard(sid).catch(() => null),
+      parentApi.getSubjects(sid).catch(() => null),
+    ]).then(([dashRes, subRes]) => {
+      if (dashRes) {
+        setDashboard(dashRes.data);
+        const s = dashRes.data.student;
+        if (s) setStudentName(s.preferred_name ?? s.full_name);
+      }
+      if (subRes) {
+        const statsMap = dashRes
+          ? new Map(dashRes.data.subject_statistics.map(st => [st.subject_uuid, st]))
+          : new Map();
+        setSubjects(subRes.data.map(sub => ({
+          ...sub,
+          color: SUBJECT_COLORS[sub.code] ?? 'var(--a1)',
+          score: statsMap.get(sub.uuid)?.score,
+          progress: statsMap.get(sub.uuid)?.progress,
+        })));
+      }
+    });
   }, [sid]);
 
   const [barsReady, setBarsReady] = useState(false);
@@ -40,18 +58,19 @@ export function GradesScreen() {
     return () => clearTimeout(t2);
   }, []);
 
-  const [txSubjects, setTxSubjects] = useState(dashboard.subjects);
-  const [txChartData, setTxChartData] = useState(dashboard.subject_chart);
+  const [txSubjects, setTxSubjects] = useState<SubjectSummary[]>([]);
+  const [txChartData, setTxChartData] = useState<ChartDataPoint[]>([]);
   useEffect(() => {
-    setTxSubjects(dashboard.subjects);
-    setTxChartData(dashboard.subject_chart);
+    setTxSubjects(subjects);
+    const barData = (dashboard?.charts.subject_score_bar_chart ?? []).map(d => ({ label: d.subject_name, value: d.value }));
+    setTxChartData(barData);
     if (language === 'en') return;
-    const names = dashboard.subjects.map(s => s.name);
+    const names = subjects.map(s => s.name);
     translateBatch(names, language).then(results => {
-      setTxSubjects(dashboard.subjects.map((s, i) => ({ ...s, name: results[i] || s.name })));
-      setTxChartData(dashboard.subject_chart.map((d, i) => ({ ...d, label: results[i] || d.label })));
+      setTxSubjects(subjects.map((s, i) => ({ ...s, name: results[i] || s.name })));
+      setTxChartData(barData.map((d, i) => ({ ...d, label: results[i] || d.label })));
     });
-  }, [language, dashboard]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [language, subjects, dashboard]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
 
   const txTitle = useTranslatedText('Academic Performance', language);
   const txSubtitle = useTranslatedText(`${studentName}'s grades and progress`, language);
@@ -65,19 +84,16 @@ export function GradesScreen() {
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-        {dashboard.summary_cards.map((card, i) => (
+        {[{labelKey: 'overallPerformance', value: dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—', color: 'a1'},
+          {labelKey: 'assignmentCompletion', value: dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—', color: 'a2'},
+          {labelKey: 'attendance', value: dashboard?.summary_cards.attendance_rate != null ? `${Math.round(dashboard.summary_cards.attendance_rate * 100)}%` : '—', color: 'a3'},
+          {labelKey: 'subjects', value: txSubjects.length, color: 'a4'},
+        ].map((card, i) => (
           <div key={i} className="stat-box">
-            <div className="stat-label">{t(card.label)}</div>
+            <div className="stat-label">{t(card.labelKey)}</div>
             <div className="stat-value" style={{ color: ACCENT_COLORS[card.color ?? 'a1'] }}>
               {card.value}
             </div>
-            {card.sub && (
-              <div className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {card.trend === 'up' && <span style={{ color: 'var(--a2)' }}>↑</span>}
-                {card.trend === 'down' && <span style={{ color: 'var(--warn)' }}>↓</span>}
-                {card.sub}
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -111,8 +127,8 @@ export function GradesScreen() {
             {t('overallTrend')}
           </div>
           <LineChart
-            data={dashboard.trend_chart}
-            avgData={dashboard.trend_chart}
+            data={dashboard?.charts.learning_progress_chart ?? []}
+            avgData={dashboard?.charts.learning_progress_chart ?? []}
             color="var(--a1)"
             avgColor="var(--a2)"
             showAvg
@@ -136,7 +152,7 @@ export function GradesScreen() {
               <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: SUBJECT_COLORS[sub.code] ?? sub.color }} />
               <div style={{ width: 150, flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{sub.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teacher?.display_name}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teachers?.[0]?.display_name ?? sub.teacher?.display_name}</div>
               </div>
               <div style={{ flex: 1 }}>
                 <div className="progress-bar">

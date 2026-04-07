@@ -665,33 +665,6 @@ export interface UpdatePostRequest {
   original_language?: string | null;
   tag_uuids?: string[];
 }
-// ── Personalized class posts (client-side only, no backend API) ─────────────
-
-export interface PostReply {
-  uuid: string;
-  author_name: string;
-  role: 'parent' | 'teacher';
-  text: string;
-  sent_at: string;
-}
-
-/** A post published by a teacher to a class. Stored in React context only. */
-export interface PersonalizedPost {
-  uuid: string;
-  title: string;
-  original_content: string;
-  target: 'all' | string;       // 'all' | classUuid
-  target_label: string;
-  subject_name?: string;
-  subject_color?: string;
-  created_at: string;
-  /** studentUuid → personalized content */
-  versions: Record<string, string>;
-  /** studentUuid → reply list */
-  replies: Record<string, PostReply[]>;
-}
-
-
 // ── Translation resolve ───────────────────────────────────────
 
 export interface TranslationResolveRequest {

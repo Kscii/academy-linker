@@ -269,9 +269,11 @@ export const parent = {
     );
   },
 
-  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number } = {}) => {
+  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number; exam_date_from?: string; exam_date_to?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.exam_date_from) q.set('exam_date_from', params.exam_date_from);
+    if (params.exam_date_to) q.set('exam_date_to', params.exam_date_to);
     return apiFetch<ApiListResponse<ExamScore>>(
       `/parents/me/students/${studentUuid}/exam-scores?${q.toString()}`
     );
@@ -371,9 +373,11 @@ export const teacher = {
     );
   },
 
-  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number } = {}) => {
+  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number; exam_date_from?: string; exam_date_to?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.exam_date_from) q.set('exam_date_from', params.exam_date_from);
+    if (params.exam_date_to) q.set('exam_date_to', params.exam_date_to);
     return apiFetch<ApiListResponse<ExamScore>>(
       `/teachers/me/students/${studentUuid}/exam-scores?${q.toString()}`
     );
@@ -516,10 +520,12 @@ export const admin = {
       { method: 'POST', body: JSON.stringify({ new_class_uuid: newClassUuid }) }
     ),
 
-  getClasses: (params: { page?: number; grade_level?: string; is_active?: boolean } = {}) => {
+  getClasses: (params: { page?: number; grade_level?: string; is_active?: boolean; academic_year?: string; homeroom_teacher_uuid?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
     if (params.grade_level) q.set('grade_level', params.grade_level);
     if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    if (params.academic_year) q.set('academic_year', params.academic_year);
+    if (params.homeroom_teacher_uuid) q.set('homeroom_teacher_uuid', params.homeroom_teacher_uuid);
     return apiFetch<ApiListResponse<AdminClass>>(`/admin/classes?${q.toString()}`);
   },
 
@@ -630,12 +636,13 @@ export const translations = {
 // ── AI Conversations ──────────────────────────────────────────
 
 export const ai = {
-  listConversations: (params: { page?: number; archived?: boolean; context_type?: string; student_uuid?: string; subject_uuid?: string } = {}) => {
+  listConversations: (params: { page?: number; archived?: boolean; context_type?: string; student_uuid?: string; subject_uuid?: string; sort?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
     if (params.archived !== undefined) q.set('archived', String(params.archived));
     if (params.context_type) q.set('context_type', params.context_type);
     if (params.student_uuid) q.set('student_uuid', params.student_uuid);
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.sort) q.set('sort', params.sort);
     return apiFetch<ApiListResponse<AiConversation>>(`/ai/conversations?${q.toString()}`);
   },
 
