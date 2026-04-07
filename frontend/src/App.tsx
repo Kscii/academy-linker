@@ -9,6 +9,7 @@ import {
   Navigate,
   Outlet,
   useLocation,
+  useParams,
 } from 'react-router-dom';
 
 import { AppProvider, useApp } from '@/contexts/AppContext';
@@ -83,6 +84,16 @@ function RootRedirect() {
   return <Navigate to="/teacher/dashboard" replace />;
 }
 
+function LegacyParentDiscussionRedirect() {
+  const { sid, teacherUuid } = useParams<{ sid: string; teacherUuid: string }>();
+  return <Navigate to={`/parent/students/${sid}/discussions/${teacherUuid}`} replace />;
+}
+
+function LegacyParentAnnouncementsRedirect() {
+  const { sid } = useParams<{ sid: string }>();
+  return <Navigate to={`/parent/students/${sid}/announcements`} replace />;
+}
+
 // ── App layout (AppShell + AIPanel) ──────────────────────────
 // Syncs role from URL path so sidebar shows correct nav items.
 
@@ -128,8 +139,10 @@ function AppRoutes() {
             <Route path="/parent/students/:sid/grades"              element={<GradesScreen />} />
             <Route path="/parent/students/:sid/reports"             element={<ReportScreen />} />
             <Route path="/parent/students/:sid/discussions"         element={<ParentMessages />} />
-            <Route path="/parent/students/:sid/conversations/:teacherUuid" element={<ConversationScreen />} />
-            <Route path="/parent/students/:sid/tasks"               element={<AnnouncementsScreen />} />
+            <Route path="/parent/students/:sid/discussions/:teacherUuid" element={<ConversationScreen />} />
+            <Route path="/parent/students/:sid/conversations/:teacherUuid" element={<LegacyParentDiscussionRedirect />} />
+            <Route path="/parent/students/:sid/announcements"       element={<AnnouncementsScreen />} />
+            <Route path="/parent/students/:sid/tasks"               element={<LegacyParentAnnouncementsRedirect />} />
             <Route path="/parent/students/:sid/exam-scores"         element={<ParentExamScoresScreen />} />
             <Route path="/parent/students/:sid/period-metrics"      element={<ParentPeriodMetricsScreen />} />
             <Route path="/parent/students/:sid/leave"               element={<ParentLeaveRequestsScreen />} />

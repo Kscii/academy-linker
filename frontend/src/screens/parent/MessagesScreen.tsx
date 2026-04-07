@@ -8,7 +8,7 @@ import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi } from '@/lib/api';
 import type { DiscussionTeacherItem } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
-import { SUBJECT_COLORS } from '@/lib/constants';
+import { getSubjectColor } from '@/lib/constants';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -71,7 +71,7 @@ export function MessagesScreen() {
 
   const handleOpen = (item: DiscussionTeacherItem) => {
     if (item.thread_uuid) markThreadRead(item.thread_uuid);
-    navigate(`/parent/students/${sid}/conversations/${item.uuid}`, {
+    navigate(`/parent/students/${sid}/discussions/${item.uuid}`, {
       state: {
         teacher: { uuid: item.uuid, display_name: item.display_name },
         subjectCode: item.subjects[0]?.code,
@@ -103,7 +103,7 @@ export function MessagesScreen() {
         {txItems.map(item => {
           const subjectCode = item.subjects[0]?.code ?? '';
           const subjectName = item.subjects[0]?.name ?? '';
-          const subjectColor = SUBJECT_COLORS[subjectCode] ?? 'var(--a1)';
+          const subjectColor = getSubjectColor(subjectCode);
           return (
           <div
             key={item.uuid}

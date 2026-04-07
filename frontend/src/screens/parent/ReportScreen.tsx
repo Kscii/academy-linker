@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
-import { parent as parentApi } from '@/lib/api';
+import { parent as parentApi, translations } from '@/lib/api';
 import type { PaginationMeta, Report, ReportDetail } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 
@@ -111,6 +111,8 @@ export function ReportScreen() {
   const [readState, setReadState]         = useState<'all' | 'read' | 'unread'>('all');
   const [sort, setSort]                   = useState<'created_at_desc' | 'created_at_asc'>('created_at_desc');
   const [meta, setMeta]                   = useState<PaginationMeta>({ page: 1, page_size: 20, total: 0, total_pages: 1 });
+  const [showOriginal, setShowOriginal]   = useState(false);
+  const [resolvingTranslation, setResolvingTranslation] = useState(false);
 
   // ── Fetch reports list ──────────────────────────────────────
   useEffect(() => {
@@ -128,6 +130,7 @@ export function ReportScreen() {
     if (!sid || !selectedUuid) return;
     parentApi.getReport(sid, selectedUuid).then(res => {
       setDetail(res.data);
+      setShowOriginal(false);
     }).catch(() => {
       const found = reports.find(r => r.uuid === selectedUuid);
       if (found) {
@@ -175,7 +178,7 @@ export function ReportScreen() {
 
   // ── PDF download ────────────────────────────────────────────
   const handlePDF = () => {
-    const content = detail?.display_content_markdown || '';
+    const content = showOriginal ? (detail?.original_content_markdown || '') : (detail?.display_content_markdown || '');
     const reportTitle = txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? '';
     const dateStr = detail ? formatDate(detail.created_at) : '';
     const studentName = sid ?? '';
@@ -224,6 +227,31 @@ export function ReportScreen() {
   };
 
   const currentContent = detail?.display_content_markdown ?? '';
+  const resolvedContent = showOriginal ? (detail?.original_content_markdown ?? '') : currentContent;
+
+  const toggleTranslation = async () => {
+    if (!detail || detail.original_language === language) return;
+    if (detail.translated_content_markdown || detail.translation_status === 'completed') {
+      setShowOriginal(prev => !prev);
+      return;
+    }
+    setResolvingTranslation(true);
+    try {
+      const res = await translations.resolve({ resource_type: 'report', resource_uuid: detail.uuid });
+      setDetail(prev => prev ? ({
+        ...prev,
+        display_content_markdown: res.data.display_content_markdown,
+        translated_content_markdown: res.data.translated_content_markdown,
+        display_language: res.data.display_language,
+        translated_language: res.data.translated_language,
+        translation_status: res.data.translation_status,
+        translated_at: res.data.translated_at,
+      }) : prev);
+      setShowOriginal(false);
+    } finally {
+      setResolvingTranslation(false);
+    }
+  };
 
   return (
     <div>
@@ -306,11 +334,21 @@ export function ReportScreen() {
               <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{detail ? formatDate(detail.created_at) : ''}</div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+              {detail?.original_language !== language && (
+                <button
+                  className="btn-secondary"
+                  onClick={() => void toggleTranslation()}
+                  disabled={resolvingTranslation}
+                  style={{ fontSize: 12 }}
+                >
+                  {resolvingTranslation ? '…' : showOriginal ? 'Show translation' : ((detail?.translated_content_markdown || detail?.display_language !== detail?.original_language) ? 'Show original' : 'Translate')}
+                </button>
+              )}
               <button
                 className="btn-secondary"
                 onClick={handlePDF}
-                disabled={!currentContent}
-                style={{ opacity: currentContent ? 1 : 0.4, fontSize: 12 }}
+                disabled={!resolvedContent}
+                style={{ opacity: resolvedContent ? 1 : 0.4, fontSize: 12 }}
               >
                 ⬇ {txDownload}
               </button>
@@ -345,8 +383,8 @@ export function ReportScreen() {
                 <div key={`b${i}`} style={{ height: 13, borderRadius: 6, background: 'var(--bg2)', width: `${w}%`, opacity: 0.5 }} />
               ))}
             </div>
-          ) : currentContent ? (
-            <MarkdownView text={currentContent} />
+          ) : resolvedContent ? (
+            <MarkdownView text={resolvedContent} />
           ) : (
             <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>No content available.</div>
           )}
