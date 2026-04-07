@@ -404,6 +404,7 @@ export interface ParentDiscussionThreadResponse {
     avatar_url: string | null;
     subjects: DiscussionSubjectBrief[];
   };
+  available_tags: PostTag[];
   posts: ThreadPost[];
   meta: PaginationMeta;
 }
@@ -427,6 +428,7 @@ export interface TeacherDiscussionThreadResponse {
     display_name: string;
     avatar_url: string | null;
   };
+  available_tags: PostTag[];
   posts: ThreadPost[];
   meta: PaginationMeta;
 }

@@ -281,7 +281,7 @@
     "sessionHint": "Announcements created in this session can be reopened here for updates."
   },
   "teacherMessages": {
-    "title": "Messages",
+    "title": "Discussions",
     "parentConversations": "Parent conversations",
     "parentPreview": "Parent: {{name}}",
     "noParentLinked": "No parent linked",
@@ -298,7 +298,7 @@
     "clearReply": "Clear reply",
     "newPost": "New post",
     "postReply": "Post reply",
-    "deleteConfirm": "Delete this message?",
+    "deleteConfirm": "Delete this post?",
     "aiDraft": "AI Draft",
     "replyTo": "Reply to {{name}}...",
     "saving": "Saving...",
@@ -333,8 +333,8 @@
     "backToStudentSearch": "Back to student search"
   },
   "parentMessages": {
-    "title": "Messages",
-    "subtitle": "Your conversations with your student's teachers",
+    "title": "Discussions",
+    "subtitle": "Your discussions with your student's teachers",
     "sortRecent": "Recent activity",
     "sortTeacher": "Teacher name",
     "justNow": "Just now",
@@ -344,8 +344,8 @@
   },
   "parentConversation": {
     "viewGrades": "View grades",
-    "noMessages": "No messages yet. Send a message to {{name}}.",
-    "deleteConfirm": "Delete this message?",
+    "noMessages": "No posts yet. Start a discussion with {{name}}.",
+    "deleteConfirm": "Delete this post?",
     "notFound": "Discussion not found.",
     "searchPlaceholder": "Search title or content",
     "allTags": "All tags",

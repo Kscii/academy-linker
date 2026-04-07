@@ -12,19 +12,21 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from ac_link.common.deps import get_current_user, require_parent
 from ac_link.common.exceptions import Errors
 from ac_link.crud import parent as parent_crud
 from ac_link.crud import teacher as teacher_crud
+from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.enums import AnnouncementCategory, UserRole
-from ac_link.db.orm.user import User
+from ac_link.db.orm.enums import AnnouncementCategory, TranslationResourceType, UserRole
+from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.auth import ApiResponse, SuccessResponse
 from ac_link.dto.parent import AnnouncementDetail, AuthorBrief, SubjectBrief
 from ac_link.dto.teacher import AnnouncementUpdate, TeacherAnnouncementDetail
+from ac_link.services.translation_helpers import get_target_language, resolve_translation_fields
 
 router = APIRouter(prefix="/api/announcements", tags=["announcements"])
 
@@ -35,6 +37,7 @@ router = APIRouter(prefix="/api/announcements", tags=["announcements"])
 @router.get("/{announcement_uuid}", response_model=ApiResponse[AnnouncementDetail])
 def get_announcement(
     announcement_uuid: UUID,
+    request: Request,
     current_user: User = Depends(require_parent),
     db: Session = Depends(get_db),
 ) -> ApiResponse[AnnouncementDetail]:
@@ -44,6 +47,18 @@ def get_announcement(
         raise Errors.not_found("公告不存在或无权访问")
 
     ann, state = result
+    user_settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    target_language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
+    translation = translation_crud.get_translation(
+        db,
+        TranslationResourceType.ANNOUNCEMENT,
+        ann.id,
+        target_language,
+    )
+    tf = resolve_translation_fields(ann.original_content_markdown, ann.original_language, translation)
     return ApiResponse(data=AnnouncementDetail(
         uuid=ann.uuid,
         category=str(ann.category),
@@ -55,10 +70,14 @@ def get_announcement(
         published_at=ann.published_at,
         due_at=ann.due_at,
         author=AuthorBrief.model_validate(ann.author_user),
-        display_content_markdown=ann.original_content_markdown,
-        original_content_markdown=ann.original_content_markdown,
-        display_language=ann.original_language,
-        original_language=ann.original_language,
+        display_content_markdown=tf['display_content_markdown'],
+        original_content_markdown=tf['original_content_markdown'],
+        translated_content_markdown=tf['translated_content_markdown'],
+        display_language=tf['display_language'],
+        original_language=tf['original_language'],
+        translated_language=tf['translated_language'],
+        translation_status=tf['translation_status'],
+        translated_at=tf['translated_at'],
     ))
 
 

@@ -37,6 +37,7 @@ from ac_link.dto.auth import ApiResponse
 from ac_link.dto.discussion import (
     DiscussionParentInfo,
     DiscussionParentListItem,
+    TagBrief,
     TagCreate,
     TagDetail,
     TagUpdate,
@@ -106,11 +107,11 @@ def get_teacher_overview(
 # ── 翻译辅助 ──────────────────────────────────────────────────────────────────
 
 
-def _build_teacher_report_detail(report: object) -> TeacherReportDetail:
+def _build_teacher_report_detail(report: object, translation: object | None = None) -> TeacherReportDetail:
     from ac_link.db.orm.content import Report as ReportORM
     from ac_link.services.translation_helpers import resolve_translation_fields
     r: ReportORM = report  # type: ignore[assignment]
-    tf = resolve_translation_fields(r.original_content_markdown, r.original_language, None)
+    tf = resolve_translation_fields(r.original_content_markdown, r.original_language, translation)
     return TeacherReportDetail(
         uuid=r.uuid,
         title=r.title,
@@ -137,11 +138,11 @@ def _build_teacher_report_detail(report: object) -> TeacherReportDetail:
     )
 
 
-def _build_teacher_announcement_detail(announcement: object) -> TeacherAnnouncementDetail:
+def _build_teacher_announcement_detail(announcement: object, translation: object | None = None) -> TeacherAnnouncementDetail:
     from ac_link.db.orm.content import Announcement as AnnORM
     from ac_link.services.translation_helpers import resolve_translation_fields
     a: AnnORM = announcement  # type: ignore[assignment]
-    tf = resolve_translation_fields(a.original_content_markdown, a.original_language, None)
+    tf = resolve_translation_fields(a.original_content_markdown, a.original_language, translation)
     return TeacherAnnouncementDetail(
         uuid=a.uuid,
         category=str(a.category),
@@ -537,6 +538,10 @@ def get_discussion_with_parent(
             display_name=parent_user.display_name,
             avatar_url=parent_user.avatar_url,
         ),
+        available_tags=[
+            TagBrief(uuid=tag_item.uuid, name=tag_item.name, scope=str(tag_item.scope))
+            for tag_item in discussion_crud.list_tags_for_teacher(db, current_user.id, scope="all")
+        ],
         posts=[build_post_item(p, post_translations.get(p.id)) for p in posts],
         meta=PaginationMeta(
             page=page,

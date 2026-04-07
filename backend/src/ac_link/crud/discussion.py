@@ -605,6 +605,34 @@ def list_tags_for_teacher(
     return q.order_by(Tag.scope, Tag.name).all()
 
 
+def list_tags_for_parent_thread(
+    db: Session,
+    *,
+    teacher_user_id: int,
+) -> list[Tag]:
+    """
+    返回家长在某位教师的 discussion 中可使用的 tag 列表。
+
+    规则：
+      - 系统 tag：仅返回 is_selectable_by_parent=True 的
+      - 教师私有 tag：仅返回该教师自己的 active 私有 tag
+    """
+    from ac_link.db.orm.enums import TagScope
+
+    return (
+        db.query(Tag)
+        .filter(
+            Tag.is_active == True,  # noqa: E712
+            or_(
+                (Tag.scope == TagScope.SYSTEM) & (Tag.is_selectable_by_parent == True),  # noqa: E712
+                (Tag.scope == TagScope.TEACHER_PRIVATE) & (Tag.owner_teacher_user_id == teacher_user_id),
+            ),
+        )
+        .order_by(Tag.scope, Tag.name)
+        .all()
+    )
+
+
 def get_tag_by_uuid(db: Session, tag_uuid: UUID) -> Tag | None:
     """按 uuid 获取 tag，不关心 is_active 状态（调用方自行决策）。"""
     return db.query(Tag).filter(Tag.uuid == tag_uuid).first()
