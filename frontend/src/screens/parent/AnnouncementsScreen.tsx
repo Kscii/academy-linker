@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
-import { parent as parentApi } from '@/lib/api';
+import { parent as parentApi, translations } from '@/lib/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 import type { Announcement, AnnouncementDetail } from '@/types/api';
 
@@ -33,6 +33,8 @@ export function AnnouncementsScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [txAnn, setTxAnn] = useState<Announcement[]>([]);
   const [detail, setDetail] = useState<AnnouncementDetail | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [resolvingTranslation, setResolvingTranslation] = useState(false);
 
   // Fetch announcements from API
   useEffect(() => {
@@ -48,6 +50,7 @@ export function AnnouncementsScreen() {
   useEffect(() => {
     if (!selectedUuid) {
       setDetail(null);
+      setShowOriginal(false);
       return;
     }
     parentApi.getAnnouncement(selectedUuid).then(res => {
@@ -71,9 +74,34 @@ export function AnnouncementsScreen() {
 
   const handleOpen = (ann: Announcement) => {
     setSelectedUuid(ann.uuid);
+    setShowOriginal(false);
     if (!readSet.has(ann.uuid)) {
       markAnnouncementRead(ann.uuid);
       parentApi.markAnnouncementRead(ann.uuid).catch(() => {});
+    }
+  };
+
+  const toggleTranslation = async () => {
+    if (!detail || detail.original_language === language) return;
+    if (detail.translated_content_markdown || detail.translation_status === 'completed') {
+      setShowOriginal(prev => !prev);
+      return;
+    }
+    setResolvingTranslation(true);
+    try {
+      const res = await translations.resolve({ resource_type: 'announcement', resource_uuid: detail.uuid });
+      setDetail(prev => prev ? ({
+        ...prev,
+        display_content_markdown: res.data.display_content_markdown,
+        translated_content_markdown: res.data.translated_content_markdown,
+        display_language: res.data.display_language,
+        translated_language: res.data.translated_language,
+        translation_status: res.data.translation_status,
+        translated_at: res.data.translated_at,
+      }) : prev);
+      setShowOriginal(false);
+    } finally {
+      setResolvingTranslation(false);
     }
   };
 
@@ -169,6 +197,11 @@ export function AnnouncementsScreen() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  {detail.original_language !== language && (
+                    <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} onClick={() => void toggleTranslation()} disabled={resolvingTranslation}>
+                      {resolvingTranslation ? '…' : showOriginal ? 'Show translation' : (detail.translated_content_markdown ? 'Show original' : 'Translate')}
+                    </button>
+                  )}
                   <span className="badge" style={{ background: CATEGORY_COLORS[detail.category] + '18', color: CATEGORY_COLORS[detail.category], fontSize: 11 }}>
                     {detail.category}
                   </span>
@@ -187,7 +220,7 @@ export function AnnouncementsScreen() {
               )}
 
               <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
-                {detail.display_content_markdown}
+                {showOriginal ? detail.original_content_markdown : detail.display_content_markdown}
               </div>
             </>
           ) : (

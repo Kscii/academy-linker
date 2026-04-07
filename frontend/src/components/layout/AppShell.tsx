@@ -27,7 +27,7 @@ const PARENT_NAV: NavItem[] = [
   { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: (sid) => `/parent/students/${sid}/period-metrics` },
   { id: 'messages',   labelKey: 'nav:messages',   icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
   { id: 'reports',    labelKey: 'nav:reports',    icon: '📋', path: (sid) => `/parent/students/${sid}/reports` },
-  { id: 'notices',    labelKey: 'nav:notices',    icon: '📢', path: (sid) => `/parent/students/${sid}/tasks` },
+  { id: 'announcements', labelKey: 'nav:announcements', icon: '📢', path: (sid) => `/parent/students/${sid}/announcements` },
   { id: 'leave',      labelKey: 'nav:leave',      icon: '🗒', path: (sid) => `/parent/students/${sid}/leave` },
   { id: 'incidents',  labelKey: 'nav:incidents',  icon: '🚨', path: (sid) => `/parent/students/${sid}/incidents` },
   { id: 'resources',  labelKey: 'nav:resources',  icon: '📚', path: (sid) => `/parent/students/${sid}/resources` },
@@ -200,7 +200,7 @@ export function AppShell() {
                   background: 'var(--a1)', flexShrink: 0,
                 }} />
               )}
-              {item.id === 'notices' && unreadNoticeCount > 0 && (
+              {item.id === 'announcements' && unreadNoticeCount > 0 && (
                 <span style={{
                   marginLeft: 'auto',
                   width: 8, height: 8, borderRadius: '50%',
