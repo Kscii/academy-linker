@@ -14,15 +14,8 @@ import {
   type ReactNode,
 } from 'react';
 import i18n from '@/i18n';
-import type { UserSummary, PersonalizedPost, PostReply } from '@/types/api';
-import { auth, parent as parentApi, teacher as teacherApi } from '@/lib/api';
-import { mockParentUser, mockTeacherUser, mockAnnouncements, SUBJECT_COLORS } from '@/lib/mock-data';
-
-// Hardcoded demo credentials for fallback when backend is offline
-const DEMO_CREDENTIALS: Record<string, { password: string; role: 'parent' | 'teacher' }> = {
-  'li.wei@email.com':         { password: 'password123', role: 'parent' },
-  'thompson@westside.edu.au': { password: 'password123', role: 'teacher' },
-};
+import type { UserSummary } from '@/types/api';
+import { auth, parent as parentApi } from '@/lib/api';
 
 // ── Local session persistence ─────────────────────────────────
 const SESSION_KEY = 'academy_session';
@@ -86,15 +79,6 @@ interface AppContextValue {
   markAnnouncementRead: (id: string) => void;
   unreadNoticeCount: number;
   setAnnouncementUuids: (ids: string[]) => void;
-
-  /* Unread class posts (teacher → personalized parent posts) */
-  readPostIds: Set<string>;
-  markPostRead: (id: string) => void;
-
-  /* Personalized class posts (teacher publishes → parents read own version) */
-  classPosts: PersonalizedPost[];
-  addClassPost: (post: PersonalizedPost) => void;
-  addPostReply: (postUuid: string, studentUuid: string, reply: PostReply) => void;
 }
 
 // ── Context ───────────────────────────────────────────────────
@@ -103,15 +87,14 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 // ── localStorage persistence keys ────────────────────────────
 const LS_READ_ANN    = 'al_read_ann_v3';
-const LS_READ_POSTS  = 'al_read_posts_v3';
 const LS_THREAD_CNTS = 'al_thread_counts_v3';
 
-function lsLoadSet(key: string, defaults: string[]): Set<string> {
+function lsLoadSet(key: string): Set<string> {
   try {
     const raw = localStorage.getItem(key);
     if (raw) return new Set(JSON.parse(raw) as string[]);
   } catch { /* ignore */ }
-  return new Set(defaults);
+  return new Set();
 }
 
 function lsLoadRecord(key: string, defaults: Record<string, number>): Record<string, number> {
@@ -135,7 +118,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState(i18n.language?.slice(0, 2) || 'en');
 
   // Thread unread counts — persisted so read state survives refresh
-  // Default is empty: real counts come from the API (MessagesScreen)
   const [threadUnreadCounts, setThreadUnreadCounts] = useState<Record<string, number>>(() =>
     lsLoadRecord(LS_THREAD_CNTS, {})
   );
@@ -149,7 +131,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const markThreadRead = useCallback((key: string) => {
     setThreadUnreadCounts(prev => ({ ...prev, [key]: 0 }));
     recentlyReadRef.current.set(key, Date.now());
-    fetch(`/api/threads/${key}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
   }, []);
 
   const updateThreadUnreadCounts = useCallback((counts: Record<string, number>) => {
@@ -159,9 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       for (const [key, count] of Object.entries(counts)) {
         const readAt = recentlyReadRef.current.get(key);
         if (readAt !== undefined && now - readAt < 10_000) {
-          // Within 10s grace period — server confirms read when it returns 0
           if (count === 0) recentlyReadRef.current.delete(key);
-          // Don't let stale server count restore the badge
           continue;
         }
         if (count > (prev[key] ?? 0)) next[key] = count;
@@ -172,7 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Read announcement IDs — persisted
   const [readAnnouncementIds, setReadAnnouncementIds] = useState<Set<string>>(() =>
-    lsLoadSet(LS_READ_ANN, mockAnnouncements.filter(a => a.is_read).map(a => a.uuid).concat(['ann-003']))
+    lsLoadSet(LS_READ_ANN)
   );
   useEffect(() => {
     localStorage.setItem(LS_READ_ANN, JSON.stringify([...readAnnouncementIds]));
@@ -182,99 +161,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setReadAnnouncementIds(prev => new Set([...prev, id]));
   }, []);
 
-  // Class post read IDs — persisted
-  const [readPostIds, setReadPostIds] = useState<Set<string>>(() =>
-    lsLoadSet(LS_READ_POSTS, ['cp-seed-1', 'cp-seed-2'])
-  );
-  useEffect(() => {
-    localStorage.setItem(LS_READ_POSTS, JSON.stringify([...readPostIds]));
-  }, [readPostIds]);
+  // Track all known announcement UUIDs (fetched from API) so unread count is accurate
+  const [announcementUuids, setAnnouncementUuids] = useState<string[]>([]);
+  const unreadNoticeCount = announcementUuids.filter(id => !readAnnouncementIds.has(id)).length;
 
-  const markPostRead = useCallback((id: string) => {
-    setReadPostIds(prev => new Set([...prev, id]));
-  }, []);
-
-  // Track all known announcement UUIDs (mock + API-fetched) so unread count is accurate
-  const [announcementUuids, setAnnouncementUuids] = useState<string[]>(
-    mockAnnouncements.map(a => a.uuid)
-  );
-  // computed after classPosts is declared (see below)
-  const unreadAnnCount = announcementUuids.filter(id => !readAnnouncementIds.has(id)).length;
-
-
-  // ── Personalized class posts seed ────────────────────────────
-  const [classPosts, setClassPosts] = useState<PersonalizedPost[]>([
-    {
-      uuid: 'cp-seed-1',
-      title: 'Creative Writing Assignment Feedback',
-      original_content: "Student's short story submission was creative and well-structured. The narrative voice was distinctive — the main growth area is varied sentence structure to improve flow. Encourage reading widely this term.",
-      target: 'class-8b-eng',
-      target_label: '8B English',
-      subject_name: 'English',
-      subject_color: SUBJECT_COLORS.english,
-      created_at: new Date(Date.now() - 86400_000).toISOString(),
-      versions: {
-        's-aiden-01': "Emily's short story submission was creative and well-structured. She received 75/100. Her narrative voice is distinctive — her main growth area is varied sentence structure to improve flow. Encourage her to read widely this term.",
-      },
-      replies: {
-        's-aiden-01': [
-          { uuid: 'pr-s1-1', author_name: 'Li Wei', role: 'parent', text: "Thank you so much, Ms. Thompson! We'll encourage Emily to read more novels this month. Are there any specific genres you'd recommend?", sent_at: new Date(Date.now() - 20 * 3600_000).toISOString() },
-        ],
-      },
-    },
-    {
-      uuid: 'cp-seed-2',
-      title: 'Reading Log Reminder',
-      original_content: "A reminder that reading logs are due every Friday. The next comprehension task covers persuasive texts, so non-fiction reading at home is especially helpful.",
-      target: 'class-8b-eng',
-      target_label: '8B English',
-      subject_name: 'English',
-      subject_color: SUBJECT_COLORS.english,
-      created_at: new Date(Date.now() - 5 * 86400_000).toISOString(),
-      versions: {
-        's-aiden-01': "Hi Li Wei! A reminder that Emily's reading logs are due every Friday. She has been consistent — keep it up! The next comprehension task covers persuasive texts, so non-fiction reading (like newspaper articles) at home is especially helpful for Emily.",
-      },
-      replies: {
-        's-aiden-01': [
-          { uuid: 'pr-s2-1', author_name: 'Li Wei', role: 'parent', text: "Noted! We've been reading a newspaper together on weekends — would that count as non-fiction practice?", sent_at: new Date(Date.now() - 4 * 86400_000).toISOString() },
-          { uuid: 'pr-s2-2', author_name: 'Ms. Thompson', role: 'teacher', text: "Absolutely! Newspaper articles are excellent for persuasive text comprehension. Keep it up!", sent_at: new Date(Date.now() - 3 * 86400_000 - 12 * 3600_000).toISOString() },
-        ],
-      },
-    },
-  ]);
-
-  const addClassPost = useCallback((post: PersonalizedPost) => {
-    setClassPosts(prev => [post, ...prev]);
-  }, []);
-
-  const unreadNoticeCount = unreadAnnCount + classPosts.filter(p => !readPostIds.has(p.uuid)).length;
-
-  const addPostReply = useCallback((postUuid: string, studentUuid: string, reply: PostReply) => {
-    setClassPosts(prev => prev.map(p =>
-      p.uuid === postUuid
-        ? { ...p, replies: { ...p.replies, [studentUuid]: [...(p.replies[studentUuid] ?? []), reply] } }
-        : p
-    ));
-  }, []);
-
-  // Total unread = sum of all persisted counts (populated by MessagesScreen API call)
+  // Total unread messages = sum of all persisted counts (populated by MessagesScreen API call)
   const unreadMessageCount = Object.values(threadUnreadCounts).reduce((sum, c) => sum + c, 0);
 
-  // Background poll every 5s — keeps nav unread badge in sync for both roles
+  // Background poll every 5s — keeps nav unread badge in sync for parent
   useEffect(() => {
     if (!user) return;
     const poll = () => {
       if (user.role === 'parent' && firstStudentUuid) {
         parentApi.getDiscussionTeachers(firstStudentUuid).then(res => {
           updateThreadUnreadCounts(
-            Object.fromEntries(res.data.map((t: { thread_uuid: string; unread_count: number }) => [t.thread_uuid, t.unread_count]))
+            Object.fromEntries(
+              res.data
+                .filter((t): t is typeof t & { thread_uuid: string } => t.thread_uuid != null)
+                .map(t => [t.thread_uuid, t.unread_post_count])
+            )
           );
-        }).catch(() => {});
-      } else if (user.role === 'teacher') {
-        teacherApi.getStudents().then(res => {
-          const counts: Record<string, number> = {};
-          for (const item of res.data) counts[item.student.uuid] = item.unread_messages;
-          updateThreadUnreadCounts(counts);
         }).catch(() => {});
       }
     };
@@ -284,19 +190,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uuid, firstStudentUuid]);
 
-  // Restore session on page load:
-  // 1. Immediately restore from localStorage (works offline, no flash)
-  // 2. Silently verify with backend in background; update if session changed
+  // Restore session on page load
   useEffect(() => {
     const stored = loadSession();
     if (stored) {
       setUser(stored.user);
       setRoleState(stored.user.role as 'parent' | 'teacher' | 'admin');
       setFirstStudentUuid(stored.firstStudentUuid);
-      setInitialCheckDone(true);   // show app immediately
+      setInitialCheckDone(true);
     }
 
-    // Background sync with backend (best-effort, 3s timeout)
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 3000)
     );
@@ -314,7 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFirstStudentUuid(sid);
       saveSession(u, sid);
     }).catch(() => {
-      if (!stored) setInitialCheckDone(true); // no stored session → go to login
+      if (!stored) setInitialCheckDone(true);
     });
   }, []);
 
@@ -347,37 +250,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     password: string,
     rememberMe: boolean,
   ): Promise<{ role: 'parent' | 'teacher' | 'admin'; firstStudentUuid: string }> => {
-    // Try real backend first
-    try {
-      const res = await auth.login({ email, password, remember_me: rememberMe });
-      const userFromApi = res.data.user;
-      setUser(userFromApi);
-      const apiRole = userFromApi.role as 'parent' | 'teacher' | 'admin';
-      setRoleState(apiRole);
-      let sid = '';
-      if (apiRole === 'parent') {
-        const studentsRes = await parentApi.getStudents();
-        sid = studentsRes.data[0]?.uuid ?? '';
-      }
-      setFirstStudentUuid(sid);
-      saveSession(userFromApi, sid);
-      return { role: apiRole, firstStudentUuid: sid };
-    } catch {
-      // Backend offline — fall back to demo credential check
+    const res = await auth.login({ email, password, remember_me: rememberMe });
+    const userFromApi = res.data.user;
+    setUser(userFromApi);
+    const apiRole = userFromApi.role as 'parent' | 'teacher' | 'admin';
+    setRoleState(apiRole);
+    let sid = '';
+    if (apiRole === 'parent') {
+      const studentsRes = await parentApi.getStudents();
+      sid = studentsRes.data[0]?.uuid ?? '';
     }
-
-    // Offline fallback: role derived from DEMO_CREDENTIALS (no user selection needed)
-    const cred = DEMO_CREDENTIALS[email.toLowerCase()];
-    if (!cred || cred.password !== password) {
-      throw new Error('invalid_credentials');
-    }
-    const mockUser = cred.role === 'parent' ? mockParentUser : mockTeacherUser;
-    setUser(mockUser);
-    setRoleState(cred.role);
-    const mockSid = cred.role === 'parent' ? 's-aiden-01' : '';
-    setFirstStudentUuid(mockSid);
-    saveSession(mockUser, mockSid);
-    return { role: cred.role, firstStudentUuid: mockSid };
+    setFirstStudentUuid(sid);
+    saveSession(userFromApi, sid);
+    return { role: apiRole, firstStudentUuid: sid };
   }, []);
 
   const logout = useCallback(() => {
@@ -406,11 +291,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     markAnnouncementRead,
     unreadNoticeCount,
     setAnnouncementUuids,
-    readPostIds,
-    markPostRead,
-    classPosts,
-    addClassPost,
-    addPostReply,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

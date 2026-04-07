@@ -2,6 +2,7 @@
 §10 老师端接口集成测试。
 
 覆盖：
+  GET  /api/teachers/me/overview                                  - 教师端首页总览（§10.0）
   GET  /api/teachers/me/students                                  - 学生列表
   GET  /api/teachers/me/students/{uuid}/dashboard                 - 学生 Dashboard
   GET  /api/teachers/me/classes                                   - 班级列表
@@ -25,6 +26,54 @@ from datetime import date
 
 import pytest
 
+# ── 教师首页总览 (§10.0) ───────────────────────────────────────────────────────────
+
+class TestTeacherOverview:
+    def test_overview_returns_200(self, teacher_client):
+        """教师首页总览接口应返回 200。"""
+        r = teacher_client.get("/api/teachers/me/overview")
+        assert r.status_code == 200
+
+    def test_overview_structure(self, teacher_client):
+        """返回结构应包含 summary 和 classes 两个顶级键。"""
+        r = teacher_client.get("/api/teachers/me/overview")
+        data = r.json()["data"]
+        assert "summary" in data
+        assert "classes" in data
+        assert isinstance(data["classes"], list)
+
+    def test_overview_summary_fields(self, teacher_client):
+        """summary 应包含 student_count、class_count、unread_message_count。"""
+        r = teacher_client.get("/api/teachers/me/overview")
+        summary = r.json()["data"]["summary"]
+        for field in ("student_count", "class_count", "unread_message_count"):
+            assert field in summary, f"Missing field: {field}"
+        assert summary["student_count"] >= 0
+        assert summary["class_count"] >= 0
+        assert summary["unread_message_count"] >= 0
+
+    def test_overview_counts_reflect_seed_data(self, teacher_client):
+        """种子数据创建了 1 个学生和 1 个班级，summary 应具体反映这些。"""
+        r = teacher_client.get("/api/teachers/me/overview")
+        summary = r.json()["data"]["summary"]
+        assert summary["student_count"] >= 1
+        assert summary["class_count"] >= 1
+
+    def test_overview_classes_item_structure(self, teacher_client):
+        """classes 列表每项应包含 uuid、name、is_homeroom、student_count。"""
+        r = teacher_client.get("/api/teachers/me/overview")
+        classes = r.json()["data"]["classes"]
+        assert len(classes) >= 1
+        for cls in classes:
+            for field in ("uuid", "name", "is_homeroom", "student_count"):
+                assert field in cls, f"Missing field in class item: {field}"
+            assert isinstance(cls["is_homeroom"], bool)
+            assert cls["student_count"] >= 0
+
+    def test_parent_cannot_access_teacher_overview(self, parent_client):
+        """parent 不能访问教师端接口，应返回 403。"""
+        r = parent_client.get("/api/teachers/me/overview")
+        assert r.status_code == 403
 
 # ── 学生相关 ──────────────────────────────────────────────────────────────────
 

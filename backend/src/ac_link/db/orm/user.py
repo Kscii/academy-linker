@@ -12,9 +12,10 @@ from ac_link.db.orm.mixins import IntPrimaryKeyMixin, TimestampMixin, UUIDMixin,
 from ac_link.db.orm.sqltypes import enum_column
 
 if TYPE_CHECKING:
-    from ac_link.db.orm.academic import Class, ParentStudentBinding, StudentExamScore, StudentPeriodMetric, TeachingAssignment
+    from ac_link.db.orm.academic import Class, LearningPathwayItem, ParentStudentBinding, StudentExamScore, StudentPeriodMetric, TeachingAssignment
     from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, Tag
     from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
+    from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
 
 
 class User(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
@@ -64,6 +65,18 @@ class User(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     )
     authored_exam_scores: Mapped[list['StudentExamScore']] = relationship(back_populates='author_user')
     authored_period_metrics: Mapped[list['StudentPeriodMetric']] = relationship(back_populates='author_user')
+    submitted_leave_requests: Mapped[list['StudentLeaveRequest']] = relationship(
+        back_populates='submitter_user',
+        foreign_keys='StudentLeaveRequest.submitter_user_id',
+    )
+    submitted_incident_reports: Mapped[list['StudentIncidentReport']] = relationship(
+        back_populates='reporter_user',
+        foreign_keys='StudentIncidentReport.reporter_user_id',
+    )
+    authored_learning_pathway_items: Mapped[list['LearningPathwayItem']] = relationship(
+        back_populates='author_user',
+        foreign_keys='LearningPathwayItem.author_user_id',
+    )
 
 
 class UserSettings(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):

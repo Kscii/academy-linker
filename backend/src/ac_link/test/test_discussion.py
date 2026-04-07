@@ -55,6 +55,17 @@ class TestDiscussionLists:
         teacher_uuids = [t["uuid"] for t in teachers]
         assert td["teacher_uuid"] in teacher_uuids
 
+    def test_teacher_list_item_has_latest_message_preview(self, parent_client, td):
+        """讨论教师列表每项应包含 latest_message_preview 字段（§9.13 变更）。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/discussions/teachers"
+        )
+        assert r.status_code == 200
+        teachers = r.json()["data"]
+        if teachers:
+            # 所有条目都应有该键（值可为 null 或字符串）
+            assert all("latest_message_preview" in t for t in teachers)
+
     def test_teacher_lists_parents(self, teacher_client, td):
         """老师应能看到学生关联的家长讨论列表。"""
         r = teacher_client.get(

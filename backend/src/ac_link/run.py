@@ -37,6 +37,7 @@ from ac_link.api.report_api import router as report_router
 from ac_link.api.settings_api import router as settings_router
 from ac_link.api.teacher_api import router as teacher_router
 from ac_link.api.translation_api import router as translation_router
+from ac_link.api.resource_api import router as resource_router
 from ac_link.common.exceptions import AppError
 from ac_link.config.config import settings
 
@@ -170,3 +171,4 @@ app.include_router(teacher_router)
 app.include_router(discussion_router)
 app.include_router(translation_router)
 app.include_router(ai_router)
+app.include_router(resource_router)

@@ -17,12 +17,12 @@ from __future__ import annotations
 import math
 from uuid import UUID
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ac_link.db.orm.academic import Class, ParentStudentBinding, Student, Subject, TeachingAssignment
 from ac_link.db.orm.communication import Tag
-from ac_link.db.orm.enums import TagScope
+from ac_link.db.orm.enums import TagScope, UserRole
 from ac_link.db.orm.user import User
 
 
@@ -392,3 +392,45 @@ def transfer_student_class(
                 created_count += 1
     db.flush()
     return deactivated_count, created_count
+
+
+# ── Admin 首页总览 ─────────────────────────────────────────────────────────────
+
+def get_admin_overview(db: Session) -> dict:
+    """
+    返回系统实体计数摘要（仅含 is_active=true 的记录）：
+      user_count    — 所有 active 用户（teacher + parent + admin）
+      teacher_count — active teacher 数
+      parent_count  — active parent 数
+      student_count — active student 数
+      class_count   — 所有班级数（Class 无 is_active 字段，全量计数）
+    """
+    user_count = (
+        db.query(func.count(User.id))
+        .filter(User.is_active == True)  # noqa: E712
+        .scalar() or 0
+    )
+    teacher_count = (
+        db.query(func.count(User.id))
+        .filter(User.is_active == True, User.role == UserRole.TEACHER)  # noqa: E712
+        .scalar() or 0
+    )
+    parent_count = (
+        db.query(func.count(User.id))
+        .filter(User.is_active == True, User.role == UserRole.PARENT)  # noqa: E712
+        .scalar() or 0
+    )
+    student_count = (
+        db.query(func.count(Student.id))
+        .filter(Student.is_active == True)  # noqa: E712
+        .scalar() or 0
+    )
+    class_count = db.query(func.count(Class.id)).scalar() or 0
+
+    return {
+        "user_count": user_count,
+        "teacher_count": teacher_count,
+        "parent_count": parent_count,
+        "student_count": student_count,
+        "class_count": class_count,
+    }

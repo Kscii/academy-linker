@@ -619,3 +619,48 @@ def get_class_grade_stats(
         "exam_count": len(all_scores),
         "student_results": student_results,
     }
+
+
+# ── 教师首页总览 ───────────────────────────────────────────────────────────────
+
+def get_teacher_overview(
+    db: Session,
+    teacher_user_id: int,
+) -> dict:
+    """
+    返回教师首页总览数据：
+      student_count       — 该教师有 active 分配的不重复 active 学生总数
+      class_count         — 不重复班级数
+      unread_message_count — 所有 thread 中教师的未读帖子缓存总数
+      classes             — list[tuple[Class, is_homeroom: bool, student_count: int]]
+    """
+    student_count = (
+        db.query(func.count(func.distinct(Student.id)))
+        .join(TeachingAssignment, TeachingAssignment.student_id == Student.id)
+        .filter(
+            TeachingAssignment.teacher_user_id == teacher_user_id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+            Student.is_active == True,  # noqa: E712
+        )
+        .scalar() or 0
+    )
+
+    unread_count_result = (
+        db.query(func.sum(ThreadUserState.unread_count_cache))
+        .join(DiscussionThread, DiscussionThread.id == ThreadUserState.thread_id)
+        .filter(
+            DiscussionThread.teacher_user_id == teacher_user_id,
+            ThreadUserState.user_id == teacher_user_id,
+        )
+        .scalar()
+    )
+    unread_message_count = int(unread_count_result) if unread_count_result else 0
+
+    classes = list_teacher_classes(db, teacher_user_id)
+
+    return {
+        "student_count": student_count,
+        "class_count": len(classes),
+        "unread_message_count": unread_message_count,
+        "classes": classes,
+    }

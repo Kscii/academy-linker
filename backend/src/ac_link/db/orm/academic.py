@@ -3,18 +3,21 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Index, String, UniqueConstraint, text
+from sqlalchemy import Boolean, Date, Float, ForeignKey, Index, Integer, String, UniqueConstraint, text
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ac_link.db.orm.base import Base, uq
+from ac_link.db.orm.enums import LearningPathwayItemStatus
 from ac_link.db.orm.mixins import IntPrimaryKeyMixin, TimestampMixin, UUIDMixin
+from ac_link.db.orm.sqltypes import enum_column
 
 
 if TYPE_CHECKING:
     from ac_link.db.orm.communication import DiscussionThread
     from ac_link.db.orm.content import Announcement, Report
     from ac_link.db.orm.user import User
+    from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
 
 
 class Class(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
@@ -65,6 +68,9 @@ class Student(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     announcements: Mapped[list['Announcement']] = relationship(back_populates='student', cascade='all, delete-orphan')
     exam_scores: Mapped[list['StudentExamScore']] = relationship(back_populates='student', cascade='all, delete-orphan')
     period_metrics: Mapped[list['StudentPeriodMetric']] = relationship(back_populates='student', cascade='all, delete-orphan')
+    leave_requests: Mapped[list['StudentLeaveRequest']] = relationship(back_populates='student', cascade='all, delete-orphan')
+    incident_reports: Mapped[list['StudentIncidentReport']] = relationship(back_populates='student', cascade='all, delete-orphan')
+    learning_pathway_items: Mapped[list['LearningPathwayItem']] = relationship(back_populates='student', cascade='all, delete-orphan')
 
 
 class ParentStudentBinding(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
@@ -102,6 +108,7 @@ class Subject(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     announcements: Mapped[list['Announcement']] = relationship(back_populates='subject')
     exam_scores: Mapped[list['StudentExamScore']] = relationship(back_populates='subject')
     period_metrics: Mapped[list['StudentPeriodMetric']] = relationship(back_populates='subject')
+    learning_pathway_items: Mapped[list['LearningPathwayItem']] = relationship(back_populates='subject')
 
 
 class TeachingAssignment(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
@@ -170,3 +177,28 @@ class StudentPeriodMetric(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     student: Mapped['Student'] = relationship(back_populates='period_metrics')
     subject: Mapped['Subject'] = relationship(back_populates='period_metrics')
     author_user: Mapped['User'] = relationship(back_populates='authored_period_metrics')
+
+
+class LearningPathwayItem(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
+    """学习路径条目，由老师为学生在某学科下维护，记录课程进度里程碑。"""
+
+    __tablename__ = 'learning_pathway_items'
+    __table_args__ = (
+        Index('ix_learning_pathway_items_student_subject', 'student_id', 'subject_id'),
+        Index('ix_learning_pathway_items_author_user_id', 'author_user_id'),
+    )
+
+    student_id: Mapped[int] = mapped_column(ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    author_user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    status: Mapped[LearningPathwayItemStatus] = mapped_column(
+        enum_column(LearningPathwayItemStatus, 'learning_pathway_item_status'), nullable=False
+    )
+    week: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    student: Mapped['Student'] = relationship(back_populates='learning_pathway_items')
+    subject: Mapped['Subject'] = relationship(back_populates='learning_pathway_items')
+    author_user: Mapped['User'] = relationship(back_populates='authored_learning_pathway_items')

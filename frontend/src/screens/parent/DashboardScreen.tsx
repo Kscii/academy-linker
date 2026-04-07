@@ -7,9 +7,9 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
-import { mockParentDashboard, mockStudents } from '@/lib/mock-data';
+import { SUBJECT_COLORS } from '@/lib/constants';
 import { parent as parentApi } from '@/lib/api';
-import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType } from '@/types/api';
+import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
 
 function formatShortDate(dateStr: string): string {
@@ -40,6 +40,10 @@ const LEAVE_TYPE_ICONS: Record<string, string> = {
 const LEAVE_STATUS_COLORS: Record<string, string> = {
   pending: 'var(--a3)', approved: 'var(--a2)', rejected: 'var(--warn)',
 };
+
+function getSubjectColor(subject: Pick<SubjectSummary, 'code' | 'color'>): string {
+  return (subject.code ? SUBJECT_COLORS[subject.code] : undefined) ?? subject.color ?? 'var(--a1)';
+}
 
 // ── Upcoming festivals (month is 0-indexed) ───────────────────
 
@@ -101,8 +105,9 @@ export function DashboardScreen() {
   const { user, language } = useApp();
   const { t } = useTranslation('dashboard');
 
-  const [dashboard, setDashboard] = useState<DashboardResponse>(mockParentDashboard);
-  const [studentName, setStudentName] = useState(mockStudents[0].display_name);
+  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
+  const [studentName, setStudentName] = useState('');
   const [studentBirthday, setStudentBirthday] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -112,7 +117,7 @@ export function DashboardScreen() {
 
   // Incident report state
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [incidentForm, setIncidentForm] = useState({ type: 'bullying' as IncidentType, description: '', is_anonymous: false });
+  const [incidentForm, setIncidentForm] = useState({ incident_type: 'bullying' as IncidentType, description: '', is_anonymous: false });
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [incidentDone, setIncidentDone] = useState(false);
 
@@ -120,8 +125,12 @@ export function DashboardScreen() {
     if (!sid) return;
     parentApi.getDashboard(sid).then(res => {
       setDashboard(res.data);
-      if (res.data.student?.display_name) setStudentName(res.data.student.display_name);
-      if (res.data.student?.birthday) setStudentBirthday(res.data.student.birthday);
+      const s = res.data.student;
+      if (s) setStudentName(s.preferred_name ?? s.full_name);
+      if (res.data.student?.date_of_birth) setStudentBirthday(res.data.student.date_of_birth);
+    }).catch(() => {});
+    parentApi.getSubjects(sid).then(res => {
+      setSubjects(res.data);
     }).catch(() => {});
     parentApi.getAnnouncements(sid).then(res => {
       setAnnouncements(res.data.slice(0, 4));
@@ -138,7 +147,7 @@ export function DashboardScreen() {
       await parentApi.createIncidentReport(sid, incidentForm);
       setIncidentDone(true);
       setShowIncidentForm(false);
-      setIncidentForm({ type: 'bullying', description: '', is_anonymous: false });
+      setIncidentForm({ incident_type: 'bullying', description: '', is_anonymous: false });
     } finally {
       setIncidentSubmitting(false);
     }
@@ -243,6 +252,14 @@ export function DashboardScreen() {
 
   return (
     <div>
+      {/* Loading skeleton */}
+      {!dashboard && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 0' }}>
+          {[100, 80, 60, 90].map((w, i) => (
+            <div key={i} style={{ height: 14, borderRadius: 6, background: 'var(--bg2)', width: `${w}%` }} />
+          ))}
+        </div>
+      )}
       {/* Greeting */}
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 28, color: 'var(--tx)', marginBottom: 4 }}>
@@ -252,6 +269,52 @@ export function DashboardScreen() {
           {t('studentUpdateToday', { student: studentName })} — <strong>Week 8, Term 2</strong>
         </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+        <div className="stat-box">
+          <div className="stat-label">Overall Performance</div>
+          <div className="stat-value" style={{ color: 'var(--a1)' }}>
+            {dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—'}
+          </div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">Assignments</div>
+          <div className="stat-value" style={{ color: 'var(--a2)' }}>
+            {dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—'}
+          </div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">Unread Posts</div>
+          <div className="stat-value" style={{ color: 'var(--a3)' }}>
+            {dashboard?.dashboard_context.unread_post_count ?? 0}
+          </div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">Unread Notices</div>
+          <div className="stat-value" style={{ color: 'var(--a4)' }}>
+            {dashboard?.dashboard_context.unread_announcement_count ?? 0}
+          </div>
+        </div>
+      </div>
+
+      {dashboard?.important_post_banners?.length ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>Important Messages</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {dashboard.important_post_banners.slice(0, 3).map(item => (
+              <button
+                key={item.post_uuid}
+                className="btn-secondary"
+                style={{ width: '100%', textAlign: 'left', padding: '10px 14px' }}
+                onClick={() => navigate(`/parent/students/${sid}/discussions`)}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{item.title ?? item.teacher_display_name}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx2)' }}>{item.preview_text}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Celebration banner — birthday (≤7d) or upcoming festival (≤14d) */}
       {(birthdayDays !== null && birthdayDays <= 7) ? (
@@ -297,8 +360,8 @@ export function DashboardScreen() {
           {txTrendLabel}
         </div>
         <LineChart
-          data={dashboard.trend_chart}
-          avgData={dashboard.trend_chart}
+          data={dashboard?.charts.learning_progress_chart ?? []}
+          avgData={dashboard?.charts.learning_progress_chart ?? []}
           color="var(--a1)"
           avgColor="var(--a2)"
           showAvg
@@ -335,7 +398,7 @@ export function DashboardScreen() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.3 }}>{ann.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>{formatShortDate(ann.created_at)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>{formatShortDate(ann.published_at)}</div>
                     </div>
                   </div>
                 );
@@ -350,13 +413,14 @@ export function DashboardScreen() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>{txScheduleLabel}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {dashboard.subjects.slice(0, 5).map((sub, i) => {
+            {subjects.slice(0, 5).map((sub, i) => {
               const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
               const times = ['9:00', '10:30', '11:00', '13:00', '14:30'];
+              const color = getSubjectColor(sub);
               return (
                 <div key={sub.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 28, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, flexShrink: 0 }}>{days[i]}</div>
-                  <div style={{ width: 4, height: 28, borderRadius: 2, background: sub.color, flexShrink: 0 }} />
+                  <div style={{ width: 4, height: 28, borderRadius: 2, background: color, flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{sub.name}</div>
                     <div style={{ fontSize: 10, color: 'var(--tx3)' }}>{times[i]}</div>
@@ -513,19 +577,22 @@ export function DashboardScreen() {
             💡 {txSuggestTitle}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {dashboard.subjects.slice(0, 3).map(sub => {
-              const tips = SUBJECT_TIPS[sub.code];
+            {subjects.slice(0, 3).map(sub => {
+              const tips = sub.code ? SUBJECT_TIPS[sub.code] : undefined;
               if (!tips) return null;
-              const isBelow = (sub.score ?? 100) < 70;
+              const stat = dashboard?.subject_statistics?.find(s => s.subject_uuid === sub.uuid);
+              const score = stat?.score ?? sub.score ?? 100;
+              const color = getSubjectColor(sub);
+              const isBelow = score < 70;
               const tip = isBelow ? tips.below : tips.good;
               return (
                 <div key={sub.uuid} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{
-                    width: 6, height: 6, borderRadius: '50%', background: sub.color,
+                    width: 6, height: 6, borderRadius: '50%', background: color,
                     flexShrink: 0, marginTop: 5,
                   }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: sub.color, marginBottom: 2 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: color, marginBottom: 2 }}>
                       {txForSubject.replace('{subject}', sub.name)}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}>{tip}</div>
@@ -572,8 +639,8 @@ export function DashboardScreen() {
           {showIncidentForm && !incidentDone && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <select
-                value={incidentForm.type}
-                onChange={e => setIncidentForm(f => ({ ...f, type: e.target.value as IncidentType }))}
+                value={incidentForm.incident_type}
+                onChange={e => setIncidentForm(f => ({ ...f, incident_type: e.target.value as IncidentType }))}
                 style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--bd)', background: 'var(--card)', color: 'var(--tx)', fontSize: 13, fontFamily: 'var(--font-body)' }}
               >
                 <option value="bullying">🤜 {txIncidentBullying}</option>

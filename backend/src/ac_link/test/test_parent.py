@@ -2,20 +2,24 @@
 §9 家长端接口集成测试。
 
 覆盖：
-  GET /api/parents/me/students                                    - 学生列表
-  GET /api/parents/me/students/{uuid}/dashboard                   - 学生 Dashboard
-  GET /api/parents/me/students/{uuid}/subjects                    - 学科列表
-  GET /api/parents/me/students/{uuid}/subjects/{uuid}             - 学科详情
-  GET /api/parents/me/students/{uuid}/reports                     - 报告列表
-  GET /api/parents/me/students/{uuid}/reports/{uuid}              - 报告详情
-  POST /api/reports/{uuid}/read                                   - 标记报告已读
-  POST /api/reports/{uuid}/archive                                - 归档报告
-  POST /api/reports/{uuid}/unarchive                              - 取消归档
-  GET /api/parents/me/students/{uuid}/announcements               - 公告列表
-  GET /api/announcements/{uuid}                                   - 公告详情
-  POST /api/announcements/{uuid}/read                             - 标记公告已读
-  GET /api/parents/me/students/{uuid}/exam-scores                 - 考试成绩列表（家长视角）
-  GET /api/parents/me/students/{uuid}/period-metrics              - 周期指标列表（家长视角）
+  GET  /api/parents/me/students                                    - 学生列表
+  GET  /api/parents/me/students/{uuid}/dashboard                   - 学生 Dashboard
+  GET  /api/parents/me/students/{uuid}/subjects                    - 学科列表
+  GET  /api/parents/me/students/{uuid}/subjects/{uuid}             - 学科详情（含学习路径/帖子新字段）
+  GET  /api/parents/me/students/{uuid}/reports                     - 报告列表
+  GET  /api/parents/me/students/{uuid}/reports/{uuid}              - 报告详情
+  POST /api/reports/{uuid}/read                                    - 标记报告已读
+  POST /api/reports/{uuid}/archive                                 - 归档报告
+  POST /api/reports/{uuid}/unarchive                               - 取消归档
+  GET  /api/parents/me/students/{uuid}/announcements               - 公告列表（含 body_preview）
+  GET  /api/announcements/{uuid}                                   - 公告详情
+  POST /api/announcements/{uuid}/read                              - 标记公告已读
+  GET  /api/parents/me/students/{uuid}/exam-scores                 - 考试成绩列表（家长视角）
+  GET  /api/parents/me/students/{uuid}/period-metrics              - 周期指标列表（家长视角）
+  GET  /api/parents/me/students/{uuid}/leave                       - 请假申请列表（§9.20）
+  POST /api/parents/me/students/{uuid}/leave                       - 提交请假申请（§9.21）
+  GET  /api/parents/me/students/{uuid}/incidents                   - 事件举报列表（§9.22）
+  POST /api/parents/me/students/{uuid}/incidents                   - 提交事件举报（§9.23）
 """
 
 from __future__ import annotations
@@ -101,6 +105,24 @@ class TestParentSubjects:
         assert "student" in data
         assert "subject" in data
         assert "overview" in data
+        # 验证 §9.4 新增字段：学习路径、近期帖子、成绩趋势、班级均值
+        assert "learning_pathway" in data
+        assert "posts" in data
+        assert "trend_data" in data
+        assert "class_avg_data" in data
+        assert isinstance(data["learning_pathway"], list)
+        assert isinstance(data["posts"], list)
+        assert isinstance(data["trend_data"], list)
+        assert isinstance(data["class_avg_data"], list)
+        # 验证 §9.4 新增字段：学习路径、近期帖子、成绩趋势、班级均值
+        assert "learning_pathway" in data
+        assert "posts" in data
+        assert "trend_data" in data
+        assert "class_avg_data" in data
+        assert isinstance(data["learning_pathway"], list)
+        assert isinstance(data["posts"], list)
+        assert isinstance(data["trend_data"], list)
+        assert isinstance(data["class_avg_data"], list)
 
 
 # ── 报告接口 ──────────────────────────────────────────────────────────────────
@@ -205,6 +227,28 @@ class TestParentAnnouncements:
         body = r.json()
         assert "data" in body and "meta" in body
 
+    def test_announcement_list_item_has_body_preview(self, parent_client, td, announcement_uuid):
+        """公告列表每条应包含 body_preview 字段（§9.10 变更）。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/announcements"
+        )
+        assert r.status_code == 200
+        items = r.json()["data"]
+        if items:
+            # 所有条目都应有 body_preview 键（值可为 null 或 str）
+            assert all("body_preview" in item for item in items)
+
+    def test_announcement_list_item_has_body_preview(self, parent_client, td, announcement_uuid):
+        """公告列表每条应包含 body_preview 字段（§9.10 变更）。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/announcements"
+        )
+        assert r.status_code == 200
+        items = r.json()["data"]
+        if items:
+            # 所有条目都应有 body_preview 键（值可为 null 或 str）
+            assert all("body_preview" in item for item in items)
+
     def test_list_announcements_filter_by_category(self, parent_client, td):
         r = parent_client.get(
             f"/api/parents/me/students/{td['student_uuid']}/announcements",
@@ -304,3 +348,449 @@ class TestParentPeriodMetrics:
             params={"subject_uuid": td["subject_uuid"]},
         )
         assert r.status_code == 200
+
+
+# ── 请假申请 (§9.20 / §9.21) ─────────────────────────────────────────────────
+
+class TestParentLeave:
+    def test_list_leave_requests_empty(self, parent_client, td):
+        """初始状态下请假列表应返回 200 及数组。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/leave"
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert "data" in body and "meta" in body
+        assert isinstance(body["data"], list)
+
+    def test_list_leave_requests_filter_by_status(self, parent_client, td):
+        """status 筛选参数应被接受，不返回 422。"""
+        for status in ("pending", "approved", "rejected", "all"):
+            r = parent_client.get(
+                f"/api/parents/me/students/{td['student_uuid']}/leave",
+                params={"status": status},
+            )
+            assert r.status_code == 200
+
+    def test_create_leave_request(self, parent_client, td):
+        """提交请假申请后应返回 201，status 固定为 pending。"""
+        from datetime import date, timedelta
+        today = date.today()
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={
+                "type": "sick",
+                "start_date": str(today),
+                "end_date": str(today + timedelta(days=2)),
+                "reason": "Flu recovery",
+            },
+        )
+        assert r.status_code == 201
+        data = r.json()["data"]
+        assert data["status"] == "pending"
+        assert data["student_uuid"] == td["student_uuid"]
+        assert data["type"] == "sick"
+        assert "uuid" in data
+        assert "submitted_at" in data
+        assert data["school_note"] is None
+
+    def test_create_leave_request_single_day(self, parent_client, td):
+        """start_date == end_date 应被接受。"""
+        from datetime import date
+        today = str(date.today())
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={"type": "personal", "start_date": today, "end_date": today},
+        )
+        assert r.status_code == 201
+
+    def test_create_leave_request_invalid_date_range_returns_422(self, parent_client, td):
+        """start_date > end_date 应返回 422 validation_error。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={
+                "type": "other",
+                "start_date": "2026-04-10",
+                "end_date": "2026-04-05",  # end < start
+            },
+        )
+        assert r.status_code == 422
+
+    def test_leave_request_appears_in_list_after_creation(self, parent_client, td):
+        """创建一条请假申请后，列表中应能查到它。"""
+        from datetime import date
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={"type": "family", "start_date": str(date.today()), "end_date": str(date.today())},
+        )
+        assert r.status_code == 201
+        created_uuid = r.json()["data"]["uuid"]
+
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/leave")
+        uuids = [item["uuid"] for item in r.json()["data"]]
+        assert created_uuid in uuids
+
+    def test_leave_list_item_fields(self, parent_client, td):
+        """请假列表每条记录应包含必要字段。"""
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/leave")
+        items = r.json()["data"]
+        if items:
+            item = items[0]
+            for field in ("uuid", "student_uuid", "type", "start_date", "end_date",
+                          "status", "submitted_at"):
+                assert field in item, f"Missing field: {field}"
+
+    def test_list_leave_requests_pagination(self, parent_client, td):
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            params={"page": 1, "page_size": 5},
+        )
+        assert r.status_code == 200
+        meta = r.json()["meta"]
+        assert "page" in meta and "total" in meta
+
+    def test_teacher_cannot_access_leave_endpoint(self, teacher_client, td):
+        """teacher 不能访问家长端请假接口，应返回 403。"""
+        r = teacher_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/leave"
+        )
+        assert r.status_code == 403
+
+    def test_leave_unbound_student_returns_403(self, parent_client):
+        """访问未绑定学生的请假接口应返回 403/404。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{_uuid.uuid4()}/leave"
+        )
+        assert r.status_code in (403, 404)
+
+
+# ── 事件举报 (§9.22 / §9.23) ─────────────────────────────────────────────────
+
+class TestParentIncidents:
+    def test_list_incident_reports_empty(self, parent_client, td):
+        """初始状态下举报列表应返回 200 及数组。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents"
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert "data" in body and "meta" in body
+        assert isinstance(body["data"], list)
+
+    def test_create_incident_report(self, parent_client, td):
+        """提交事件举报（非匿名）应返回 201，内含 uuid 和 status=submitted。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            json={
+                "incident_type": "bullying",
+                "description": "Student was bullied during lunch break.",
+                "is_anonymous": False,
+            },
+        )
+        assert r.status_code == 201
+        data = r.json()["data"]
+        assert "uuid" in data
+        assert data["status"] == "submitted"
+
+    def test_non_anonymous_incident_appears_in_list(self, parent_client, td):
+        """非匿名举报应出现在家长的举报列表中。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            json={
+                "incident_type": "misconduct",
+                "description": "Property damage observed.",
+                "is_anonymous": False,
+            },
+        )
+        assert r.status_code == 201
+        created_uuid = r.json()["data"]["uuid"]
+
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/incidents")
+        uuids = [item["uuid"] for item in r.json()["data"]]
+        assert created_uuid in uuids
+
+    def test_anonymous_incident_not_in_list(self, parent_client, td):
+        """匿名举报不应出现在家长的举报列表中（§9.23 规则）。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            json={
+                "incident_type": "other",
+                "description": "Anonymous concern.",
+                "is_anonymous": True,
+            },
+        )
+        assert r.status_code == 201
+        anon_uuid = r.json()["data"]["uuid"]
+
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/incidents")
+        uuids = [item["uuid"] for item in r.json()["data"]]
+        assert anon_uuid not in uuids
+
+    def test_create_incident_empty_description_returns_422(self, parent_client, td):
+        """description 为空或纯空白应返回 422 validation_error（§9.23 规则）。"""
+        for bad_desc in ("", "   "):
+            r = parent_client.post(
+                f"/api/parents/me/students/{td['student_uuid']}/incidents",
+                json={
+                    "incident_type": "other",
+                    "description": bad_desc,
+                    "is_anonymous": False,
+                },
+            )
+            assert r.status_code == 422, f"Expected 422 for description={bad_desc!r}"
+
+    def test_incident_list_item_fields(self, parent_client, td):
+        """举报列表每条记录应包含必要字段。"""
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/incidents")
+        items = r.json()["data"]
+        if items:
+            item = items[0]
+            for field in ("uuid", "student_uuid", "incident_type", "description",
+                          "is_anonymous", "status", "submitted_at"):
+                assert field in item, f"Missing field: {field}"
+
+    def test_incident_list_pagination(self, parent_client, td):
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            params={"page": 1, "page_size": 5},
+        )
+        assert r.status_code == 200
+        meta = r.json()["meta"]
+        assert "page" in meta and "total" in meta
+
+    def test_teacher_cannot_access_incidents_endpoint(self, teacher_client, td):
+        """teacher 不能访问家长端举报接口，应返回 403。"""
+        r = teacher_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents"
+        )
+        assert r.status_code == 403
+
+    def test_incidents_unbound_student_returns_403(self, parent_client):
+        """访问未绑定学生的举报接口应返回 403/404。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{_uuid.uuid4()}/incidents"
+        )
+        assert r.status_code in (403, 404)
+
+
+# ── 请假申请 (§9.20 / §9.21) ─────────────────────────────────────────────────
+
+class TestParentLeave:
+    def test_list_leave_requests_empty(self, parent_client, td):
+        """初始状态下请假列表应返回 200 及空数组。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/leave"
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert "data" in body and "meta" in body
+        assert isinstance(body["data"], list)
+
+    def test_list_leave_requests_filter_by_status(self, parent_client, td):
+        """status 筛选参数应被接受，不返回 422。"""
+        for status in ("pending", "approved", "rejected", "all"):
+            r = parent_client.get(
+                f"/api/parents/me/students/{td['student_uuid']}/leave",
+                params={"status": status},
+            )
+            assert r.status_code == 200
+
+    def test_create_leave_request(self, parent_client, td):
+        """提交请假申请后应返回 201，status 固定为 pending。"""
+        from datetime import date, timedelta
+        today = date.today()
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={
+                "type": "sick",
+                "start_date": str(today),
+                "end_date": str(today + timedelta(days=2)),
+                "reason": "Flu recovery",
+            },
+        )
+        assert r.status_code == 201
+        data = r.json()["data"]
+        assert data["status"] == "pending"
+        assert data["student_uuid"] == td["student_uuid"]
+        assert data["type"] == "sick"
+        assert "uuid" in data
+        assert "submitted_at" in data
+        assert data["school_note"] is None
+
+    def test_create_leave_request_single_day(self, parent_client, td):
+        """start_date == end_date 应被接受。"""
+        from datetime import date
+        today = str(date.today())
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={"type": "personal", "start_date": today, "end_date": today},
+        )
+        assert r.status_code == 201
+
+    def test_create_leave_request_invalid_date_range_returns_422(self, parent_client, td):
+        """start_date > end_date 应返回 422 validation_error。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={
+                "type": "other",
+                "start_date": "2026-04-10",
+                "end_date": "2026-04-05",  # end < start
+            },
+        )
+        assert r.status_code == 422
+
+    def test_leave_request_appears_in_list_after_creation(self, parent_client, td):
+        """创建一条请假申请后，列表中应能查到它。"""
+        from datetime import date
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            json={"type": "family", "start_date": str(date.today()), "end_date": str(date.today())},
+        )
+        assert r.status_code == 201
+        created_uuid = r.json()["data"]["uuid"]
+
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/leave")
+        uuids = [item["uuid"] for item in r.json()["data"]]
+        assert created_uuid in uuids
+
+    def test_leave_list_item_fields(self, parent_client, td):
+        """请假列表每条记录应包含必要字段。"""
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/leave")
+        items = r.json()["data"]
+        if items:
+            item = items[0]
+            for field in ("uuid", "student_uuid", "type", "start_date", "end_date",
+                          "status", "submitted_at"):
+                assert field in item, f"Missing field: {field}"
+
+    def test_list_leave_requests_pagination(self, parent_client, td):
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/leave",
+            params={"page": 1, "page_size": 5},
+        )
+        assert r.status_code == 200
+        meta = r.json()["meta"]
+        assert "page" in meta and "total" in meta
+
+    def test_teacher_cannot_access_leave_endpoint(self, teacher_client, td):
+        """teacher 不能访问家长端请假接口，应返回 403。"""
+        r = teacher_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/leave"
+        )
+        assert r.status_code == 403
+
+    def test_leave_unbound_student_returns_403(self, parent_client):
+        """访问未绑定学生的请假接口应返回 403/404。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{_uuid.uuid4()}/leave"
+        )
+        assert r.status_code in (403, 404)
+
+
+# ── 事件举报 (§9.22 / §9.23) ─────────────────────────────────────────────────
+
+class TestParentIncidents:
+    def test_list_incident_reports_empty(self, parent_client, td):
+        """初始状态下举报列表应返回 200 及数组。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents"
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert "data" in body and "meta" in body
+        assert isinstance(body["data"], list)
+
+    def test_create_incident_report(self, parent_client, td):
+        """提交事件举报（非匿名）应返回 201，内含 uuid 和 status=submitted。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            json={
+                "incident_type": "bullying",
+                "description": "Student was bullied during lunch break.",
+                "is_anonymous": False,
+            },
+        )
+        assert r.status_code == 201
+        data = r.json()["data"]
+        assert "uuid" in data
+        assert data["status"] == "submitted"
+
+    def test_non_anonymous_incident_appears_in_list(self, parent_client, td):
+        """非匿名举报应出现在家长的举报列表中。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            json={
+                "incident_type": "misconduct",
+                "description": "Property damage observed.",
+                "is_anonymous": False,
+            },
+        )
+        assert r.status_code == 201
+        created_uuid = r.json()["data"]["uuid"]
+
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/incidents")
+        uuids = [item["uuid"] for item in r.json()["data"]]
+        assert created_uuid in uuids
+
+    def test_anonymous_incident_not_in_list(self, parent_client, td):
+        """匿名举报不应出现在家长的举报列表中（§9.23 规则）。"""
+        r = parent_client.post(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            json={
+                "incident_type": "other",
+                "description": "Anonymous concern.",
+                "is_anonymous": True,
+            },
+        )
+        assert r.status_code == 201
+        anon_uuid = r.json()["data"]["uuid"]
+
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/incidents")
+        uuids = [item["uuid"] for item in r.json()["data"]]
+        assert anon_uuid not in uuids
+
+    def test_create_incident_empty_description_returns_422(self, parent_client, td):
+        """description 为空或纯空白应返回 422 validation_error（§9.23 规则）。"""
+        for bad_desc in ("", "   "):
+            r = parent_client.post(
+                f"/api/parents/me/students/{td['student_uuid']}/incidents",
+                json={
+                    "incident_type": "other",
+                    "description": bad_desc,
+                    "is_anonymous": False,
+                },
+            )
+            assert r.status_code == 422, f"Expected 422 for description={bad_desc!r}"
+
+    def test_incident_list_item_fields(self, parent_client, td):
+        """举报列表每条记录应包含必要字段。"""
+        r = parent_client.get(f"/api/parents/me/students/{td['student_uuid']}/incidents")
+        items = r.json()["data"]
+        if items:
+            item = items[0]
+            for field in ("uuid", "student_uuid", "incident_type", "description",
+                          "is_anonymous", "status", "submitted_at"):
+                assert field in item, f"Missing field: {field}"
+
+    def test_incident_list_pagination(self, parent_client, td):
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents",
+            params={"page": 1, "page_size": 5},
+        )
+        assert r.status_code == 200
+        meta = r.json()["meta"]
+        assert "page" in meta and "total" in meta
+
+    def test_teacher_cannot_access_incidents_endpoint(self, teacher_client, td):
+        """teacher 不能访问家长端举报接口，应返回 403。"""
+        r = teacher_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/incidents"
+        )
+        assert r.status_code == 403
+
+    def test_incidents_unbound_student_returns_403(self, parent_client):
+        """访问未绑定学生的举报接口应返回 403/404。"""
+        r = parent_client.get(
+            f"/api/parents/me/students/{_uuid.uuid4()}/incidents"
+        )
+        assert r.status_code in (403, 404)

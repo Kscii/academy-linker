@@ -34,6 +34,7 @@ TABLE_ALIASES: dict[str, str] = {
     'announcements':                 'ann',
     'announcement_user_states':      'aus',
     'resource_translations':         'rtl',
+    'resources':                     'res',
     'ai_conversations':              'aic',
     'ai_messages':                   'aim',
 }
