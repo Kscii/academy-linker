@@ -1778,6 +1778,64 @@
 
 ---
 
+### 9.24 获取学生课表（已完成）
+
+**GET** `/api/parents/me/students/{student_uuid}/timetable`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `date` | string | 否 | ISO 8601 date；默认当天，用于选择当天命中的课表版本 |
+
+#### 规则
+
+- 仅允许家长查看自己绑定学生当前班级的课表。
+- 课表按“班级周课表”建模；学生接口只是读取所属班级的当前生效版本。
+- 返回的是某个 `date` 命中的**整周课表版本**，不是单日切片。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class_info": {
+      "uuid": "string",
+      "name": "Year 5 Alpha",
+      "grade_level": "5",
+      "academic_year": "2025"
+    },
+    "selected_date": "2025-03-18",
+    "effective_from": "2025-01-28",
+    "effective_to": null,
+    "entries": [
+      {
+        "uuid": "string",
+        "weekday": "monday",
+        "period_index": 1,
+        "room_label": "Room A1",
+        "start_time": "09:00:00",
+        "end_time": "09:50:00",
+        "effective_from": "2025-01-28",
+        "effective_to": null,
+        "is_active": true,
+        "subject": {
+          "uuid": "string",
+          "name": "Mathematics",
+          "code": "MATH"
+        },
+        "teacher": {
+          "uuid": "string",
+          "display_name": "Ada Teacher"
+        }
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 10. 老师端接口
 
 ### 10.0 获取教师端首页总览（已完成）
@@ -2736,6 +2794,65 @@
 
 ---
 
+### 10.25 获取班级课表（老师视角）（已完成）
+
+**GET** `/api/teachers/me/classes/{class_uuid}/timetable`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `date` | string | 否 | ISO 8601 date；默认当天，用于选择当天命中的课表版本 |
+
+#### 规则
+
+- 仅当当前老师是该班班主任，或存在 active `teaching_assignments` 覆盖该班学生时，允许访问。
+- 返回整周课表版本。
+- 每个条目可额外返回 `is_assigned_to_current_teacher`，用于前端高亮当前老师负责的课时。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class_info": {
+      "uuid": "string",
+      "name": "Year 5 Alpha",
+      "grade_level": "5",
+      "academic_year": "2025"
+    },
+    "selected_date": "2025-03-18",
+    "effective_from": "2025-01-28",
+    "effective_to": null,
+    "entries": [
+      {
+        "uuid": "string",
+        "weekday": "monday",
+        "period_index": 1,
+        "room_label": "Room A1",
+        "start_time": "09:00:00",
+        "end_time": "09:50:00",
+        "effective_from": "2025-01-28",
+        "effective_to": null,
+        "is_active": true,
+        "subject": {
+          "uuid": "string",
+          "name": "Mathematics",
+          "code": "MATH"
+        },
+        "teacher": {
+          "uuid": "string",
+          "display_name": "Ada Teacher"
+        },
+        "is_assigned_to_current_teacher": true
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 11. Admin 接口
 
 > **权限要求：本节所有接口仅允许 `admin` 角色访问。非 admin 角色一律返回 `403 role_not_allowed`。**
@@ -3284,6 +3401,85 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
   }
 }
 ```
+
+---
+
+### 11.20 获取班级课表（Admin）（已完成）
+
+**GET** `/api/admin/classes/{class_uuid}/timetable`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `date` | string | 否 | ISO 8601 date；默认当天 |
+
+#### 规则
+
+- 仅 admin 可访问。
+- 返回当前命中版本的整周课表，以及该班当前可选的 `available_subjects` / `available_teachers`，便于后台编辑器直接构建表单。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class_info": {
+      "uuid": "string",
+      "name": "Year 5 Alpha",
+      "grade_level": "5",
+      "academic_year": "2025"
+    },
+    "selected_date": "2025-03-18",
+    "effective_from": "2025-01-28",
+    "effective_to": null,
+    "entries": [],
+    "available_subjects": [
+      { "uuid": "string", "name": "Mathematics", "code": "MATH" }
+    ],
+    "available_teachers": [
+      { "uuid": "string", "display_name": "Ada Teacher" }
+    ]
+  }
+}
+```
+
+---
+
+### 11.21 整张覆盖班级课表（Admin）（已完成）
+
+**PUT** `/api/admin/classes/{class_uuid}/timetable`
+
+#### Body
+
+```json
+{
+  "effective_from": "2025-01-28",
+  "effective_to": null,
+  "entries": [
+    {
+      "weekday": "monday",
+      "period_index": 1,
+      "subject_uuid": "string",
+      "teacher_uuid": "string",
+      "room_label": "Room A1",
+      "start_time": "09:00:00",
+      "end_time": "09:50:00"
+    }
+  ]
+}
+```
+
+#### 规则
+
+- 采用**整张覆盖**语义：同班级从 `effective_from` 起生效的旧版本会被关闭或截断。
+- `entries` 不能为空；同一 `(weekday, period_index)` 在一次提交中不可重复。
+- `teacher_uuid + subject_uuid` 组合必须存在于该班当前 active `teaching_assignments` 中，否则返回 `400 bad_request`。
+- `end_time` 必须晚于 `start_time`。
+
+#### Success 200
+
+返回新写入版本的完整课表对象，结构与 §11.20 Success 200 一致。
 
 ---
 

@@ -92,6 +92,7 @@
   },
   "teacherClassDetail": {
     "backToDashboard": "Back to Dashboard",
+    "viewTimetable": "View timetable",
     "grade": "Grade {{value}}",
     "homeroom": "Homeroom",
     "students": "Students",
@@ -547,5 +548,51 @@
     "title": "Academic Performance",
     "subtitle": "{{name}}'s grades and progress",
     "noTeacherAssigned": "No teacher assigned"
+  },
+  "timetable": {
+    "weekdays": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday"
+    },
+    "periodLabel": "Period {{value}}",
+    "assignedToMe": "Assigned to me",
+    "noRoom": "Room TBA",
+    "emptySlot": "No class"
+  },
+  "parentTimetable": {
+    "title": "Timetable",
+    "subtitle": "Weekly class timetable for {{className}}",
+    "subtitleFallback": "Weekly class timetable",
+    "effectiveRange": "Effective from {{from}} to {{to}}",
+    "noEffectiveVersion": "No timetable version is active for this date.",
+    "empty": "No timetable entries available."
+  },
+  "teacherTimetable": {
+    "title": "Class Timetable",
+    "subtitle": "Weekly timetable for {{className}}",
+    "subtitleFallback": "Weekly class timetable",
+    "effectiveRange": "Effective from {{from}} to {{to}}",
+    "noEffectiveVersion": "No timetable version is active for this date.",
+    "empty": "No timetable entries available.",
+    "backToClass": "Back to class"
+  },
+  "adminTimetable": {
+    "title": "Class Timetable",
+    "selectClass": "Select a class",
+    "rows": "Timetable rows",
+    "addRow": "Add row",
+    "selectSubject": "Select subject",
+    "selectTeacher": "Select teacher",
+    "roomPlaceholder": "Room label",
+    "validationRows": "Add at least one timetable row before saving.",
+    "saveFailed": "Unable to save timetable.",
+    "save": "Save timetable",
+    "previewTitle": "Timetable Preview",
+    "previewSubtitle": "Effective from {{from}} to {{to}}",
+    "noEffectiveVersion": "No timetable version loaded yet.",
+    "empty": "No timetable entries available."
   }
 }

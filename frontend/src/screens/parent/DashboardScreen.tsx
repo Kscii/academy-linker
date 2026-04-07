@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { getSubjectColor } from '@/lib/constants';
 import { parent as parentApi } from '@/lib/api';
-import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary } from '@/types/api';
+import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary, ClassTimetableEntry } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
 
 function formatShortDate(dateStr: string): string {
@@ -108,6 +108,7 @@ export function DashboardScreen() {
   const [studentName, setStudentName] = useState('');
   const [studentBirthday, setStudentBirthday] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [timetableEntries, setTimetableEntries] = useState<ClassTimetableEntry[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [showLeaveForm, setShowLeaveForm] = useState(false);
   const [leaveForm, setLeaveForm] = useState({ type: 'sick' as LeaveRequestType, start_date: '', end_date: '', reason: '' });
@@ -132,6 +133,9 @@ export function DashboardScreen() {
     }).catch(() => {});
     parentApi.getAnnouncements(sid).then(res => {
       setAnnouncements(res.data.slice(0, 4));
+    }).catch(() => {});
+    parentApi.getTimetable(sid).then(res => {
+      setTimetableEntries(res.data.entries.slice(0, 5));
     }).catch(() => {});
     parentApi.getLeaveRequests(sid).then(res => {
       setLeaveRequests(res.data.slice(0, 3));
@@ -399,29 +403,35 @@ export function DashboardScreen() {
 
         {/* Weekly schedule */}
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>{txScheduleLabel}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{txScheduleLabel}</div>
+            <button
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--a1)', fontFamily: 'var(--font-body)', padding: 0 }}
+              onClick={() => navigate(`/parent/students/${sid}/timetable`)}
+            >
+              {txViewAll} ›
+            </button>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {subjects.slice(0, 5).map((sub, i) => {
-              const days = [
-                t('app:parentDashboard.weekdays.mon'),
-                t('app:parentDashboard.weekdays.tue'),
-                t('app:parentDashboard.weekdays.wed'),
-                t('app:parentDashboard.weekdays.thu'),
-                t('app:parentDashboard.weekdays.fri'),
-              ];
-              const times = ['9:00', '10:30', '11:00', '13:00', '14:30'];
-              const color = getSubjectColor(sub.code) || sub.color || 'var(--a1)';
+            {timetableEntries.length > 0 ? timetableEntries.map((entry) => {
+              const color = getSubjectColor(entry.subject.code) || 'var(--a1)';
               return (
-                <div key={sub.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 28, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, flexShrink: 0 }}>{days[i]}</div>
+                <div key={entry.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 54, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, flexShrink: 0 }}>
+                    {t(`app:timetable.weekdays.${entry.weekday}`)}
+                  </div>
                   <div style={{ width: 4, height: 28, borderRadius: 2, background: color, flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{sub.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>{times[i]}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{entry.subject.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>{entry.start_time.slice(0, 5)} - {entry.end_time.slice(0, 5)}</div>
                   </div>
                 </div>
               );
-            })}
+            }) : (
+              <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
+                {t('app:parentTimetable.empty')}
+              </div>
+            )}
           </div>
         </div>
       </div>

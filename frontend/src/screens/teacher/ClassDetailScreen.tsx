@@ -107,6 +107,12 @@ export function ClassDetailScreen() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => navigate(`/teacher/classes/${classUuid}/timetable`)}>
+          {t('teacherClassDetail.viewTimetable')}
+        </button>
+      </div>
+
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('teacherClassDetail.gradeStats')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr)', gap: 10, marginBottom: 16 }}>

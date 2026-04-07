@@ -27,6 +27,7 @@ from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import discussion as discussion_crud
 from ac_link.crud import metrics as metrics_crud
 from ac_link.crud import score as score_crud
+from ac_link.crud import timetable as timetable_crud
 from ac_link.crud import teacher as teacher_crud
 from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
@@ -70,9 +71,55 @@ from ac_link.dto.teacher import (
     UpdateExamScoreRequest,
     UpsertPeriodMetricRequest,
 )
+from ac_link.dto.timetable import ClassTimetableData, TimetableClassInfo, TimetableEntryItem, TimetableSubjectInfo, TimetableTeacherInfo
 from ac_link.services.translation_helpers import get_target_language
 
 router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
+
+
+def _build_teacher_timetable_response(
+    *,
+    class_obj: object,
+    selected_date: object,
+    entries: list[object],
+    current_teacher_id: int,
+) -> ClassTimetableData:
+    first = entries[0] if entries else None
+    return ClassTimetableData(
+        class_info=TimetableClassInfo(
+            uuid=class_obj.uuid,  # type: ignore[attr-defined]
+            name=class_obj.name,  # type: ignore[attr-defined]
+            grade_level=getattr(class_obj, "grade_level", None),
+            academic_year=getattr(class_obj, "academic_year", None),
+        ),
+        selected_date=selected_date,  # type: ignore[arg-type]
+        effective_from=getattr(first, "effective_from", None),
+        effective_to=getattr(first, "effective_to", None),
+        entries=[
+            TimetableEntryItem(
+                uuid=item.uuid,  # type: ignore[attr-defined]
+                weekday=item.weekday,  # type: ignore[attr-defined]
+                period_index=item.period_index,  # type: ignore[attr-defined]
+                room_label=item.room_label,  # type: ignore[attr-defined]
+                start_time=item.start_time,  # type: ignore[attr-defined]
+                end_time=item.end_time,  # type: ignore[attr-defined]
+                effective_from=item.effective_from,  # type: ignore[attr-defined]
+                effective_to=item.effective_to,  # type: ignore[attr-defined]
+                is_active=item.is_active,  # type: ignore[attr-defined]
+                subject=TimetableSubjectInfo(
+                    uuid=item.subject.uuid,  # type: ignore[attr-defined]
+                    name=item.subject.name,  # type: ignore[attr-defined]
+                    code=item.subject.code,  # type: ignore[attr-defined]
+                ),
+                teacher=TimetableTeacherInfo(
+                    uuid=item.teacher_user.uuid,  # type: ignore[attr-defined]
+                    display_name=item.teacher_user.display_name,  # type: ignore[attr-defined]
+                ),
+                is_assigned_to_current_teacher=item.teacher_user_id == current_teacher_id,  # type: ignore[attr-defined]
+            )
+            for item in entries
+        ],
+    )
 
 
 # ── GET /api/teachers/me/overview ────────────────────────────────────────────
@@ -668,6 +715,41 @@ def list_my_classes(
         for cls, is_homeroom, student_count in rows
     ]
     return ApiResponse(data=data)
+
+
+@router.get(
+    "/classes/{class_uuid}/timetable",
+    response_model=ApiResponse[ClassTimetableData],
+)
+def get_class_timetable(
+    class_uuid: UUID,
+    date: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassTimetableData]:
+    """获取老师可访问班级在某天生效的周课表。"""
+    from datetime import date as _date
+
+    cls = teacher_crud.get_class_for_teacher(db, current_user.id, class_uuid)
+    if cls is None:
+        raise Errors.not_found("班级不存在或无访问权")
+
+    try:
+        selected_date = _date.fromisoformat(date) if date else _date.today()
+    except ValueError:
+        raise AppError(422, "validation_error", "date 格式应为 YYYY-MM-DD")
+
+    entries = timetable_crud.list_entries_for_class_on_date(
+        db,
+        class_id=cls.id,
+        on_date=selected_date,
+    )
+    return ApiResponse(data=_build_teacher_timetable_response(
+        class_obj=cls,
+        selected_date=selected_date,
+        entries=entries,
+        current_teacher_id=current_user.id,
+    ))
 
 
 # ── GET /api/teachers/me/classes/{class_uuid}/students ──────────────────────────────
