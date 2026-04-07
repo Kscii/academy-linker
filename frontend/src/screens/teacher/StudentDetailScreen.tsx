@@ -106,7 +106,7 @@ export function StudentDetailScreen() {
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/messages?student=${student.uuid}`)}>
               Open parent discussion
             </button>
-            <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/posts?mode=report&student=${student.uuid}`)}>
+            <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/reports?student=${student.uuid}`)}>
               Create report
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/posts?mode=announcement&student=${student.uuid}`)}>
