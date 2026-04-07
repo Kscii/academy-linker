@@ -61,11 +61,16 @@
 | DELETE | `/api/posts/{post_uuid}` | 删除帖子（家长/老师共用） | 已完成 |
 | GET | `/api/parents/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（家长视角） | 已完成 |
 | GET | `/api/parents/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（家长视角） | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/leave` | 请假申请列表 | 未完成 |
+| POST | `/api/parents/me/students/{student_uuid}/leave` | 提交请假申请 | 未完成 |
+| GET | `/api/parents/me/students/{student_uuid}/incidents` | 事件举报列表 | 未完成 |
+| POST | `/api/parents/me/students/{student_uuid}/incidents` | 提交事件举报 | 未完成 |
 
 ### 老师端 (§10)
 
 | 方法 | 路径 | 说明 | 状态 |
 |---|---|---|:---:|
+| GET | `/api/teachers/me/overview` | 教师端首页总览 | 未完成 |
 | GET | `/api/teachers/me/students` | 老师负责的学生列表 | 已完成 |
 | GET | `/api/teachers/me/students/{student_uuid}/dashboard` | 老师视角学生 Dashboard | 已完成 |
 | GET | `/api/teachers/me/students/{student_uuid}/discussions/parents` | 学生讨论家长列表 | 已完成 |
@@ -92,6 +97,7 @@
 
 | 方法 | 路径 | 说明 | 状态 |
 |---|---|---|:---:|
+| GET | `/api/admin/overview` | Admin 首页总览统计 | 未完成 |
 | GET | `/api/admin/users` | 获取用户列表 | 已完成 |
 | POST | `/api/admin/users` | 创建用户 | 已完成 |
 | PATCH | `/api/admin/users/{user_uuid}` | 更新用户 | 已完成 |
@@ -799,7 +805,8 @@
       "class_uuid": "string | null",
       "class_name": "string | null",
       "grade_level": "string | null",
-      "avatar_url": "string | null"
+      "avatar_url": "string | null",
+      "date_of_birth": "string | null"  // 变更（未完成）：待后端在此接口中补充返回，前端暂留空
     },
     "dashboard_context": {
       "selected_range": "30d",
@@ -896,7 +903,7 @@
 
 ---
 
-### 9.4 获取某学科详情聚合数据（已完成）
+### 9.4 获取某学科详情聚合数据（变更）
 
 **GET** `/api/parents/me/students/{student_uuid}/subjects/{subject_uuid}`
 
@@ -929,16 +936,48 @@
       ]
     },
     "overview": {
-      "score": 88.0,
-      "progress": 0.75,
+      "current_score": 88.0,
+      "term_avg": 84.5,
+      "highest": 95.0,
+      "lowest": 72.0,
+      "class_avg": 81.0,
       "assignment_completion_rate": 0.95,
       "attendance_rate": 0.98
     },
-    "timeline": [
+    "trend_data": [
       {
         "label": "2026-04-01",
-        "score": 87.5,
-        "progress": 0.72
+        "value": 87.5,
+        "avg": 81.0
+      }
+    ],
+    "class_avg_data": [
+      {
+        "label": "2026-04-01",
+        "value": 81.0
+      }
+    ],
+    "learning_pathway": [
+      {
+        "uuid": "string",
+        "title": "string",
+        "description": "string | null",
+        "status": "completed | in_progress | upcoming",
+        "week": 8
+      }
+    ],
+    "posts": [
+      {
+        "uuid": "string",
+        "title": "string",
+        "content_markdown": "string",
+        "created_at": "string",
+        "author": {
+          "uuid": "string",
+          "display_name": "string",
+          "role": "teacher | admin"
+        },
+        "tags": []
       }
     ],
     "summary": {
@@ -1122,7 +1161,7 @@
 
 ---
 
-### 9.10 获取公告/任务列表（已完成）
+### 9.10 获取公告/任务列表（变更）
 
 **GET** `/api/parents/me/students/{student_uuid}/announcements`
 
@@ -1155,6 +1194,7 @@
       "read_at": "string | null",
       "published_at": "string",
       "due_at": "string | null",
+      "body_preview": "string | null",
       "translation": {
         "display_language": "string",
         "original_language": "string",
@@ -1173,7 +1213,7 @@
 }
 ```
 
-> 注：列表中的 `translation` 仅反映当前目标语言的已缓存译文状态，不会触发新的翻译写入。若前端需要确保译文存在，应显式调用 `POST /api/translations/resolve`。
+> 注：`body_preview` 为正文纯文本前 150 字截断，已根据当前目标语言自动选取原文或译文版本，供列表卡片展示。列表中的 `translation` 仅反映当前目标语言的已缓存译文状态，不会触发新的翻译写入。若前端需要确保译文存在，应显式调用 `POST /api/translations/resolve`。
 
 ---
 
@@ -1240,7 +1280,7 @@
 
 ---
 
-### 9.13 获取学生讨论教师列表（已完成）
+### 9.13 获取学生讨论教师列表（变更）
 
 **GET** `/api/parents/me/students/{student_uuid}/discussions/teachers`
 
@@ -1268,13 +1308,14 @@
       ],
       "thread_uuid": "string | null",
       "last_post_at": "string | null",
-      "unread_post_count": 2
+      "unread_post_count": 2,
+      "latest_message_preview": "string | null"
     }
   ]
 }
 ```
 
-> 注：`thread_uuid` 在家长还没有打开过讨论页时为 `null`（懒创建）。`subjects` 为该教师教这个学生的学科列表。
+> 注：`thread_uuid` 在家长还没有打开过讨论页时为 `null`（懒创建）。`subjects` 为该教师教这个学生的学科列表。`latest_message_preview` 为最新一条消息纯文本前 80 字截断，供消息列表预览展示。
 
 ---
 
@@ -1556,7 +1597,206 @@
 
 ---
 
+### 9.20 获取学生请假申请列表（未完成）
+
+**GET** `/api/parents/me/students/{student_uuid}/leave`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `status` | enum | 否 | `pending`, `approved`, `rejected`, `all`；默认 `all` |
+
+#### 规则
+
+- 仅允许家长查看自己绑定学生的请假申请记录。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "student_uuid": "string",
+      "type": "sick | personal | family | other",
+      "start_date": "YYYY-MM-DD",
+      "end_date": "YYYY-MM-DD",
+      "reason": "string | null",
+      "status": "pending | approved | rejected",
+      "school_note": "string | null",
+      "submitted_at": "string"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 5,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 9.21 提交请假申请（未完成）
+
+**POST** `/api/parents/me/students/{student_uuid}/leave`
+
+#### Body
+
+```json
+{
+  "type": "sick | personal | family | other",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD",
+  "reason": "string | null"
+}
+```
+
+#### 规则
+
+- `start_date` ≤ `end_date`，否则返回 `422 validation_error`。
+- 仅允许家长为自己绑定的学生提交请假，否则返回 `403 forbidden`。
+- 创建后 `status` 固定为 `pending`，等待学校端审核；v1 暂不提供家长撤回接口。
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "student_uuid": "string",
+    "type": "sick | personal | family | other",
+    "start_date": "YYYY-MM-DD",
+    "end_date": "YYYY-MM-DD",
+    "reason": "string | null",
+    "status": "pending",
+    "school_note": null,
+    "submitted_at": "string"
+  }
+}
+```
+
+---
+
+### 9.22 获取事件举报列表（未完成）
+
+**GET** `/api/parents/me/students/{student_uuid}/incidents`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+
+#### 规则
+
+- 仅返回该家长自己提交的举报（非匿名时按 `reporter_user_id` 过滤；匿名举报不在列表中出现）。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "student_uuid": "string",
+      "incident_type": "bullying | drugs | misconduct | other",
+      "description": "string",
+      "is_anonymous": false,
+      "status": "submitted | investigating | resolved",
+      "submitted_at": "string"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 2,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 9.23 提交事件举报（未完成）
+
+**POST** `/api/parents/me/students/{student_uuid}/incidents`
+
+#### Body
+
+```json
+{
+  "incident_type": "bullying | drugs | misconduct | other",
+  "description": "string",
+  "is_anonymous": false
+}
+```
+
+#### 规则
+
+- `description` 不能为空或纯空白，否则返回 `422 validation_error`。
+- `is_anonymous=true` 时，后端**不写入** `reporter_user_id`（DB 中为 NULL），且该记录不出现在家长的举报列表中。
+- 仅允许家长为自己绑定的学生提交举报，否则返回 `403 forbidden`。
+
+#### Success 201
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "status": "submitted"
+  }
+}
+```
+
+---
+
 ## 10. 老师端接口
+
+### 10.0 获取教师端首页总览（未完成）
+
+**GET** `/api/teachers/me/overview`
+
+#### 说明
+
+教师首页聚合数据，一次返回当前教师的核心统计摘要与班级列表，避免前端多次串行请求。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "summary": {
+      "student_count": 80,
+      "class_count": 4,
+      "unread_message_count": 5
+    },
+    "classes": [
+      {
+        "uuid": "string",
+        "name": "string",
+        "grade_level": "string | null",
+        "academic_year": "string | null",
+        "is_homeroom": false,
+        "student_count": 20
+      }
+    ]
+  }
+}
+```
+
+#### 注释
+
+- `unread_message_count` 为当前教师在所有 thread 中的未读帖子总数缓存。
+- `classes` 结构与 `GET /api/teachers/me/classes` 单条一致，此处直接内联以减少 RTT。
+- 聚合成绩统计指标（如班级均分、at_risk 人数）待 `student_metrics` 表建好后在本接口中补充，当前不返回。
+
+---
 
 ### 10.1 获取老师负责的学生列表（已完成）
 
@@ -2470,6 +2710,35 @@
 ## 11. Admin 接口
 
 > **权限要求：本节所有接口仅允许 `admin` 角色访问。非 admin 角色一律返回 `403 role_not_allowed`。**
+
+---
+
+### 11.0 获取 Admin 首页总览统计（未完成）
+
+**GET** `/api/admin/overview`
+
+#### 说明
+
+Admin 首页聚合统计，返回系统内各类实体的计数摘要。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "user_count": 120,
+    "teacher_count": 15,
+    "parent_count": 80,
+    "student_count": 200,
+    "class_count": 10
+  }
+}
+```
+
+#### 注释
+
+- 所有计数仅统计 `is_active=true` 的记录。
+- `user_count` 为 teacher + parent + admin 的总用户数（不含 student，student 单独计）。
 
 ---
 
