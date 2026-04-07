@@ -52,10 +52,13 @@ export function AdminOverviewScreen() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {[
+          { title: 'Manage Users', desc: 'View all admin, teacher, and parent accounts with role-based filters.', icon: '🧾', path: '/admin/users', color: 'var(--a4)' },
           { title: 'Manage Teachers', desc: 'Create teacher accounts, set subjects and classes.', icon: '👨‍🏫', path: '/admin/teachers', color: 'var(--a4)' },
           { title: 'Manage Classes', desc: 'Create classes, assign homeroom teachers and enrol students.', icon: '🏫', path: '/admin/classes', color: 'var(--a1)' },
           { title: 'Manage Students', desc: 'Add students, assign to classes.', icon: '🎒', path: '/admin/students', color: 'var(--a2)' },
           { title: 'Manage Parents', desc: 'Create parent accounts and bind them to their children.', icon: '👪', path: '/admin/parents', color: 'var(--a3)' },
+          { title: 'Teaching Assignments', desc: 'Create or disable teacher-student-subject assignments.', icon: '🧩', path: '/admin/assignments/teaching', color: 'var(--a1)' },
+          { title: 'System Tags', desc: 'Maintain shared system tags used across discussions and dashboards.', icon: '🏷', path: '/admin/tags/system', color: 'var(--a2)' },
         ].map(item => (
           <div
             key={item.path}
