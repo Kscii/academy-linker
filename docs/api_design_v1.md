@@ -393,10 +393,12 @@
   "uuid": "string",
   "name": "string",
   "code": "string | null",
-  "teacher": {
-    "uuid": "string",
-    "display_name": "string"
-  }
+  "teachers": [
+    {
+      "uuid": "string",
+      "display_name": "string"
+    }
+  ]
 }
 ```
 
