@@ -5,8 +5,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
-import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { parent as parentApi } from '@/lib/api';
 import type { DashboardResponse, SubjectSummary, ChartDataPoint } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
@@ -20,7 +18,6 @@ const ACCENT_COLORS: Record<string, string> = {
 export function GradesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { language } = useApp();
   const { t } = useTranslation(['dashboard', 'app']);
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -60,22 +57,9 @@ export function GradesScreen() {
     return () => clearTimeout(t2);
   }, []);
 
-  const [txSubjects, setTxSubjects] = useState<SubjectSummary[]>([]);
-  const [txChartData, setTxChartData] = useState<ChartDataPoint[]>([]);
-  useEffect(() => {
-    setTxSubjects(subjects);
-    const barData = (dashboard?.charts.subject_score_bar_chart ?? []).map(d => ({ label: d.subject_name, value: d.value }));
-    setTxChartData(barData);
-    if (language === 'en') return;
-    const names = subjects.map(s => s.name);
-    translateBatch(names, language).then(results => {
-      setTxSubjects(subjects.map((s, i) => ({ ...s, name: results[i] || s.name })));
-      setTxChartData(barData.map((d, i) => ({ ...d, label: results[i] || d.label })));
-    });
-  }, [language, subjects, dashboard]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
-
-  const txTitle = useTranslatedText(t('app:parentGrades.title'), language);
-  const txSubtitle = useTranslatedText(t('app:parentGrades.subtitle', { name: studentName }), language);
+  const chartData: ChartDataPoint[] = (dashboard?.charts.subject_score_bar_chart ?? []).map(d => ({ label: d.subject_name, value: d.value }));
+  const txTitle = t('app:parentGrades.title');
+  const txSubtitle = t('app:parentGrades.subtitle', { name: studentName });
 
   return (
     <div>
@@ -89,7 +73,7 @@ export function GradesScreen() {
         {[{labelKey: 'overallPerformance', value: dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—', color: 'a1'},
           {labelKey: 'assignmentCompletion', value: dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—', color: 'a2'},
           {labelKey: 'attendance', value: dashboard?.summary_cards.attendance_rate != null ? `${Math.round(dashboard.summary_cards.attendance_rate * 100)}%` : '—', color: 'a3'},
-          {labelKey: 'subjects', value: txSubjects.length, color: 'a4'},
+          {labelKey: 'subjects', value: subjects.length, color: 'a4'},
         ].map((card, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{t(card.labelKey)}</div>
@@ -117,7 +101,7 @@ export function GradesScreen() {
             </div>
           </div>
           <BarChart
-            data={txChartData}
+            data={chartData}
             colors={['#E8614E', '#3DB6A8', '#4A90D9', '#F0A732', '#8B5CF6', '#E91E8C']}
             height={180}
             showAvg
@@ -145,7 +129,7 @@ export function GradesScreen() {
           {t('allSubjects')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {txSubjects.map((sub, idx) => (
+          {subjects.map((sub, idx) => (
             <div
               key={sub.uuid}
               className="subject-row"

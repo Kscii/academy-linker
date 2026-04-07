@@ -8,7 +8,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { teacher as teacherApi, posts as postsApi, translations } from '@/lib/api';
 import type { DiscussionParentItem, PostTag, TeacherStudentListItem, ThreadPost } from '@/types/api';
-import { useTranslatedText } from '@/lib/translate';
 
 const POLL_INTERVAL = 5_000;
 
@@ -35,7 +34,9 @@ export function TeacherMessagesScreen() {
   const [activeParentUuid, setActiveParentUuid] = useState('');
   const [messages, setMessages] = useState<ThreadPost[]>([]);
   const [threadUuid, setThreadUuid] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
   const [reply, setReply] = useState('');
+  const [replyToPostUuid, setReplyToPostUuid] = useState('');
   const [editingPostUuid, setEditingPostUuid] = useState('');
   const [editingTitle, setEditingTitle] = useState('');
   const [editingContent, setEditingContent] = useState('');
@@ -51,7 +52,7 @@ export function TeacherMessagesScreen() {
   const [threadPage] = useState(1);
   const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string | null; loading: boolean; showOriginal: boolean }>>({});
 
-  const txTranslate = useTranslatedText('Translate', language);
+  const txTranslate = t('actions.translate');
   const aiDrafts = [
     t('teacherMessages.aiDrafts.reviewingProgress'),
     t('teacherMessages.aiDrafts.scheduleMeeting'),
@@ -71,6 +72,10 @@ export function TeacherMessagesScreen() {
   const activeStudent = students.find(student => student.uuid === activeStudentUuid) ?? null;
   const parentsForActiveStudent = parentLists[activeStudentUuid] ?? [];
   const activeParent = parentsForActiveStudent.find(parent => parent.uuid === activeParentUuid) ?? parentsForActiveStudent[0] ?? null;
+  const replyTarget = useMemo(
+    () => messages.find(message => message.uuid === replyToPostUuid) ?? null,
+    [messages, replyToPostUuid]
+  );
 
   const studentSummaries = useMemo<Record<string, StudentConvoSummary>>(() => {
     const summaries: Record<string, StudentConvoSummary> = {};
@@ -116,6 +121,13 @@ export function TeacherMessagesScreen() {
   }, [language, activeStudentUuid, activeParentUuid]);
 
   useEffect(() => {
+    setMsgTranslations(prev => {
+      const validIds = new Set(messages.filter(message => !message.is_deleted).map(message => message.uuid));
+      return Object.fromEntries(Object.entries(prev).filter(([key]) => validIds.has(key)));
+    });
+  }, [messages]);
+
+  useEffect(() => {
     Promise.all([
       teacherApi.getStudents({ page: 1, page_size: 100, sort: 'last_activity_at_desc' }),
       teacherApi.getTags('all'),
@@ -158,6 +170,7 @@ export function TeacherMessagesScreen() {
   }, [activeParentUuid, activeStudentUuid, loadParents, loadThread]);
 
   const handleTranslate = useCallback(async (post: ThreadPost) => {
+    if (post.is_deleted) return;
     const id = post.uuid;
     const existing = msgTranslations[id];
     if (existing) {
@@ -193,12 +206,16 @@ export function TeacherMessagesScreen() {
     setSending(true);
     try {
       await postsApi.create(threadUuid, {
+        title: draftTitle.trim() || null,
         content_markdown: text.trim(),
         original_language: language,
         tag_uuids: selectedTagUuids.length > 0 ? selectedTagUuids : undefined,
+        reply_to_post_uuid: replyToPostUuid || null,
       });
+      setDraftTitle('');
       setReply('');
       setSelectedTagUuids([]);
+      setReplyToPostUuid('');
       setShowAiChips(false);
       if (activeStudentUuid && activeParentUuid) {
         await loadThread(activeStudentUuid, activeParentUuid);
@@ -247,6 +264,14 @@ export function TeacherMessagesScreen() {
     await postsApi.delete(postUuid);
     if (editingPostUuid === postUuid) {
       cancelEditing();
+    }
+    setMsgTranslations(prev => {
+      const next = { ...prev };
+      delete next[postUuid];
+      return next;
+    });
+    if (replyToPostUuid === postUuid) {
+      setReplyToPostUuid('');
     }
     if (activeStudentUuid && activeParentUuid) {
       await loadThread(activeStudentUuid, activeParentUuid);
@@ -353,23 +378,39 @@ export function TeacherMessagesScreen() {
               const isTeacher = post.author.role === 'teacher';
               const tx = msgTranslations[post.uuid];
               const isEditing = editingPostUuid === post.uuid;
-              const canTranslate = post.original_language !== language;
+              const canTranslate = !post.is_deleted && post.original_language !== language;
               const isShowingOriginal = tx?.showOriginal ?? false;
               const bubbleText = isShowingOriginal
                 ? post.original_content_markdown
                 : (tx?.text ?? post.content_markdown);
+              const replyPreview = post.reply_to_post_uuid ? messages.find(item => item.uuid === post.reply_to_post_uuid) : null;
               return (
-                <div key={post.uuid} style={{ display: 'flex', gap: 10, flexDirection: isTeacher ? 'row-reverse' : 'row' }}>
+                <div key={post.uuid} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--bd)', background: isTeacher ? 'var(--a4)10' : 'var(--bg2)' }}>
                   <div className="avatar" style={{ flexShrink: 0, background: isTeacher ? 'var(--a4)' : 'var(--bg2)', color: isTeacher ? '#fff' : 'var(--tx2)', fontSize: 11 }}>
                     {initials(post.author.display_name)}
                   </div>
-                  <div style={{ maxWidth: '72%' }}>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 4, textAlign: isTeacher ? 'right' : 'left' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{post.title?.trim() || t('common.untitled')}</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
                       {post.author.display_name} · {timeAgo(post.created_at)}
                     </div>
-                    {post.title && (
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', marginBottom: 4, textAlign: isTeacher ? 'right' : 'left' }}>
-                        {post.title}
+                  </div>
+                  {!post.is_deleted && (
+                    <button className="chip" style={{ fontSize: 11, alignSelf: 'center' }} onClick={() => setReplyToPostUuid(post.uuid)}>
+                      {t('teacherMessages.reply')}
+                    </button>
+                  )}
+                  </div>
+                  <div style={{ padding: '12px 14px' }}>
+                    {replyPreview && (
+                      <div style={{ marginBottom: 10, padding: '8px 10px', borderLeft: '3px solid var(--a4)', background: 'var(--bg2)', borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', marginBottom: 2 }}>
+                          {replyPreview.title?.trim() || t('common.untitled')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
+                          {replyPreview.original_content_markdown.slice(0, 120)}
+                        </div>
                       </div>
                     )}
                     {isEditing ? (
@@ -411,7 +452,7 @@ export function TeacherMessagesScreen() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ background: isTeacher ? 'var(--a4)' : 'var(--card)', color: isTeacher ? '#fff' : 'var(--tx)', border: isTeacher ? 'none' : '1px solid var(--bd)', borderRadius: isTeacher ? '14px 14px 2px 14px' : '14px 14px 14px 2px', padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
+                      <div style={{ color: 'var(--tx)', fontSize: 13, lineHeight: 1.6 }}>
                         {bubbleText}
                       </div>
                     )}
@@ -463,6 +504,21 @@ export function TeacherMessagesScreen() {
           </div>
 
           <div className="thread-input-area">
+            {replyTarget && (
+              <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--bg2)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)' }}>
+                    {t('teacherMessages.replyingTo', { title: replyTarget.title?.trim() || t('common.untitled') })}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
+                    {replyTarget.original_content_markdown.slice(0, 120)}
+                  </div>
+                </div>
+                <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} onClick={() => setReplyToPostUuid('')}>
+                  {t('teacherMessages.clearReply')}
+                </button>
+              </div>
+            )}
             {showAiChips && (
               <div style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {aiDrafts.map(draft => (
@@ -497,23 +553,33 @@ export function TeacherMessagesScreen() {
               >
                 ✦ {t('teacherMessages.aiDraft')}
               </button>
-              <textarea
-                className="input-field"
-                style={{ flex: 1, resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 42 }}
-                placeholder={activeParent ? t('teacherMessages.replyTo', { name: activeParent.display_name }) : t('teacherMessages.noParentLinked')}
-                value={reply}
-                rows={2}
-                disabled={!activeParent}
-                onChange={e => setReply(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    void sendReply(reply);
-                  }
-                }}
-              />
+              <div style={{ flex: 1 }}>
+                <input
+                  className="input-field"
+                  style={{ marginBottom: 8 }}
+                  placeholder={t('teacherMessages.optionalTitle')}
+                  value={draftTitle}
+                  disabled={!activeParent}
+                  onChange={e => setDraftTitle(e.target.value)}
+                />
+                <textarea
+                  className="input-field"
+                  style={{ width: '100%', resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 72 }}
+                  placeholder={activeParent ? t('teacherMessages.bodyPlaceholder') : t('teacherMessages.noParentLinked')}
+                  value={reply}
+                  rows={3}
+                  disabled={!activeParent}
+                  onChange={e => setReply(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void sendReply(reply);
+                    }
+                  }}
+                />
+              </div>
               <button className="btn-primary" style={{ width: 'auto', padding: '8px 18px', flexShrink: 0, alignSelf: 'flex-end' }} onClick={() => void sendReply(reply)} disabled={!reply.trim() || sending || !activeParent}>
-                {t('actions.send')}
+                {replyToPostUuid ? t('teacherMessages.postReply') : t('teacherMessages.newPost')}
               </button>
             </div>
           </div>

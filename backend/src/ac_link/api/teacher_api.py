@@ -1142,6 +1142,22 @@ def generate_ai_report(
             raise Errors.forbidden("当前教师未被分配该学生的此学科")
         subject_id = subject.id
         subject_name = subject.name
+        assigned_subject_ids: set[int] | None = {subject.id}
+    else:
+        assigned_subject_rows = (
+            db.query(Subject)
+            .join(TeachingAssignment, TeachingAssignment.subject_id == Subject.id)
+            .filter(
+                TeachingAssignment.teacher_user_id == current_user.id,
+                TeachingAssignment.student_id == student.id,
+                TeachingAssignment.is_active == True,  # noqa: E712
+                Subject.is_active == True,  # noqa: E712
+            )
+            .all()
+        )
+        assigned_subject_ids = {subject.id for subject in assigned_subject_rows}
+        if not assigned_subject_ids:
+            raise Errors.forbidden("当前教师未被分配该学生的任何学科")
 
     # ── 聚合学生数据 ─────────────────────────────────────────────────
     from ac_link.db.orm.content import Report as ReportORM
@@ -1151,6 +1167,8 @@ def generate_ai_report(
     exam_scores, _ = score_crud.list_exam_scores(
         db, student.id, subject_id=subject_id, page=1, page_size=20,
     )
+    if body.subject_uuid is None:
+        exam_scores = [score for score in exam_scores if score.subject_id in assigned_subject_ids]
     if exam_scores:
         exam_lines = []
         for s in exam_scores:
@@ -1165,6 +1183,8 @@ def generate_ai_report(
 
     # period_metrics（最近3条）
     metrics = metrics_crud.list_period_metrics(db, student.id, subject_id=subject_id)
+    if body.subject_uuid is None:
+        metrics = [metric for metric in metrics if metric.subject_id in assigned_subject_ids]
     recent_metrics = metrics[:3]
     if recent_metrics:
         metrics_lines = []
@@ -1194,6 +1214,8 @@ def generate_ai_report(
         .limit(3)
         .all()
     )
+    if body.subject_uuid is None:
+        recent_reports = [report for report in recent_reports if report.subject_id is None or report.subject_id in assigned_subject_ids]
     if recent_reports:
         report_lines = []
         for r in recent_reports:
