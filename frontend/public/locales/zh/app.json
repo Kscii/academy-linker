@@ -92,6 +92,7 @@
   },
   "teacherClassDetail": {
     "backToDashboard": "返回仪表盘",
+    "viewTimetable": "查看课表",
     "grade": "{{value}} 年级",
     "homeroom": "班主任班级",
     "students": "学生数",
@@ -547,5 +548,51 @@
     "title": "学业表现",
     "subtitle": "{{name}} 的成绩与进展",
     "noTeacherAssigned": "未分配教师"
+  },
+  "timetable": {
+    "weekdays": {
+      "monday": "周一",
+      "tuesday": "周二",
+      "wednesday": "周三",
+      "thursday": "周四",
+      "friday": "周五"
+    },
+    "periodLabel": "第 {{value}} 节",
+    "assignedToMe": "我负责",
+    "noRoom": "教室待定",
+    "emptySlot": "无课程"
+  },
+  "parentTimetable": {
+    "title": "课表",
+    "subtitle": "{{className}} 的每周课表",
+    "subtitleFallback": "每周班级课表",
+    "effectiveRange": "生效时间：{{from}} 至 {{to}}",
+    "noEffectiveVersion": "该日期暂无生效课表版本。",
+    "empty": "暂无课表数据。"
+  },
+  "teacherTimetable": {
+    "title": "班级课表",
+    "subtitle": "{{className}} 的每周课表",
+    "subtitleFallback": "每周班级课表",
+    "effectiveRange": "生效时间：{{from}} 至 {{to}}",
+    "noEffectiveVersion": "该日期暂无生效课表版本。",
+    "empty": "暂无课表数据。",
+    "backToClass": "返回班级"
+  },
+  "adminTimetable": {
+    "title": "班级课表",
+    "selectClass": "选择班级",
+    "rows": "课表行",
+    "addRow": "新增课时",
+    "selectSubject": "选择学科",
+    "selectTeacher": "选择教师",
+    "roomPlaceholder": "教室",
+    "validationRows": "请至少添加一行课表后再保存。",
+    "saveFailed": "保存课表失败。",
+    "save": "保存课表",
+    "previewTitle": "课表预览",
+    "previewSubtitle": "生效时间：{{from}} 至 {{to}}",
+    "noEffectiveVersion": "尚未加载课表版本。",
+    "empty": "暂无课表数据。"
   }
 }

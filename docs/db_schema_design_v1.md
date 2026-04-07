@@ -238,6 +238,47 @@ classes(
 - index(`is_active`)
 - index(`grade_level`, `academic_year`)
 
+#### `class_timetable_entries`
+
+```text
+class_timetable_entries(
+  id PK,
+  uuid UNIQUE,
+  class_id FK -> classes.id,
+  subject_id FK -> subjects.id,
+  teacher_user_id FK -> users.id,
+  weekday,
+  period_index,
+  room_label NULL,
+  start_time,
+  end_time,
+  effective_from,
+  effective_to NULL,
+  is_active,
+  created_at,
+  updated_at
+)
+```
+
+说明：
+
+- 课表按“班级周课表”建模，不为每个学生单独建表。
+- 同一个班级在不同时间段可以存在多个课表版本，通过 `effective_from / effective_to` 控制生效窗口。
+- `teacher_user_id` 必须指向 role=`teacher` 的用户；业务层还会校验该 `teacher + subject` 组合属于该班当前 active `teaching_assignments`。
+- 第一版采用“整张覆盖”写入策略：后台发布新版本时，旧版本会被关闭或截断，而不是逐行 diff。
+
+唯一约束：
+
+- unique(`class_id`, `weekday`, `period_index`, `effective_from`)
+
+索引：
+
+- unique(`uuid`)
+- index(`class_id`, `effective_from`, `effective_to`)
+- index(`teacher_user_id`)
+- index(`subject_id`)
+- index(`is_active`)
+
 #### `students`
 
 ```text

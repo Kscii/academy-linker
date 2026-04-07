@@ -16,6 +16,7 @@ from ac_link.db.orm.sqltypes import enum_column
 if TYPE_CHECKING:
     from ac_link.db.orm.communication import DiscussionThread
     from ac_link.db.orm.content import Announcement, Report
+    from ac_link.db.orm.timetable import ClassTimetableEntry
     from ac_link.db.orm.user import User
     from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
 
@@ -42,6 +43,7 @@ class Class(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
         back_populates='homeroom_classes',
     )
     students: Mapped[list['Student']] = relationship(back_populates='class_obj')
+    timetable_entries: Mapped[list['ClassTimetableEntry']] = relationship(back_populates='class_obj', cascade='all, delete-orphan')
 
 
 class Student(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
@@ -109,6 +111,7 @@ class Subject(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     exam_scores: Mapped[list['StudentExamScore']] = relationship(back_populates='subject')
     period_metrics: Mapped[list['StudentPeriodMetric']] = relationship(back_populates='subject')
     learning_pathway_items: Mapped[list['LearningPathwayItem']] = relationship(back_populates='subject')
+    timetable_entries: Mapped[list['ClassTimetableEntry']] = relationship(back_populates='subject')
 
 
 class TeachingAssignment(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):

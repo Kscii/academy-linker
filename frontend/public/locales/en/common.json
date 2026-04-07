@@ -7,6 +7,7 @@
   "delete": "Delete",
   "edit": "Edit",
   "loading": "Loading…",
+  "saving": "Saving…",
   "error": "Something went wrong",
   "signOut": "Sign Out",
   "signedInAs": "Signed in as",
@@ -15,6 +16,7 @@
   "parent": "Parent",
   "teacher": "Teacher",
   "settings": "Settings",
+  "ongoing": "Ongoing",
   "viewAll": "View all →",
   "search": "Search…",
   "noResults": "No results"
