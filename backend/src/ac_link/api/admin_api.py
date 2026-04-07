@@ -23,6 +23,10 @@ Admin 管理接口：/api/admin/*
   GET    /api/admin/tags/system                        - 获取系统 Tag 列表
   POST   /api/admin/tags/system                        - 创建系统 Tag
   PATCH  /api/admin/tags/system/{tag_uuid}             - 更新系统 Tag
+  GET    /api/admin/resources                          - 获取资源列表
+  POST   /api/admin/resources                          - 创建资源
+  PATCH  /api/admin/resources/{resource_uuid}          - 更新资源
+  DELETE /api/admin/resources/{resource_uuid}          - 删除资源
 """
 
 from __future__ import annotations
@@ -36,10 +40,13 @@ from sqlalchemy.orm import Session
 from ac_link.common.deps import require_admin
 from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import admin as admin_crud
+from ac_link.crud import resource as resource_crud
+from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.enums import TagScope, UserRole
-from ac_link.db.orm.user import User
+from ac_link.db.orm.enums import ResourceAudienceRole, TagScope, TranslationResourceType, UserRole
+from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.admin import (
+    AdminOverviewData,
     AssignmentListItem,
     BindingListItem,
     ClassDetail,
@@ -65,9 +72,35 @@ from ac_link.dto.admin import (
     UserListItem,
 )
 from ac_link.dto.auth import ApiResponse
+from ac_link.dto.resource import (
+    CreateResourceRequest,
+    DeleteResourceResult,
+    PaginatedResponse as _PaginatedResponse,  # noqa – 已通过 admin dto 导入，此处别名
+    ResourceDetail,
+    ResourceListItem,
+    TranslationBlock,
+    UpdateResourceRequest,
+)
 from ac_link.services import auth_service
+from ac_link.services.translation_helpers import (
+    get_target_language,
+    resolve_translation_block,
+    resolve_translation_fields,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+# ── GET /api/admin/overview ───────────────────────────────────────────────────
+
+@router.get("/overview", response_model=ApiResponse[AdminOverviewData])
+def get_admin_overview(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[AdminOverviewData]:
+    """获取 Admin 首页总览统计（§11.0）。"""
+    result = admin_crud.get_admin_overview(db)
+    return ApiResponse(data=AdminOverviewData(**result))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -746,3 +779,190 @@ def transfer_class(
         created_assignment_count=created,
     ))
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 资源管理（§12A.4 ~ §12A.7）
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _admin_resource_detail(
+    db: Session,
+    user: 'User',
+    resource,
+) -> ResourceDetail:
+    """构建 ResourceDetail DTO（Admin 视图，不受翻译语言影响，直接展示原文）。"""
+    from ac_link.db.orm.user import UserSettings as _UserSettings
+    user_settings = db.query(_UserSettings).filter(
+        _UserSettings.user_id == user.id
+    ).first()
+    target_lang = get_target_language(
+        user_settings.language if user_settings else None
+    )
+    translation = translation_crud.get_translation(
+        db, TranslationResourceType.RESOURCE, resource.id, target_lang
+    )
+    fields = resolve_translation_fields(
+        resource.original_content_markdown, resource.original_language, translation
+    )
+    return ResourceDetail(
+        uuid=resource.uuid,
+        title=resource.title,
+        summary=resource.summary,
+        category_key=resource.category_key,
+        category_label=resource.category_label,
+        audience_role=str(resource.audience_role),
+        cover_image_url=resource.cover_image_url,
+        external_url=resource.external_url,
+        is_pinned=resource.is_pinned,
+        published_at=resource.published_at,
+        **fields,
+    )
+
+
+@router.get("/resources", response_model=PaginatedResponse[ResourceListItem])
+def admin_list_resources(
+    page: int = 1,
+    page_size: int = 20,
+    category: str | None = None,
+    keyword: str | None = None,
+    audience_role: str | None = None,
+    is_published: bool | None = None,
+    sort: str = "created_at_desc",
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ResourceListItem]:
+    """Admin 获取资源列表，可查未发布资源（§12A.4）。"""
+    from ac_link.crud.resource import _ADMIN_SORTS
+    items, total = resource_crud.list_resources(
+        db,
+        page=page,
+        page_size=page_size,
+        category=category,
+        keyword=keyword,
+        audience_role=audience_role,
+        sort=sort,
+        is_published_filter=is_published,  # None = 不过滤
+        viewer_role=None,  # Admin 看全部受众
+        sort_set=_ADMIN_SORTS,
+    )
+
+    user_settings = db.query(UserSettings).filter(
+        UserSettings.user_id == _admin.id
+    ).first()
+    target_lang = get_target_language(
+        user_settings.language if user_settings else None
+    )
+    resource_ids = [r.id for r in items]
+    trans_map = translation_crud.get_translations_batch(
+        db, TranslationResourceType.RESOURCE, resource_ids, target_lang
+    )
+
+    return PaginatedResponse(
+        data=[
+            ResourceListItem(
+                uuid=r.uuid,
+                title=r.title,
+                summary=r.summary,
+                category_key=r.category_key,
+                category_label=r.category_label,
+                audience_role=str(r.audience_role),
+                cover_image_url=r.cover_image_url,
+                external_url=r.external_url,
+                is_pinned=r.is_pinned,
+                published_at=r.published_at,
+                translation=TranslationBlock(
+                    **resolve_translation_block(r.original_language, trans_map.get(r.id))
+                ),
+            )
+            for r in items
+        ],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=resource_crud.calc_total_pages(total, page_size),
+        ),
+    )
+
+
+@router.post("/resources", response_model=ApiResponse[ResourceDetail], status_code=201)
+def admin_create_resource(
+    body: CreateResourceRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ResourceDetail]:
+    """Admin 创建资源（§12A.5）。"""
+    try:
+        audience = ResourceAudienceRole(body.audience_role)
+    except ValueError:
+        raise AppError(422, "invalid_audience_role", "audience_role 必须为 parent | teacher | all")
+
+    resource = resource_crud.create_resource(
+        db,
+        title=body.title,
+        summary=body.summary,
+        content_markdown=body.content_markdown,
+        category_key=body.category_key,
+        category_label=body.category_label,
+        audience_role=audience,
+        cover_image_url=body.cover_image_url,
+        external_url=body.external_url,
+        is_pinned=body.is_pinned,
+        is_published=body.is_published,
+        published_at=body.published_at,
+        original_language=body.original_language,
+    )
+    db.commit()
+    db.refresh(resource)
+    return ApiResponse(data=_admin_resource_detail(db, _admin, resource))
+
+
+@router.patch("/resources/{resource_uuid}", response_model=ApiResponse[ResourceDetail])
+def admin_update_resource(
+    resource_uuid: UUID,
+    body: UpdateResourceRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ResourceDetail]:
+    """Admin 更新资源（§12A.6）。若 content_markdown 变更，翻译缓存标记为 stale。"""
+    resource = resource_crud.get_resource_by_uuid(db, resource_uuid)
+    if resource is None:
+        raise Errors.not_found("资源不存在")
+
+    updates = body.model_dump(exclude_unset=True)
+
+    if "audience_role" in updates and updates["audience_role"] is not None:
+        try:
+            updates["audience_role"] = ResourceAudienceRole(updates["audience_role"])
+        except ValueError:
+            raise AppError(422, "invalid_audience_role", "audience_role 必须为 parent | teacher | all")
+
+    content_changed = (
+        "content_markdown" in updates
+        and updates["content_markdown"] != resource.content_markdown
+    )
+
+    resource_crud.update_resource(db, resource, **updates)
+
+    if content_changed:
+        translation_crud.mark_translations_stale(
+            db, TranslationResourceType.RESOURCE, resource.id
+        )
+
+    db.commit()
+    db.refresh(resource)
+    return ApiResponse(data=_admin_resource_detail(db, _admin, resource))
+
+
+@router.delete("/resources/{resource_uuid}", response_model=ApiResponse[DeleteResourceResult])
+def admin_delete_resource(
+    resource_uuid: UUID,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[DeleteResourceResult]:
+    """Admin 删除资源（§12A.7）。"""
+    resource = resource_crud.get_resource_by_uuid(db, resource_uuid)
+    if resource is None:
+        raise Errors.not_found("资源不存在")
+    resource_crud.delete_resource(db, resource)
+    db.commit()
+    return ApiResponse(data=DeleteResourceResult(success=True))

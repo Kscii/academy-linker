@@ -329,3 +329,13 @@ class TransferClassResult(BaseModel):
     deactivated_assignment_count: int
     created_assignment_count: int
 
+
+# ── §11.0 Admin 首页总览 ──────────────────────────────────────────────────────
+
+class AdminOverviewData(BaseModel):
+    user_count: int
+    teacher_count: int
+    parent_count: int
+    student_count: int
+    class_count: int
+

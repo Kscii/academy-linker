@@ -2,15 +2,19 @@
 家长端接口：/api/parents/me/*
 
 包含：
-  GET /api/parents/me/students                                                              §9.1
-  GET /api/parents/me/students/{student_uuid}/dashboard                                     §9.2
-  GET /api/parents/me/students/{student_uuid}/subjects                                      §9.3
-  GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid}                       §9.4
-  GET /api/parents/me/students/{student_uuid}/reports                                       §9.5
-  GET /api/parents/me/students/{student_uuid}/reports/{report_uuid}                         §9.6
-  GET /api/parents/me/students/{student_uuid}/announcements                                 §9.10
-  GET /api/parents/me/students/{student_uuid}/discussions/teachers                          §9.13
-  GET /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}           §9.14
+  GET  /api/parents/me/students                                                              §9.1
+  GET  /api/parents/me/students/{student_uuid}/dashboard                                     §9.2
+  GET  /api/parents/me/students/{student_uuid}/subjects                                      §9.3
+  GET  /api/parents/me/students/{student_uuid}/subjects/{subject_uuid}                       §9.4
+  GET  /api/parents/me/students/{student_uuid}/reports                                       §9.5
+  GET  /api/parents/me/students/{student_uuid}/reports/{report_uuid}                         §9.6
+  GET  /api/parents/me/students/{student_uuid}/announcements                                 §9.10
+  GET  /api/parents/me/students/{student_uuid}/discussions/teachers                          §9.13
+  GET  /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}           §9.14
+  GET  /api/parents/me/students/{student_uuid}/leave                                         §9.20
+  POST /api/parents/me/students/{student_uuid}/leave                                         §9.21
+  GET  /api/parents/me/students/{student_uuid}/incidents                                     §9.22
+  POST /api/parents/me/students/{student_uuid}/incidents                                     §9.23
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ from ac_link.crud import discussion as discussion_crud
 from ac_link.crud import metrics as metrics_crud
 from ac_link.crud import parent as parent_crud
 from ac_link.crud import score as score_crud
+from ac_link.crud import welfare as welfare_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 from ac_link.db.orm.user import User
@@ -43,9 +48,16 @@ from ac_link.dto.parent import (
     AnnouncementListItem,
     ChartPoint,
     Charts,
+    ClassAvgPoint,
     DashboardContext,
     DashboardData,
     ImportantPostBanner,
+    IncidentReportCreate,
+    IncidentReportCreateResponse,
+    IncidentReportItem,
+    LeaveRequestCreate,
+    LeaveRequestItem,
+    LearningPathwayItemBrief,
     LearningProgressPoint,
     ParentExamScoreItem,
     ParentPeriodMetricItem,
@@ -58,12 +70,15 @@ from ac_link.dto.parent import (
     SubjectListItem,
     SubjectListResponse,
     SubjectOverview,
+    SubjectPostAuthor,
+    SubjectPostItem,
     SubjectStat,
     SubjectWithTeachers,
     SummaryCards,
     TeacherBrief,
     TeacherDetail,
     TranslationBlock,
+    TrendDataPoint,
     ReportSummary,
 )
 
@@ -150,6 +165,11 @@ def get_subject_detail(
 
     latest_report = parent_crud.get_latest_report_for_student(db, student.id, subject_id=subject.id)
 
+    pathway_items = parent_crud.list_learning_pathway_items(db, student.id, subject.id)
+    recent_posts = parent_crud.list_recent_subject_posts(
+        db, student.id, subject.id, parent_user_id=current_user.id
+    )
+
     return ApiResponse(data=SubjectDetailData(
         student=StudentBrief.model_validate(student),
         subject=SubjectWithTeachers(
@@ -159,7 +179,33 @@ def get_subject_detail(
             teachers=[TeacherDetail(uuid=t.uuid, display_name=t.display_name, email=t.email) for t in teachers],
         ),
         overview=SubjectOverview(),
-        timeline=[],
+        trend_data=[],
+        class_avg_data=[],
+        learning_pathway=[
+            LearningPathwayItemBrief(
+                uuid=item.uuid,
+                title=item.title,
+                description=item.description,
+                status=str(item.status),
+                week=item.week,
+            )
+            for item in pathway_items
+        ],
+        posts=[
+            SubjectPostItem(
+                uuid=post.uuid,
+                title=post.title,
+                content_markdown=post.content_markdown,
+                created_at=post.created_at,
+                author=SubjectPostAuthor(
+                    uuid=post.author_user.uuid,
+                    display_name=post.author_user.display_name,
+                    role=str(post.author_user.role),
+                ),
+                tags=[],
+            )
+            for post in recent_posts
+        ],
         summary=_build_report_summary(latest_report),
     ))
 
@@ -391,6 +437,7 @@ def list_discussion_teachers(
             thread_uuid=row["thread"].uuid if row["thread"] else None,
             last_post_at=row["thread"].last_post_at if row["thread"] else None,
             unread_post_count=row["unread_count"],
+            latest_message_preview=row.get("latest_message_preview"),
         )
         for row in rows
     ]
@@ -596,6 +643,199 @@ def list_student_period_metrics(
     return ApiResponse(data=[ParentPeriodMetricItem.from_orm_obj(m) for m in items])
 
 
+# ── GET /api/parents/me/students/{student_uuid}/leave ────────────────────────
+
+_VALID_LEAVE_STATUSES = frozenset({"pending", "approved", "rejected", "all"})
+
+
+@router.get(
+    "/students/{student_uuid}/leave",
+    response_model=PaginatedResponse[LeaveRequestItem],
+)
+def list_student_leave_requests(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    status: str = "all",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[LeaveRequestItem]:
+    """获取学生请假申请列表（§9.20）。"""
+    if status not in _VALID_LEAVE_STATUSES:
+        raise AppError(400, "invalid_filter", f"status 参数非法，可选值：{_VALID_LEAVE_STATUSES}")
+
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    items, total = welfare_crud.list_leave_requests(
+        db, student.id, current_user.id,
+        page=page, page_size=page_size, status=status,
+    )
+    return PaginatedResponse(
+        data=[
+            LeaveRequestItem(
+                uuid=item.uuid,
+                student_uuid=student.uuid,
+                type=str(item.type),
+                start_date=item.start_date,
+                end_date=item.end_date,
+                reason=item.reason,
+                status=str(item.status),
+                school_note=item.school_note,
+                submitted_at=item.created_at,
+            )
+            for item in items
+        ],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── POST /api/parents/me/students/{student_uuid}/leave ───────────────────────
+
+_VALID_LEAVE_TYPES = frozenset({"sick", "personal", "family", "other"})
+
+
+@router.post(
+    "/students/{student_uuid}/leave",
+    response_model=ApiResponse[LeaveRequestItem],
+    status_code=201,
+)
+def create_student_leave_request(
+    student_uuid: UUID,
+    body: LeaveRequestCreate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[LeaveRequestItem]:
+    """提交请假申请（§9.21）。"""
+    from ac_link.db.orm.enums import LeaveRequestType
+
+    if body.type not in _VALID_LEAVE_TYPES:
+        raise AppError(400, "invalid_filter", f"type 参数非法，可选值：{_VALID_LEAVE_TYPES}")
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    leave_type = LeaveRequestType(body.type)
+    item = welfare_crud.create_leave_request(
+        db,
+        student_id=student.id,
+        submitter_user_id=current_user.id,
+        leave_type=leave_type,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        reason=body.reason,
+    )
+    db.commit()
+    db.refresh(item)
+
+    return ApiResponse(data=LeaveRequestItem(
+        uuid=item.uuid,
+        student_uuid=student.uuid,
+        type=str(item.type),
+        start_date=item.start_date,
+        end_date=item.end_date,
+        reason=item.reason,
+        status=str(item.status),
+        school_note=item.school_note,
+        submitted_at=item.created_at,
+    ))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/incidents ────────────────────
+
+@router.get(
+    "/students/{student_uuid}/incidents",
+    response_model=PaginatedResponse[IncidentReportItem],
+)
+def list_student_incident_reports(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[IncidentReportItem]:
+    """获取学生事件举报列表（仅当前家长非匿名提交的，§9.22）。"""
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    items, total = welfare_crud.list_incident_reports(
+        db, current_user.id, student.id,
+        page=page, page_size=page_size,
+    )
+    return PaginatedResponse(
+        data=[
+            IncidentReportItem(
+                uuid=item.uuid,
+                student_uuid=student.uuid,
+                incident_type=str(item.incident_type),
+                description=item.description,
+                is_anonymous=item.is_anonymous,
+                status=str(item.status),
+                submitted_at=item.created_at,
+            )
+            for item in items
+        ],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── POST /api/parents/me/students/{student_uuid}/incidents ───────────────────
+
+_VALID_INCIDENT_TYPES = frozenset({"bullying", "drugs", "misconduct", "other"})
+
+
+@router.post(
+    "/students/{student_uuid}/incidents",
+    response_model=ApiResponse[IncidentReportCreateResponse],
+    status_code=201,
+)
+def create_student_incident_report(
+    student_uuid: UUID,
+    body: IncidentReportCreate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[IncidentReportCreateResponse]:
+    """提交事件举报（§9.23）。"""
+    from ac_link.db.orm.enums import IncidentType
+
+    if body.incident_type not in _VALID_INCIDENT_TYPES:
+        raise AppError(400, "invalid_filter", f"incident_type 参数非法，可选值：{_VALID_INCIDENT_TYPES}")
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    incident_type = IncidentType(body.incident_type)
+    # 匿名时不写入 reporter_user_id
+    reporter_id = None if body.is_anonymous else current_user.id
+
+    item = welfare_crud.create_incident_report(
+        db,
+        student_id=student.id,
+        reporter_user_id=reporter_id,
+        incident_type=incident_type,
+        description=body.description,
+        is_anonymous=body.is_anonymous,
+    )
+    db.commit()
+
+    return ApiResponse(data=IncidentReportCreateResponse(
+        uuid=item.uuid,
+        status=str(item.status),
+    ))
+
+
 def _translation_block(obj: Report | Announcement, translation: object | None = None) -> TranslationBlock:
     from ac_link.services.translation_helpers import resolve_translation_block
     fields = resolve_translation_block(obj.original_language, translation)
@@ -670,5 +910,6 @@ def _build_announcement_list_item(
         read_at=state.read_at if state else None,
         published_at=ann.published_at,
         due_at=ann.due_at,
+        body_preview=ann.content_markdown[:150] if ann.content_markdown else None,
         translation=_translation_block(ann),
     )

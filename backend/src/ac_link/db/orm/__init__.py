@@ -1,14 +1,20 @@
-from ac_link.db.orm.academic import Class, ParentStudentBinding, Student, StudentExamScore, StudentPeriodMetric, Subject, TeachingAssignment
+from ac_link.db.orm.academic import Class, LearningPathwayItem, ParentStudentBinding, Student, StudentExamScore, StudentPeriodMetric, Subject, TeachingAssignment
 from ac_link.db.orm.ai import AiConversation, AiMessage
 from ac_link.db.orm.base import Base
 from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, PostTag, Tag
-from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
+from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState, Resource
 from ac_link.db.orm.enums import (
     AiConversationContextType,
     AiMessageRole,
     AnnouncementCategory,
+    IncidentStatus,
+    IncidentType,
+    LeaveRequestStatus,
+    LeaveRequestType,
+    LearningPathwayItemStatus,
     ReportSourceType,
     ReportType,
+    ResourceAudienceRole,
     TagScope,
     Theme,
     TimeRange,
@@ -18,6 +24,7 @@ from ac_link.db.orm.enums import (
 )
 from ac_link.db.orm.translation import ResourceTranslation
 from ac_link.db.orm.user import User, UserSession, UserSettings
+from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
 
 __all__ = [
     'Base',
@@ -26,12 +33,18 @@ __all__ = [
     'TranslationResourceType',
     'ReportType',
     'ReportSourceType',
+    'ResourceAudienceRole',
     'AnnouncementCategory',
     'TagScope',
     'Theme',
     'TimeRange',
     'AiConversationContextType',
     'AiMessageRole',
+    'LeaveRequestType',
+    'LeaveRequestStatus',
+    'IncidentType',
+    'IncidentStatus',
+    'LearningPathwayItemStatus',
     'User',
     'UserSettings',
     'UserSession',
@@ -42,6 +55,7 @@ __all__ = [
     'TeachingAssignment',
     'StudentExamScore',
     'StudentPeriodMetric',
+    'LearningPathwayItem',
     'DiscussionThread',
     'ThreadUserState',
     'Post',
@@ -51,7 +65,10 @@ __all__ = [
     'ReportUserState',
     'Announcement',
     'AnnouncementUserState',
+    'Resource',
     'ResourceTranslation',
     'AiConversation',
     'AiMessage',
+    'StudentLeaveRequest',
+    'StudentIncidentReport',
 ]

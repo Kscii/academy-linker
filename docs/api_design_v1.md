@@ -61,16 +61,16 @@
 | DELETE | `/api/posts/{post_uuid}` | 删除帖子（家长/老师共用） | 已完成 |
 | GET | `/api/parents/me/students/{student_uuid}/exam-scores` | 学生考试成绩列表（家长视角） | 已完成 |
 | GET | `/api/parents/me/students/{student_uuid}/period-metrics` | 学生周期指标列表（家长视角） | 已完成 |
-| GET | `/api/parents/me/students/{student_uuid}/leave` | 请假申请列表 | 未完成 |
-| POST | `/api/parents/me/students/{student_uuid}/leave` | 提交请假申请 | 未完成 |
-| GET | `/api/parents/me/students/{student_uuid}/incidents` | 事件举报列表 | 未完成 |
-| POST | `/api/parents/me/students/{student_uuid}/incidents` | 提交事件举报 | 未完成 |
+| GET | `/api/parents/me/students/{student_uuid}/leave` | 请假申请列表 | 已完成 |
+| POST | `/api/parents/me/students/{student_uuid}/leave` | 提交请假申请 | 已完成 |
+| GET | `/api/parents/me/students/{student_uuid}/incidents` | 事件举报列表 | 已完成 |
+| POST | `/api/parents/me/students/{student_uuid}/incidents` | 提交事件举报 | 已完成 |
 
 ### 老师端 (§10)
 
 | 方法 | 路径 | 说明 | 状态 |
 |---|---|---|:---:|
-| GET | `/api/teachers/me/overview` | 教师端首页总览 | 未完成 |
+| GET | `/api/teachers/me/overview` | 教师端首页总览 | 已完成 |
 | GET | `/api/teachers/me/students` | 老师负责的学生列表 | 已完成 |
 | GET | `/api/teachers/me/students/{student_uuid}/dashboard` | 老师视角学生 Dashboard | 已完成 |
 | GET | `/api/teachers/me/students/{student_uuid}/discussions/parents` | 学生讨论家长列表 | 已完成 |
@@ -97,7 +97,7 @@
 
 | 方法 | 路径 | 说明 | 状态 |
 |---|---|---|:---:|
-| GET | `/api/admin/overview` | Admin 首页总览统计 | 未完成 |
+| GET | `/api/admin/overview` | Admin 首页总览统计 | 已完成 |
 | GET | `/api/admin/users` | 获取用户列表 | 已完成 |
 | POST | `/api/admin/users` | 创建用户 | 已完成 |
 | PATCH | `/api/admin/users/{user_uuid}` | 更新用户 | 已完成 |
@@ -117,6 +117,18 @@
 | POST | `/api/admin/classes` | 创建班级 | 已完成 |
 | PATCH | `/api/admin/classes/{class_uuid}` | 更新班级 | 已完成 |
 | POST | `/api/admin/students/{student_uuid}/transfer-class` | 学生换班（原子操作） | 已完成 |
+
+### 资源中心 (§12A)
+
+| 方法 | 路径 | 说明 | 状态 |
+|---|---|---|:---:|
+| GET | `/api/resources` | 获取资源列表 | 已完成 |
+| GET | `/api/resources/categories` | 获取资源分类列表 | 已完成 |
+| GET | `/api/resources/{resource_uuid}` | 获取资源详情 | 已完成 |
+| GET | `/api/admin/resources` | Admin 获取资源列表 | 已完成 |
+| POST | `/api/admin/resources` | Admin 创建资源 | 已完成 |
+| PATCH | `/api/admin/resources/{resource_uuid}` | Admin 更新资源 | 已完成 |
+| DELETE | `/api/admin/resources/{resource_uuid}` | Admin 删除资源 | 已完成 |
 
 ### AI (§12)
 
@@ -808,7 +820,7 @@
       "class_name": "string | null",
       "grade_level": "string | null",
       "avatar_url": "string | null",
-      "date_of_birth": "string | null"  // 变更（未完成）：待后端在此接口中补充返回，前端暂留空
+      "date_of_birth": "string | null"  // 已补充
     },
     "dashboard_context": {
       "selected_range": "30d",
@@ -905,7 +917,7 @@
 
 ---
 
-### 9.4 获取某学科详情聚合数据（变更）
+### 9.4 获取某学科详情聚合数据（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/subjects/{subject_uuid}`
 
@@ -1163,7 +1175,7 @@
 
 ---
 
-### 9.10 获取公告/任务列表（变更）
+### 9.10 获取公告/任务列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/announcements`
 
@@ -1282,7 +1294,7 @@
 
 ---
 
-### 9.13 获取学生讨论教师列表（变更）
+### 9.13 获取学生讨论教师列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/discussions/teachers`
 
@@ -1599,7 +1611,7 @@
 
 ---
 
-### 9.20 获取学生请假申请列表（未完成）
+### 9.20 获取学生请假申请列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/leave`
 
@@ -1643,7 +1655,7 @@
 
 ---
 
-### 9.21 提交请假申请（未完成）
+### 9.21 提交请假申请（已完成）
 
 **POST** `/api/parents/me/students/{student_uuid}/leave`
 
@@ -1684,7 +1696,7 @@
 
 ---
 
-### 9.22 获取事件举报列表（未完成）
+### 9.22 获取事件举报列表（已完成）
 
 **GET** `/api/parents/me/students/{student_uuid}/incidents`
 
@@ -1725,7 +1737,7 @@
 
 ---
 
-### 9.23 提交事件举报（未完成）
+### 9.23 提交事件举报（已完成）
 
 **POST** `/api/parents/me/students/{student_uuid}/incidents`
 
@@ -1760,7 +1772,7 @@
 
 ## 10. 老师端接口
 
-### 10.0 获取教师端首页总览（未完成）
+### 10.0 获取教师端首页总览（已完成）
 
 **GET** `/api/teachers/me/overview`
 
@@ -2715,7 +2727,7 @@
 
 ---
 
-### 11.0 获取 Admin 首页总览统计（未完成）
+### 11.0 获取 Admin 首页总览统计（已完成）
 
 **GET** `/api/admin/overview`
 
@@ -3554,6 +3566,225 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 #### 规则
 
 - v1 采用软删除，删除后用户不可在列表中继续看到该 conversation
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+---
+
+## 12A. 资源中心接口
+
+### 12A.1 获取资源列表（已完成）
+
+**GET** `/api/resources`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `category` | string | 否 | 分类 key 过滤 |
+| `keyword` | string | 否 | 标题 / 摘要 / 正文模糊搜索 |
+| `audience_role` | enum | 否 | `parent`, `teacher`, `all` |
+| `sort` | enum | 否 | `published_at_desc`, `published_at_asc`, `pinned_desc` |
+
+#### 规则
+
+- 仅登录用户可访问。
+- 只返回 `is_published=true` 的资源。
+- 当前用户仅可看到 `audience_role=all` 或与自己角色匹配的资源。
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "uuid": "string",
+      "title": "string",
+      "summary": "string | null",
+      "category_key": "academic_support",
+      "category_label": "Academic Support",
+      "audience_role": "parent | teacher | all",
+      "cover_image_url": "string | null",
+      "external_url": "string | null",
+      "is_pinned": true,
+      "published_at": "string",
+      "translation": {
+        "display_language": "string",
+        "original_language": "string",
+        "translated_language": "string | null",
+        "translation_status": "not_required | pending | completed | failed | stale",
+        "translated_at": "string | null"
+      }
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 12,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+### 12A.2 获取资源分类列表（已完成）
+
+**GET** `/api/resources/categories`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `audience_role` | enum | 否 | `parent`, `teacher`, `all` |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    {
+      "key": "academic_support",
+      "label": "Academic Support",
+      "resource_count": 4
+    }
+  ]
+}
+```
+
+---
+
+### 12A.3 获取资源详情（已完成）
+
+**GET** `/api/resources/{resource_uuid}`
+
+#### 规则
+
+- 仅登录用户可访问。
+- 未发布资源或不属于当前用户受众范围的资源返回 `403 forbidden`。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "uuid": "string",
+    "title": "string",
+    "summary": "string | null",
+    "category_key": "academic_support",
+    "category_label": "Academic Support",
+    "audience_role": "parent | teacher | all",
+    "cover_image_url": "string | null",
+    "external_url": "string | null",
+    "is_pinned": true,
+    "published_at": "string",
+    "display_content_markdown": "string",
+    "original_content_markdown": "string",
+    "translated_content_markdown": "string | null",
+    "display_language": "string",
+    "original_language": "string",
+    "translated_language": "string | null",
+    "translation_status": "completed",
+    "translated_at": "string | null"
+  }
+}
+```
+
+---
+
+### 12A.4 Admin 获取资源列表（已完成）
+
+**GET** `/api/admin/resources`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `page` | int | 否 | 默认 1 |
+| `page_size` | int | 否 | 默认 20 |
+| `category` | string | 否 | 分类 key 过滤 |
+| `keyword` | string | 否 | 标题 / 摘要 / 正文模糊搜索 |
+| `audience_role` | enum | 否 | `parent`, `teacher`, `all` |
+| `is_published` | bool | 否 | 发布状态过滤 |
+| `sort` | enum | 否 | `created_at_desc`, `published_at_desc`, `title_asc` |
+
+#### Success 200
+
+返回结构与 §12A.1 相同，但 Admin 可看到未发布资源。
+
+---
+
+### 12A.5 Admin 创建资源（已完成）
+
+**POST** `/api/admin/resources`
+
+#### Body
+
+```json
+{
+  "title": "string",
+  "summary": "string | null",
+  "content_markdown": "string",
+  "category_key": "academic_support",
+  "category_label": "Academic Support",
+  "audience_role": "parent | teacher | all",
+  "cover_image_url": "string | null",
+  "external_url": "string | null",
+  "is_pinned": false,
+  "is_published": true,
+  "published_at": "string | null",
+  "original_language": "string"
+}
+```
+
+#### Success 201
+
+返回创建后的完整资源详情，结构与 §12A.3 相同。
+
+---
+
+### 12A.6 Admin 更新资源（已完成）
+
+**PATCH** `/api/admin/resources/{resource_uuid}`
+
+#### Body
+
+```json
+{
+  "title": "string | null",
+  "summary": "string | null",
+  "content_markdown": "string | null",
+  "category_key": "string | null",
+  "category_label": "string | null",
+  "audience_role": "parent | teacher | all | null",
+  "cover_image_url": "string | null",
+  "external_url": "string | null",
+  "is_pinned": "bool | null",
+  "is_published": "bool | null",
+  "published_at": "string | null",
+  "original_language": "string | null"
+}
+```
+
+#### Success 200
+
+返回更新后的完整资源详情，结构与 §12A.3 相同。
+
+---
+
+### 12A.7 Admin 删除资源（已完成）
+
+**DELETE** `/api/admin/resources/{resource_uuid}`
 
 #### Success 200
 
