@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageCombobox } from '@/components/layout/LanguageCombobox';
+import { settingsApi } from '@/lib/api';
 
 // ── Simple localStorage-backed settings ───────────────────────
 
@@ -103,6 +104,19 @@ export function SettingsScreen() {
 
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    settingsApi.get().then(res => {
+      const data = res.data;
+      if (data.language) setLanguage(data.language.slice(0, 2));
+      setHighContrastState(data.high_contrast_mode);
+      setTtsEnabled(data.tts_enabled);
+      setAiEnabled(data.ai_auto_translate_enabled);
+      setNotifReports(data.email_digest_enabled);
+      setNotifAnnouncements(data.email_post_notification_enabled);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Apply high contrast class to <html>
   useEffect(() => {
     if (highContrast) {
@@ -113,21 +127,15 @@ export function SettingsScreen() {
   }, [highContrast]);
 
   const handleSave = async () => {
-    // Try to sync with backend (graceful fallback)
     try {
-      await fetch('http://localhost:8000/api/settings', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          language,
-          notifications: {
-            reports: notifReports,
-            announcements: notifAnnouncements,
-            messages: notifMessages,
-          },
-          ai_enabled: aiEnabled,
-        }),
+      await settingsApi.update({
+        language,
+        theme: theme === 'night' ? 'dark' : 'light',
+        high_contrast_mode: highContrast,
+        tts_enabled: ttsEnabled,
+        email_digest_enabled: notifReports,
+        email_post_notification_enabled: notifAnnouncements || notifMessages,
+        ai_auto_translate_enabled: aiEnabled,
       });
     } catch {
       // Backend offline — localStorage already saved

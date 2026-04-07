@@ -15,7 +15,7 @@ import {
 } from 'react';
 import i18n from '@/i18n';
 import type { UserSummary } from '@/types/api';
-import { auth, parent as parentApi } from '@/lib/api';
+import { auth, parent as parentApi, settingsApi } from '@/lib/api';
 
 // ── Local session persistence ─────────────────────────────────
 const SESSION_KEY = 'academy_session';
@@ -207,6 +207,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const u = res.data.user;
       setUser(u);
       setRoleState(u.role as 'parent' | 'teacher' | 'admin');
+      try {
+        const settingsRes = await settingsApi.get();
+        const preferredLanguage = settingsRes.data.language?.slice(0, 2);
+        if (preferredLanguage) {
+          setLanguageState(preferredLanguage);
+          i18n.changeLanguage(preferredLanguage);
+        }
+      } catch { /* ignore settings fetch failures */ }
       let sid = stored?.firstStudentUuid ?? '';
       if (u.role === 'parent') {
         try {
@@ -255,6 +263,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(userFromApi);
     const apiRole = userFromApi.role as 'parent' | 'teacher' | 'admin';
     setRoleState(apiRole);
+    try {
+      const settingsRes = await settingsApi.get();
+      const preferredLanguage = settingsRes.data.language?.slice(0, 2);
+      if (preferredLanguage) {
+        setLanguageState(preferredLanguage);
+        i18n.changeLanguage(preferredLanguage);
+      }
+    } catch { /* ignore settings fetch failures */ }
     let sid = '';
     if (apiRole === 'parent') {
       const studentsRes = await parentApi.getStudents();

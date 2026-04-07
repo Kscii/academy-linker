@@ -11,15 +11,11 @@ import { parent as parentApi } from '@/lib/api';
 import type { DashboardResponse, SubjectSummary, ChartDataPoint } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
-import { SUBJECT_COLORS } from '@/lib/constants';
+import { getSubjectColor } from '@/lib/constants';
 
 const ACCENT_COLORS: Record<string, string> = {
   a1: 'var(--a1)', a2: 'var(--a2)', a3: 'var(--a3)', a4: 'var(--a4)',
 };
-
-function getSubjectColor(subject: Pick<SubjectSummary, 'code' | 'color'>): string {
-  return (subject.code ? SUBJECT_COLORS[subject.code] : undefined) ?? subject.color ?? 'var(--a1)';
-}
 
 export function GradesScreen() {
   const navigate = useNavigate();
@@ -50,7 +46,7 @@ export function GradesScreen() {
         );
         setSubjects(subRes.data.map(sub => ({
           ...sub,
-          color: getSubjectColor(sub),
+          color: getSubjectColor(sub.code) || sub.color,
           score: statsMap.get(sub.uuid)?.score,
           progress: statsMap.get(sub.uuid)?.progress,
         })));
@@ -155,7 +151,7 @@ export function GradesScreen() {
               className="subject-row"
               onClick={() => navigate(`/parent/students/${sid}/subjects/${sub.uuid}`)}
             >
-              <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: getSubjectColor(sub) }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: getSubjectColor(sub.code) || sub.color || 'var(--a1)' }} />
               <div style={{ width: 150, flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{sub.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teachers?.[0]?.display_name ?? 'No teacher assigned'}</div>
@@ -166,7 +162,7 @@ export function GradesScreen() {
                     className="progress-fill"
                     style={{
                       width: barsReady ? `${sub.progress ?? sub.score ?? 0}%` : '0%',
-                      background: getSubjectColor(sub),
+                      background: getSubjectColor(sub.code) || sub.color || 'var(--a1)',
                       transitionDelay: `${idx * 80}ms`,
                     }}
                   />
@@ -174,7 +170,7 @@ export function GradesScreen() {
               </div>
               <div
                 className="badge subject-row-badge"
-                style={{ background: `${getSubjectColor(sub)}22`, color: getSubjectColor(sub), fontSize: 13, fontWeight: 700, minWidth: 44, justifyContent: 'center' }}
+                style={{ background: `${getSubjectColor(sub.code) || sub.color || 'var(--a1)'}22`, color: getSubjectColor(sub.code) || sub.color || 'var(--a1)', fontSize: 13, fontWeight: 700, minWidth: 44, justifyContent: 'center' }}
               >
                 {sub.score ?? '—'}%
               </div>

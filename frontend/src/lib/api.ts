@@ -79,6 +79,7 @@ import type {
   IncidentReport,
   CreateIncidentReport,
 } from '@/types/api';
+import i18n from '@/i18n';
 
 // ── Config ───────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export async function apiFetch<T>(
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      'Accept-Language': i18n.resolvedLanguage ?? i18n.language ?? 'en',
       ...(options.headers ?? {}),
     },
   });
