@@ -19,6 +19,7 @@
     "loading": "Loading...",
     "pageStatus": "Page {{page}} / {{totalPages}}",
     "notAvailable": "—",
+    "untitled": "Untitled",
     "noSid": "No SID",
     "noResults": "No results",
     "unknown": "Unknown",
@@ -91,6 +92,7 @@
   },
   "teacherClassDetail": {
     "backToDashboard": "Back to Dashboard",
+    "viewTimetable": "View timetable",
     "grade": "Grade {{value}}",
     "homeroom": "Homeroom",
     "students": "Students",
@@ -280,7 +282,7 @@
     "sessionHint": "Announcements created in this session can be reopened here for updates."
   },
   "teacherMessages": {
-    "title": "Messages",
+    "title": "Discussions",
     "parentConversations": "Parent conversations",
     "parentPreview": "Parent: {{name}}",
     "noParentLinked": "No parent linked",
@@ -291,7 +293,13 @@
     "noMessagesYet": "No messages yet.",
     "noParentLinkedStudent": "No parent linked to this student.",
     "optionalTitle": "Optional title",
-    "deleteConfirm": "Delete this message?",
+    "bodyPlaceholder": "Write your post...",
+    "reply": "Reply",
+    "replyingTo": "Replying to: {{title}}",
+    "clearReply": "Clear reply",
+    "newPost": "New post",
+    "postReply": "Post reply",
+    "deleteConfirm": "Delete this post?",
     "aiDraft": "AI Draft",
     "replyTo": "Reply to {{name}}...",
     "saving": "Saving...",
@@ -326,8 +334,8 @@
     "backToStudentSearch": "Back to student search"
   },
   "parentMessages": {
-    "title": "Messages",
-    "subtitle": "Your conversations with your student's teachers",
+    "title": "Discussions",
+    "subtitle": "Your discussions with your student's teachers",
     "sortRecent": "Recent activity",
     "sortTeacher": "Teacher name",
     "justNow": "Just now",
@@ -337,8 +345,8 @@
   },
   "parentConversation": {
     "viewGrades": "View grades",
-    "noMessages": "No messages yet. Send a message to {{name}}.",
-    "deleteConfirm": "Delete this message?",
+    "noMessages": "No posts yet. Start a discussion with {{name}}.",
+    "deleteConfirm": "Delete this post?",
     "notFound": "Discussion not found.",
     "searchPlaceholder": "Search title or content",
     "allTags": "All tags",
@@ -347,7 +355,14 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "cancel": "Cancel",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "optionalTitle": "Optional title",
+    "bodyPlaceholder": "Write your post...",
+    "reply": "Reply",
+    "replyingTo": "Replying to: {{title}}",
+    "clearReply": "Clear reply",
+    "newPost": "New post",
+    "postReply": "Post reply"
   },
   "parentAnnouncements": {
     "title": "School Notices",
@@ -533,5 +548,51 @@
     "title": "Academic Performance",
     "subtitle": "{{name}}'s grades and progress",
     "noTeacherAssigned": "No teacher assigned"
+  },
+  "timetable": {
+    "weekdays": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday"
+    },
+    "periodLabel": "Period {{value}}",
+    "assignedToMe": "Assigned to me",
+    "noRoom": "Room TBA",
+    "emptySlot": "No class"
+  },
+  "parentTimetable": {
+    "title": "Timetable",
+    "subtitle": "Weekly class timetable for {{className}}",
+    "subtitleFallback": "Weekly class timetable",
+    "effectiveRange": "Effective from {{from}} to {{to}}",
+    "noEffectiveVersion": "No timetable version is active for this date.",
+    "empty": "No timetable entries available."
+  },
+  "teacherTimetable": {
+    "title": "Class Timetable",
+    "subtitle": "Weekly timetable for {{className}}",
+    "subtitleFallback": "Weekly class timetable",
+    "effectiveRange": "Effective from {{from}} to {{to}}",
+    "noEffectiveVersion": "No timetable version is active for this date.",
+    "empty": "No timetable entries available.",
+    "backToClass": "Back to class"
+  },
+  "adminTimetable": {
+    "title": "Class Timetable",
+    "selectClass": "Select a class",
+    "rows": "Timetable rows",
+    "addRow": "Add row",
+    "selectSubject": "Select subject",
+    "selectTeacher": "Select teacher",
+    "roomPlaceholder": "Room label",
+    "validationRows": "Add at least one timetable row before saving.",
+    "saveFailed": "Unable to save timetable.",
+    "save": "Save timetable",
+    "previewTitle": "Timetable Preview",
+    "previewSubtitle": "Effective from {{from}} to {{to}}",
+    "noEffectiveVersion": "No timetable version loaded yet.",
+    "empty": "No timetable entries available."
   }
 }

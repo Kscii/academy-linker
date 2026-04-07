@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ac_link.db.orm.academic import Class, LearningPathwayItem, ParentStudentBinding, StudentExamScore, StudentPeriodMetric, TeachingAssignment
     from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, Tag
     from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
+    from ac_link.db.orm.timetable import ClassTimetableEntry
     from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
 
 
@@ -76,6 +77,10 @@ class User(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     authored_learning_pathway_items: Mapped[list['LearningPathwayItem']] = relationship(
         back_populates='author_user',
         foreign_keys='LearningPathwayItem.author_user_id',
+    )
+    scheduled_timetable_entries: Mapped[list['ClassTimetableEntry']] = relationship(
+        back_populates='teacher_user',
+        foreign_keys='ClassTimetableEntry.teacher_user_id',
     )
 
 

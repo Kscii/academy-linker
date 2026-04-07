@@ -7,6 +7,7 @@
   "delete": "删除",
   "edit": "编辑",
   "loading": "加载中…",
+  "saving": "保存中…",
   "error": "发生错误",
   "signOut": "退出登录",
   "signedInAs": "当前登录身份",
@@ -15,6 +16,7 @@
   "parent": "家长",
   "teacher": "老师",
   "settings": "设置",
+  "ongoing": "持续生效",
   "viewAll": "查看全部 →",
   "search": "搜索…",
   "noResults": "无结果"

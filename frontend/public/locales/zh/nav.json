@@ -1,6 +1,6 @@
 {
   "dashboard": "首页",
-  "messages": "消息",
+  "messages": "讨论",
   "reports": "报告",
   "notices": "通知",
   "leave": "请假",
@@ -15,6 +15,7 @@
   "tags": "标签",
   "examScores": "考试成绩",
   "periodMetrics": "阶段指标",
+  "timetable": "课表",
   "aiReports": "AI 报告",
   "users": "用户",
   "teachers": "教师",

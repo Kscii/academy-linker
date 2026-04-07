@@ -78,6 +78,8 @@ import type {
   CreateLeaveRequest,
   IncidentReport,
   CreateIncidentReport,
+  ClassTimetableData,
+  ReplaceClassTimetableRequest,
 } from '@/types/api';
 import i18n from '@/i18n';
 
@@ -235,6 +237,14 @@ export const parent = {
     apiFetch<ApiResponse<DashboardResponse>>(
       `/parents/me/students/${studentUuid}/dashboard?range=${range}`
     ),
+
+  getTimetable: (studentUuid: string, params: { date?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.date) q.set('date', params.date);
+    return apiFetch<ApiResponse<ClassTimetableData>>(
+      `/parents/me/students/${studentUuid}/timetable${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
 
   getSubjects: (studentUuid: string) =>
     apiFetch<ApiResponse<SubjectSummary[]>>(
@@ -410,6 +420,14 @@ export const teacher = {
 
   getClasses: () =>
     apiFetch<ApiResponse<TeacherClass[]>>('/teachers/me/classes'),
+
+  getClassTimetable: (classUuid: string, params: { date?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.date) q.set('date', params.date);
+    return apiFetch<ApiResponse<ClassTimetableData>>(
+      `/teachers/me/classes/${classUuid}/timetable${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
 
   getClassStudents: (classUuid: string, params: { page?: number; page_size?: number; subject_uuid?: string; keyword?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
@@ -590,6 +608,20 @@ export const admin = {
     if (params.homeroom_teacher_uuid) q.set('homeroom_teacher_uuid', params.homeroom_teacher_uuid);
     return apiFetch<ApiListResponse<AdminClass>>(`/admin/classes?${q.toString()}`);
   },
+
+  getClassTimetable: (classUuid: string, params: { date?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.date) q.set('date', params.date);
+    return apiFetch<ApiResponse<ClassTimetableData>>(
+      `/admin/classes/${classUuid}/timetable${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  replaceClassTimetable: (classUuid: string, body: ReplaceClassTimetableRequest) =>
+    apiFetch<ApiResponse<ClassTimetableData>>(`/admin/classes/${classUuid}/timetable`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 
   createClass: (body: CreateClassRequest) =>
     apiFetch<ApiResponse<AdminClassMutationResponse>>('/admin/classes', {

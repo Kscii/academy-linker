@@ -9,7 +9,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getSubjectColor } from '@/lib/constants';
 import type { DiscussionTeacherItem, ThreadPost } from '@/types/api';
 import { useApp } from '@/contexts/AppContext';
-import { useTranslatedText } from '@/lib/translate';
 import { parent as parentApi, posts as postsApi, translations } from '@/lib/api';
 
 const MAX_CHARS = 300;
@@ -43,15 +42,21 @@ export function ConversationScreen() {
 
   const [teacherItem, setTeacherItem] = useState<DiscussionTeacherItem | null>(null);
   const [messages, setMessages] = useState<ThreadPost[]>([]);
+  const [availableTags, setAvailableTags] = useState<ThreadPost['tags']>([]);
   const [threadUuid, setThreadUuid] = useState('');
   const [draft, setDraft] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
   const [sending, setSending] = useState(false);
   const [msgTranslations, setMsgTranslations] = useState<Record<string, MsgTx>>({});
   const [sort, setSort] = useState<'created_at_desc' | 'created_at_asc'>('created_at_desc');
   const [tag, setTag] = useState('');
   const [keyword, setKeyword] = useState('');
+  const [selectedTagUuids, setSelectedTagUuids] = useState<string[]>([]);
+  const [replyToPostUuid, setReplyToPostUuid] = useState('');
   const [editingPostUuid, setEditingPostUuid] = useState('');
+  const [editingTitle, setEditingTitle] = useState('');
   const [editingContent, setEditingContent] = useState('');
+  const [editingTagUuids, setEditingTagUuids] = useState<string[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +78,7 @@ export function ConversationScreen() {
       keyword: keyword.trim() || undefined,
     });
     setMessages(res.data.posts);
+    setAvailableTags(res.data.available_tags);
     setThreadUuid(res.data.thread_uuid);
     markThreadRead(res.data.thread_uuid);
   }, [keyword, markThreadRead, sid, sort, tag, teacherUuid]);
@@ -92,20 +98,27 @@ export function ConversationScreen() {
   }, [language]);
 
   useEffect(() => {
+    setMsgTranslations(prev => {
+      const validIds = new Set(messages.filter(msg => !msg.is_deleted).map(msg => msg.uuid));
+      return Object.fromEntries(Object.entries(prev).filter(([key]) => validIds.has(key)));
+    });
+  }, [messages]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const txViewGrades = useTranslatedText(t('parentConversation.viewGrades'), language);
-  const txNoMessages = useTranslatedText(t('parentConversation.noMessages', { name: teacherItem?.display_name ?? '' }), language);
-  const txTranslate = useTranslatedText(t('actions.translate'), language);
+  const txViewGrades = t('parentConversation.viewGrades');
+  const txNoMessages = t('parentConversation.noMessages', { name: teacherItem?.display_name ?? '' });
+  const txTranslate = t('actions.translate');
 
   const subject = teacherItem?.subjects[0] ?? null;
   const subjectColor = getSubjectColor(subject?.code);
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
-  const availableTags = useMemo(
-    () => Array.from(new Map(messages.flatMap(post => post.tags.map(tagItem => [tagItem.name, tagItem]))).values()),
-    [messages]
+  const replyTarget = useMemo(
+    () => messages.find(message => message.uuid === replyToPostUuid) ?? null,
+    [messages, replyToPostUuid]
   );
 
   const groupedMessages = useMemo(() => {
@@ -127,8 +140,17 @@ export function ConversationScreen() {
     if (!text || !threadUuid || sending) return;
     setSending(true);
     try {
-      await postsApi.create(threadUuid, { content_markdown: text, original_language: language });
+      await postsApi.create(threadUuid, {
+        title: draftTitle.trim() || null,
+        content_markdown: text,
+        original_language: language,
+        tag_uuids: selectedTagUuids.length > 0 ? selectedTagUuids : undefined,
+        reply_to_post_uuid: replyToPostUuid || null,
+      });
+      setDraftTitle('');
       setDraft('');
+      setSelectedTagUuids([]);
+      setReplyToPostUuid('');
       await loadThread();
       await loadTeacher();
     } finally {
@@ -137,6 +159,7 @@ export function ConversationScreen() {
   };
 
   const handleTranslate = async (post: ThreadPost) => {
+    if (post.is_deleted) return;
     const id = post.uuid;
     const existing = msgTranslations[id];
     if (existing) {
@@ -167,19 +190,28 @@ export function ConversationScreen() {
 
   const startEditing = (post: ThreadPost) => {
     setEditingPostUuid(post.uuid);
+    setEditingTitle(post.title ?? '');
     setEditingContent(post.original_content_markdown);
+    setEditingTagUuids(post.tags.map(tagItem => tagItem.uuid));
   };
 
   const cancelEditing = () => {
     setEditingPostUuid('');
+    setEditingTitle('');
     setEditingContent('');
+    setEditingTagUuids([]);
   };
 
   const saveEdit = async () => {
     if (!editingPostUuid || !editingContent.trim() || savingEdit) return;
     setSavingEdit(true);
     try {
-      await postsApi.update(editingPostUuid, { content_markdown: editingContent.trim(), original_language: language });
+      await postsApi.update(editingPostUuid, {
+        title: editingTitle.trim() || null,
+        content_markdown: editingContent.trim(),
+        original_language: language,
+        tag_uuids: editingTagUuids,
+      });
       cancelEditing();
       await loadThread();
     } finally {
@@ -191,6 +223,12 @@ export function ConversationScreen() {
     if (!window.confirm(t('parentConversation.deleteConfirm'))) return;
     await postsApi.delete(postUuid);
     if (editingPostUuid === postUuid) cancelEditing();
+    setMsgTranslations(prev => {
+      const next = { ...prev };
+      delete next[postUuid];
+      return next;
+    });
+    if (replyToPostUuid === postUuid) setReplyToPostUuid('');
     await loadThread();
     await loadTeacher();
   };
@@ -265,37 +303,54 @@ export function ConversationScreen() {
               <div style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
             </div>
 
-            {group.msgs.map((msg, idx) => {
+            {group.msgs.map((msg) => {
               const isParent = msg.author.role === 'parent';
-              const showAvatar = !isParent && (idx === 0 || group.msgs[idx - 1]?.author.role !== 'teacher');
               const tx = msgTranslations[msg.uuid];
               const isEditing = editingPostUuid === msg.uuid;
               const bubbleText = tx?.showOriginal
                 ? msg.original_content_markdown
                 : (tx?.text ?? msg.content_markdown);
-              const canTranslate = msg.original_language !== language;
+              const canTranslate = !msg.is_deleted && msg.original_language !== language;
               const isShowingOriginal = tx?.showOriginal ?? false;
+              const replyPreview = msg.reply_to_post_uuid ? messages.find(item => item.uuid === msg.reply_to_post_uuid) : null;
+              const titleText = msg.title?.trim() || t('common.untitled');
 
               return (
-                <div key={msg.uuid} style={{ display: 'flex', flexDirection: isParent ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 }}>
-                  {!isParent && (
-                    <div style={{ width: 32, flexShrink: 0 }}>
-                      {showAvatar && (
-                        <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, background: subjectColor + '20', color: subjectColor, fontWeight: 700 }}>
-                          {initials(teacherItem.display_name)}
-                        </div>
-                      )}
+                <div key={msg.uuid} style={{ marginBottom: 12, border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--bd)', background: isParent ? `${subjectColor}10` : 'var(--bg2)' }}>
+                    <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, background: isParent ? subjectColor : subjectColor + '20', color: isParent ? '#fff' : subjectColor, fontWeight: 700 }}>
+                      {initials(msg.author.display_name)}
                     </div>
-                  )}
-
-                  <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: isParent ? 'flex-end' : 'flex-start' }}>
-                    {msg.title && (
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>
-                        {msg.title}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{titleText}</div>
+                      <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{msg.author.display_name} · {formatTime(msg.created_at)}</div>
+                    </div>
+                    {!msg.is_deleted && (
+                      <button className="chip" style={{ fontSize: 11 }} onClick={() => setReplyToPostUuid(msg.uuid)}>
+                        {t('parentConversation.reply')}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ padding: '12px 14px' }}>
+                    {replyPreview && (
+                      <div style={{ marginBottom: 10, padding: '8px 10px', borderLeft: `3px solid ${subjectColor}`, background: 'var(--bg2)', borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', marginBottom: 2 }}>
+                          {replyPreview.title?.trim() || t('common.untitled')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
+                          {replyPreview.original_content_markdown.slice(0, 120)}
+                        </div>
                       </div>
                     )}
                     {isEditing ? (
-                      <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 14, padding: 12, minWidth: 320 }}>
+                      <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 14, padding: 12 }}>
+                        <input
+                          className="input-field"
+                          value={editingTitle}
+                          onChange={e => setEditingTitle(e.target.value)}
+                          placeholder={t('parentConversation.optionalTitle')}
+                          style={{ marginBottom: 8 }}
+                        />
                         <textarea
                           className="input-field"
                           value={editingContent}
@@ -303,6 +358,21 @@ export function ConversationScreen() {
                           rows={4}
                           style={{ resize: 'vertical', fontFamily: 'var(--font-body)', fontSize: 13 }}
                         />
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                          {availableTags.map(item => {
+                            const selected = editingTagUuids.includes(item.uuid);
+                            return (
+                              <button
+                                key={item.uuid}
+                                className="chip"
+                                style={{ fontSize: 11, background: selected ? 'var(--a1)' : undefined, color: selected ? '#fff' : undefined }}
+                                onClick={() => setEditingTagUuids(prev => selected ? prev.filter(id => id !== item.uuid) : [...prev, item.uuid])}
+                              >
+                                {item.name}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
                           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} onClick={cancelEditing}>
                             {t('parentConversation.cancel')}
@@ -313,42 +383,36 @@ export function ConversationScreen() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ padding: '9px 14px', borderRadius: isParent ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: isParent ? subjectColor : 'var(--card)', color: isParent ? '#fff' : 'var(--tx)', fontSize: 13, lineHeight: 1.55, border: isParent ? 'none' : '1px solid var(--bd)', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                      <div style={{ fontSize: 13, lineHeight: 1.65, color: msg.is_deleted ? 'var(--tx3)' : 'var(--tx)' }}>
                         {bubbleText}
                       </div>
                     )}
 
                     {msg.tags.length > 0 && (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
                         {msg.tags.map(item => (
                           <span key={item.uuid} className="badge" style={{ fontSize: 10 }}>{item.name}</span>
                         ))}
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'var(--tx3)', marginTop: 3, paddingLeft: 2, paddingRight: 2, flexDirection: isParent ? 'row-reverse' : 'row' }}>
-                      <span>{formatTime(msg.created_at)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--tx3)', marginTop: 10, flexWrap: 'wrap' }}>
                       {canTranslate && (
-                        <>
-                          <span style={{ opacity: 0.4 }}>·</span>
                         <button
                           onClick={() => void handleTranslate(msg)}
                           disabled={tx?.loading}
                           style={{ background: 'none', border: 'none', cursor: tx?.loading ? 'default' : 'pointer', color: 'var(--a1)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)', opacity: tx?.loading ? 0.5 : 1 }}
                         >
-                          {tx?.loading ? '···' : isShowingOriginal ? 'Show translation' : (msg.translated_content_markdown || tx?.text || msg.display_language !== msg.original_language ? 'Show original' : txTranslate)}
+                          {tx?.loading ? '···' : isShowingOriginal ? t('actions.showTranslation') : (msg.translated_content_markdown || tx?.text || msg.display_language !== msg.original_language ? t('actions.showOriginal') : txTranslate)}
                         </button>
-                        </>
                       )}
                       {isParent && !isEditing && (
                         <>
-                          <span style={{ opacity: 0.4 }}>·</span>
                           <button onClick={() => startEditing(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a2)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}>
-                            Edit
+                            {t('actions.edit')}
                           </button>
-                          <span style={{ opacity: 0.4 }}>·</span>
                           <button onClick={() => void deletePost(msg.uuid)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c43c3c', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}>
-                            Delete
+                            {t('actions.delete')}
                           </button>
                         </>
                       )}
@@ -363,11 +427,48 @@ export function ConversationScreen() {
       </div>
 
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--bd)', background: 'var(--card)', borderRadius: '0 0 12px 12px', flexShrink: 0 }}>
+        {replyTarget && (
+          <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--bg2)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)' }}>
+                {t('parentConversation.replyingTo', { title: replyTarget.title?.trim() || t('common.untitled') })}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
+                {replyTarget.original_content_markdown.slice(0, 120)}
+              </div>
+            </div>
+            <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} onClick={() => setReplyToPostUuid('')}>
+              {t('parentConversation.clearReply')}
+            </button>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+          {availableTags.map(item => {
+            const selected = selectedTagUuids.includes(item.uuid);
+            return (
+              <button
+                key={item.uuid}
+                className="chip"
+                style={{ fontSize: 11, background: selected ? 'var(--a1)' : undefined, color: selected ? '#fff' : undefined }}
+                onClick={() => setSelectedTagUuids(prev => selected ? prev.filter(id => id !== item.uuid) : [...prev, item.uuid])}
+              >
+                {item.name}
+              </button>
+            );
+          })}
+        </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
+            <input
+              className="input-field"
+              placeholder={t('parentConversation.optionalTitle')}
+              value={draftTitle}
+              onChange={e => setDraftTitle(e.target.value)}
+              style={{ marginBottom: 8 }}
+            />
             <textarea
               className="input-field"
-              placeholder={`Message ${teacherItem.display_name}…`}
+              placeholder={t('parentConversation.bodyPlaceholder')}
               value={draft}
               onChange={e => setDraft(e.target.value.slice(0, MAX_CHARS + 20))}
               onKeyDown={e => {
@@ -389,7 +490,7 @@ export function ConversationScreen() {
             disabled={!draft.trim() || isOverLimit || sending || !threadUuid}
             style={{ width: 'auto', padding: '10px 18px', fontSize: 13, marginBottom: 22, opacity: (!draft.trim() || isOverLimit || !threadUuid) ? 0.45 : 1 }}
           >
-            Send
+            {replyToPostUuid ? t('parentConversation.postReply') : t('parentConversation.newPost')}
           </button>
         </div>
       </div>

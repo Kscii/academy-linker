@@ -20,10 +20,11 @@
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ac_link.common.deps import require_parent
 from ac_link.common.exceptions import AppError, Errors
@@ -31,9 +32,11 @@ from ac_link.crud import discussion as discussion_crud
 from ac_link.crud import metrics as metrics_crud
 from ac_link.crud import parent as parent_crud
 from ac_link.crud import score as score_crud
+from ac_link.crud import timetable as timetable_crud
 from ac_link.crud import translation as translation_crud
 from ac_link.crud import welfare as welfare_crud
 from ac_link.db.db import get_db
+from ac_link.db.orm.academic import StudentExamScore, StudentPeriodMetric
 from ac_link.db.orm.enums import TranslationResourceType
 from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
 from ac_link.db.orm.user import User, UserSettings
@@ -43,6 +46,7 @@ from ac_link.dto.discussion import (
     DiscussionTeacherInfo,
     DiscussionTeacherListItem,
     ParentDiscussionPageData,
+    TagBrief,
     build_post_item,
 )
 from ac_link.dto.parent import (
@@ -83,9 +87,48 @@ from ac_link.dto.parent import (
     TrendDataPoint,
     ReportSummary,
 )
+from ac_link.dto.timetable import ClassTimetableData, TimetableClassInfo, TimetableEntryItem, TimetableSubjectInfo, TimetableTeacherInfo
 from ac_link.services.translation_helpers import get_target_language
 
 router = APIRouter(prefix="/api/parents/me", tags=["parents"])
+
+
+def _build_timetable_response(*, class_obj: object, selected_date: object, entries: list[object]) -> ClassTimetableData:
+    first = entries[0] if entries else None
+    return ClassTimetableData(
+        class_info=TimetableClassInfo(
+            uuid=class_obj.uuid,  # type: ignore[attr-defined]
+            name=class_obj.name,  # type: ignore[attr-defined]
+            grade_level=getattr(class_obj, "grade_level", None),
+            academic_year=getattr(class_obj, "academic_year", None),
+        ),
+        selected_date=selected_date,  # type: ignore[arg-type]
+        effective_from=getattr(first, "effective_from", None),
+        effective_to=getattr(first, "effective_to", None),
+        entries=[
+            TimetableEntryItem(
+                uuid=item.uuid,  # type: ignore[attr-defined]
+                weekday=item.weekday,  # type: ignore[attr-defined]
+                period_index=item.period_index,  # type: ignore[attr-defined]
+                room_label=item.room_label,  # type: ignore[attr-defined]
+                start_time=item.start_time,  # type: ignore[attr-defined]
+                end_time=item.end_time,  # type: ignore[attr-defined]
+                effective_from=item.effective_from,  # type: ignore[attr-defined]
+                effective_to=item.effective_to,  # type: ignore[attr-defined]
+                is_active=item.is_active,  # type: ignore[attr-defined]
+                subject=TimetableSubjectInfo(
+                    uuid=item.subject.uuid,  # type: ignore[attr-defined]
+                    name=item.subject.name,  # type: ignore[attr-defined]
+                    code=item.subject.code,  # type: ignore[attr-defined]
+                ),
+                teacher=TimetableTeacherInfo(
+                    uuid=item.teacher_user.uuid,  # type: ignore[attr-defined]
+                    display_name=item.teacher_user.display_name,  # type: ignore[attr-defined]
+                ),
+            )
+            for item in entries
+        ],
+    )
 
 
 # ── GET /api/parents/me/students ─────────────────────────────────────────────
@@ -111,6 +154,42 @@ def list_my_students(
             total_pages=math.ceil(total / page_size) if total > 0 else 1,
         ),
     )
+
+
+@router.get(
+    "/students/{student_uuid}/timetable",
+    response_model=ApiResponse[ClassTimetableData],
+)
+def get_student_timetable(
+    student_uuid: UUID,
+    date: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassTimetableData]:
+    """获取指定学生当前班级在某天生效的周课表。"""
+    from datetime import date as _date
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+    if student.class_obj is None:
+        raise Errors.not_found("学生当前未分配班级")
+
+    try:
+        selected_date = _date.fromisoformat(date) if date else _date.today()
+    except ValueError:
+        raise AppError(422, "validation_error", "date 格式应为 YYYY-MM-DD")
+
+    entries = timetable_crud.list_entries_for_class_on_date(
+        db,
+        class_id=student.class_obj.id,
+        on_date=selected_date,
+    )
+    return ApiResponse(data=_build_timetable_response(
+        class_obj=student.class_obj,
+        selected_date=selected_date,
+        entries=entries,
+    ))
 
 
 # ── GET /api/parents/me/students/{student_uuid}/subjects ─────────────────────
@@ -227,8 +306,7 @@ def get_student_dashboard(
 ) -> ApiResponse[DashboardData]:
     """
     获取学生 Dashboard 聚合数据。
-    score / progress / completion_rate / attendance_rate 暂时为 null，
-    待 student_metrics 表建好后填充。
+    优先基于 exam_scores / period_metrics 聚合核心指标与图表；
     summary 取该学生最近一条已发布 report（不限学科）。
     """
     student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
@@ -242,14 +320,88 @@ def get_student_dashboard(
 
     subject_pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
 
-    subject_stats = [
-        SubjectStat(subject_uuid=s.uuid, subject_name=s.name)
-        for s, _ in subject_pairs
-    ]
+    exam_scores = (
+        db.query(StudentExamScore)
+        .options(joinedload(StudentExamScore.subject))
+        .filter(StudentExamScore.student_id == student.id)
+        .order_by(StudentExamScore.exam_date.asc(), StudentExamScore.id.asc())
+        .all()
+    )
+    period_metrics = (
+        db.query(StudentPeriodMetric)
+        .options(joinedload(StudentPeriodMetric.subject))
+        .filter(StudentPeriodMetric.student_id == student.id)
+        .order_by(StudentPeriodMetric.snapshot_date.asc(), StudentPeriodMetric.id.asc())
+        .all()
+    )
+
+    score_percentages: dict[int, list[float]] = defaultdict(list)
+    for item in exam_scores:
+        if item.full_score and item.full_score > 0:
+            score_percentages[item.subject_id].append(round((item.score / item.full_score) * 100, 1))
+
+    latest_metric_by_subject: dict[int, StudentPeriodMetric] = {}
+    for metric in period_metrics:
+        current = latest_metric_by_subject.get(metric.subject_id)
+        if current is None or metric.snapshot_date >= current.snapshot_date:
+            latest_metric_by_subject[metric.subject_id] = metric
+
+    subject_stats: list[SubjectStat] = []
+    score_chart: list[ChartPoint] = []
+    completion_chart: list[ChartPoint] = []
+    score_values_for_summary: list[float] = []
+    completion_values_for_summary: list[float] = []
+    attendance_values_for_summary: list[float] = []
+
+    for subject, _teachers in subject_pairs:
+        subject_scores = score_percentages.get(subject.id, [])
+        latest_metric = latest_metric_by_subject.get(subject.id)
+        score_value = round(sum(subject_scores) / len(subject_scores), 1) if subject_scores else None
+        progress_value = _normalize_ratio_percent(latest_metric.progress) if latest_metric and latest_metric.progress is not None else None
+        completion_ratio = latest_metric.assignment_completion_rate if latest_metric else None
+        completion_percent = _normalize_ratio_percent(completion_ratio) if completion_ratio is not None else None
+        attendance_ratio = latest_metric.attendance_rate if latest_metric else None
+
+        if score_value is not None:
+            score_values_for_summary.append(score_value)
+        if completion_ratio is not None:
+            completion_values_for_summary.append(completion_ratio)
+        if attendance_ratio is not None:
+            attendance_values_for_summary.append(attendance_ratio)
+
+        subject_stats.append(
+            SubjectStat(
+                subject_uuid=subject.uuid,
+                subject_name=subject.name,
+                score=score_value,
+                progress=progress_value,
+                assignment_completion_rate=completion_ratio,
+            )
+        )
+        score_chart.append(
+            ChartPoint(
+                subject_uuid=subject.uuid,
+                subject_name=subject.name,
+                value=score_value,
+            )
+        )
+        completion_chart.append(
+            ChartPoint(
+                subject_uuid=subject.uuid,
+                subject_name=subject.name,
+                value=completion_percent,
+            )
+        )
+
+    learning_progress_chart = _build_learning_progress_chart(exam_scores, period_metrics)
+    overall_performance = round(sum(score_values_for_summary) / len(score_values_for_summary), 1) if score_values_for_summary else None
+    assignment_completion_rate = round(sum(completion_values_for_summary) / len(completion_values_for_summary), 4) if completion_values_for_summary else None
+    attendance_rate = round(sum(attendance_values_for_summary) / len(attendance_values_for_summary), 4) if attendance_values_for_summary else None
+
     charts = Charts(
-        subject_score_bar_chart=[ChartPoint(subject_uuid=s.uuid, subject_name=s.name) for s, _ in subject_pairs],
-        subject_completion_bar_chart=[ChartPoint(subject_uuid=s.uuid, subject_name=s.name) for s, _ in subject_pairs],
-        learning_progress_chart=[],
+        subject_score_bar_chart=score_chart,
+        subject_completion_bar_chart=completion_chart,
+        learning_progress_chart=learning_progress_chart,
     )
 
     banner_posts = parent_crud.get_important_post_banners(db, student.id, current_user.id)
@@ -272,7 +424,12 @@ def get_student_dashboard(
             unread_post_count=unread_posts,
             unread_announcement_count=unread_announcements,
         ),
-        summary_cards=SummaryCards(summary=_build_report_summary(latest_report)),
+        summary_cards=SummaryCards(
+            overall_performance_index=overall_performance,
+            assignment_completion_rate=assignment_completion_rate,
+            attendance_rate=attendance_rate,
+            summary=_build_report_summary(latest_report),
+        ),
         subject_statistics=subject_stats,
         charts=charts,
         important_post_banners=banners,
@@ -338,6 +495,7 @@ def list_student_reports(
 def get_student_report(
     student_uuid: UUID,
     report_uuid: UUID,
+    request: Request,
     current_user: User = Depends(require_parent),
     db: Session = Depends(get_db),
 ) -> ApiResponse[ReportDetail]:
@@ -351,7 +509,18 @@ def get_student_report(
         raise Errors.not_found("报告不存在或无权访问")
 
     report, _ = result
-    return ApiResponse(data=_build_report_detail(report, _))
+    user_settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    target_language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
+    translation = translation_crud.get_translation(
+        db,
+        TranslationResourceType.REPORT,
+        report.id,
+        target_language,
+    )
+    return ApiResponse(data=_build_report_detail(report, _, translation))
 
 
 # ── GET /api/parents/me/students/{student_uuid}/announcements ─────────────────
@@ -536,6 +705,10 @@ def get_discussion_with_teacher(
             avatar_url=teacher_user.avatar_url,
             subjects=teacher_subjects,
         ),
+        available_tags=[
+            TagBrief(uuid=tag_item.uuid, name=tag_item.name, scope=str(tag_item.scope))
+            for tag_item in discussion_crud.list_tags_for_parent_thread(db, teacher_user_id=teacher_user.id)
+        ],
         posts=[build_post_item(p, post_translations.get(p.id)) for p in posts],
         meta=PaginationMeta(
             page=page,
@@ -887,9 +1060,13 @@ def _build_report_list_item(
     )
 
 
-def _build_report_detail(report: Report, state: ReportUserState | None) -> ReportDetail:
+def _build_report_detail(
+    report: Report,
+    state: ReportUserState | None,
+    translation: object | None = None,
+) -> ReportDetail:
     from ac_link.services.translation_helpers import resolve_translation_fields
-    tf = resolve_translation_fields(report.original_content_markdown, report.original_language, None)
+    tf = resolve_translation_fields(report.original_content_markdown, report.original_language, translation)
     return ReportDetail(
         uuid=report.uuid,
         title=report.title,
@@ -913,6 +1090,40 @@ def _build_report_detail(report: Report, state: ReportUserState | None) -> Repor
         translation_status=tf['translation_status'],
         translated_at=tf['translated_at'],
     )
+
+
+def _normalize_ratio_percent(value: float | None) -> float | None:
+    if value is None:
+        return None
+    if 0 <= value <= 1:
+        return round(value * 100, 1)
+    return round(value, 1)
+
+
+def _build_learning_progress_chart(
+    exam_scores: list[StudentExamScore],
+    period_metrics: list[StudentPeriodMetric],
+) -> list[LearningProgressPoint]:
+    grouped: dict[str, list[float]] = defaultdict(list)
+
+    for metric in period_metrics:
+        if metric.progress is not None:
+            grouped[metric.snapshot_date.isoformat()].append(_normalize_ratio_percent(metric.progress) or 0)
+
+    if grouped:
+        return [
+            LearningProgressPoint(label=label, value=round(sum(values) / len(values), 1))
+            for label, values in sorted(grouped.items())
+        ]
+
+    for score in exam_scores:
+        if score.full_score and score.full_score > 0:
+            grouped[score.exam_date.isoformat()].append(round((score.score / score.full_score) * 100, 1))
+
+    return [
+        LearningProgressPoint(label=label, value=round(sum(values) / len(values), 1))
+        for label, values in sorted(grouped.items())
+    ]
 
 
 def _build_announcement_list_item(

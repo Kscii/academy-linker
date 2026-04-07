@@ -32,6 +32,7 @@ import { ParentExamScoresScreen } from '@/screens/parent/ExamScoresScreen';
 import { ParentPeriodMetricsScreen } from '@/screens/parent/PeriodMetricsScreen';
 import { ParentLeaveRequestsScreen } from '@/screens/parent/LeaveRequestsScreen';
 import { ParentIncidentsScreen } from '@/screens/parent/IncidentsScreen';
+import { ParentTimetableScreen } from '@/screens/parent/TimetableScreen';
 
 // Admin screens
 import { AdminOverviewScreen }  from '@/screens/admin/OverviewScreen';
@@ -42,6 +43,7 @@ import { AdminStudentsScreen }  from '@/screens/admin/StudentsScreen';
 import { AdminParentsScreen }   from '@/screens/admin/ParentsScreen';
 import { AdminTeachingAssignmentsScreen } from '@/screens/admin/TeachingAssignmentsScreen';
 import { AdminSystemTagsScreen } from '@/screens/admin/SystemTagsScreen';
+import { AdminTimetableScreen } from '@/screens/admin/TimetableScreen';
 
 // Teacher screens
 import { TeacherDashboardScreen } from '@/screens/teacher/DashboardScreen';
@@ -55,6 +57,7 @@ import { TeacherReportsScreen } from '@/screens/teacher/ReportsScreen';
 import { TeacherExamScoresScreen } from '@/screens/teacher/ExamScoresScreen';
 import { TeacherPeriodMetricsScreen } from '@/screens/teacher/PeriodMetricsScreen';
 import { TeacherAIReportsScreen } from '@/screens/teacher/AIReportsScreen';
+import { TeacherClassTimetableScreen } from '@/screens/teacher/ClassTimetableScreen';
 
 // ── Auth guard ────────────────────────────────────────────────
 
@@ -143,6 +146,7 @@ function AppRoutes() {
             <Route path="/parent/students/:sid/tasks"               element={<LegacyParentAnnouncementsRedirect />} />
             <Route path="/parent/students/:sid/exam-scores"         element={<ParentExamScoresScreen />} />
             <Route path="/parent/students/:sid/period-metrics"      element={<ParentPeriodMetricsScreen />} />
+            <Route path="/parent/students/:sid/timetable"           element={<ParentTimetableScreen />} />
             <Route path="/parent/students/:sid/leave"               element={<ParentLeaveRequestsScreen />} />
             <Route path="/parent/students/:sid/incidents"           element={<ParentIncidentsScreen />} />
             <Route path="/parent/students/:sid/resources"           element={<ResourcesScreen />} />
@@ -157,6 +161,7 @@ function AppRoutes() {
             <Route path="/admin/parents"   element={<AdminParentsScreen />} />
             <Route path="/admin/assignments/teaching" element={<AdminTeachingAssignmentsScreen />} />
             <Route path="/admin/tags/system" element={<AdminSystemTagsScreen />} />
+            <Route path="/admin/timetable" element={<AdminTimetableScreen />} />
           </Route>
 
           <Route element={<RoleRoute allowed={['teacher']} />}>
@@ -170,6 +175,7 @@ function AppRoutes() {
             <Route path="/teacher/ai-reports"                     element={<TeacherAIReportsScreen />} />
             <Route path="/teacher/find-student"                   element={<FindStudentScreen />} />
             <Route path="/teacher/classes/:classUuid"             element={<ClassDetailScreen />} />
+            <Route path="/teacher/classes/:classUuid/timetable"   element={<TeacherClassTimetableScreen />} />
             <Route path="/teacher/students/:studentUuid"          element={<StudentDetailScreen />} />
           </Route>
         </Route>

@@ -25,6 +25,7 @@ from ac_link.db.orm import (
     ReportUserState,
     Resource,
     ResourceAudienceRole,
+    ClassTimetableEntry,
     Student,
     StudentExamScore,
     StudentIncidentReport,
@@ -484,6 +485,57 @@ def create_learning_item(
         display_order=display_order,
     )
     db.add(item)
+    db.flush()
+    return item
+
+
+def upsert_timetable_entry(
+    db: Session,
+    *,
+    class_obj: Class,
+    subject: Subject,
+    teacher: User,
+    weekday: str,
+    period_index: int,
+    room_label: str | None,
+    start_time: str,
+    end_time: str,
+    effective_from_value: str,
+    effective_to_value: str | None = None,
+) -> ClassTimetableEntry:
+    item = db.scalar(
+        select(ClassTimetableEntry).where(
+            ClassTimetableEntry.class_id == class_obj.id,
+            ClassTimetableEntry.weekday == weekday,
+            ClassTimetableEntry.period_index == period_index,
+            ClassTimetableEntry.effective_from == parse_date(effective_from_value),
+        )
+    )
+    from datetime import time as _time
+
+    if item is None:
+        item = ClassTimetableEntry(
+            class_id=class_obj.id,
+            subject_id=subject.id,
+            teacher_user_id=teacher.id,
+            weekday=weekday,
+            period_index=period_index,
+            room_label=room_label,
+            start_time=_time.fromisoformat(start_time),
+            end_time=_time.fromisoformat(end_time),
+            effective_from=parse_date(effective_from_value),
+            effective_to=parse_date(effective_to_value) if effective_to_value else None,
+            is_active=True,
+        )
+        db.add(item)
+    else:
+        item.subject_id = subject.id
+        item.teacher_user_id = teacher.id
+        item.room_label = room_label
+        item.start_time = _time.fromisoformat(start_time)
+        item.end_time = _time.fromisoformat(end_time)
+        item.effective_to = parse_date(effective_to_value) if effective_to_value else None
+        item.is_active = True
     db.flush()
     return item
 

@@ -138,6 +138,7 @@ class ParentDiscussionPageData(BaseModel):
     thread_uuid: UUID
     student: StudentBrief
     teacher: DiscussionTeacherInfo
+    available_tags: list[TagBrief]
     posts: list[PostItem]
     meta: PaginationMeta
 
@@ -147,6 +148,7 @@ class TeacherDiscussionPageData(BaseModel):
     thread_uuid: UUID
     student: StudentBrief
     parent: DiscussionParentInfo
+    available_tags: list[TagBrief]
     posts: list[PostItem]
     meta: PaginationMeta
 

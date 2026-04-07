@@ -22,6 +22,7 @@ from ac_link.db.orm.enums import (
     TranslationStatus,
     UserRole,
 )
+from ac_link.db.orm.timetable import ClassTimetableEntry
 from ac_link.db.orm.translation import ResourceTranslation
 from ac_link.db.orm.user import User, UserSession, UserSettings
 from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
@@ -65,6 +66,7 @@ __all__ = [
     'ReportUserState',
     'Announcement',
     'AnnouncementUserState',
+    'ClassTimetableEntry',
     'Resource',
     'ResourceTranslation',
     'AiConversation',

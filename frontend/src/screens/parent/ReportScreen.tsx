@@ -8,7 +8,6 @@ import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
 import type { PaginationMeta, Report, ReportDetail } from '@/types/api';
-import { translateBatch, useTranslatedText } from '@/lib/translate';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-AU', {
@@ -96,12 +95,12 @@ export function ReportScreen() {
   const { sid } = useParams<{ sid: string }>();
   const { language } = useApp();
 
-  const txTitle       = useTranslatedText(t('nav:reports'), language);
-  const txSectionHdr  = useTranslatedText(t('parentReports.section'), language);
-  const txDownload    = useTranslatedText(t('parentReports.downloadPdf'), language);
-  const txEmail       = useTranslatedText(t('parentReports.emailToMe'), language);
-  const txSent        = useTranslatedText(t('parentReports.sent'), language);
-  const txNoReports   = useTranslatedText(t('parentReports.empty'), language);
+  const txTitle       = t('nav:reports');
+  const txSectionHdr  = t('parentReports.section');
+  const txDownload    = t('parentReports.downloadPdf');
+  const txEmail       = t('parentReports.emailToMe');
+  const txSent        = t('parentReports.sent');
+  const txNoReports   = t('parentReports.empty');
 
   const [reports, setReports]             = useState<Report[]>([]);
   const [selectedUuid, setSelectedUuid]   = useState('');
@@ -166,22 +165,12 @@ export function ReportScreen() {
     if (selectedUuid) handleSelect(selectedUuid);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Translated report list ──────────────────────────────────
-  const [txReports, setTxReports] = useState(reports);
-  useEffect(() => {
-    setTxReports(reports);
-    if (language === 'en') return;
-    translateBatch(reports.map(r => r.title), language).then(results => {
-      setTxReports(reports.map((r, i) => ({ ...r, title: results[i] || r.title })));
-    });
-  }, [language, reports]);
-
-  const txSubtitle = useTranslatedText(t('parentReports.subtitle'), language);
+  const txSubtitle = t('parentReports.subtitle');
 
   // ── PDF download ────────────────────────────────────────────
   const handlePDF = () => {
     const content = showOriginal ? (detail?.original_content_markdown || '') : (detail?.display_content_markdown || '');
-    const reportTitle = txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? '';
+    const reportTitle = reports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? '';
     const dateStr = detail ? formatDate(detail.created_at) : '';
     const studentName = sid ?? '';
 
@@ -286,7 +275,7 @@ export function ReportScreen() {
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {txReports.map(report => (
+            {reports.map(report => (
               <div
                 key={report.uuid}
                 className="card-sm"
@@ -308,7 +297,7 @@ export function ReportScreen() {
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>{formatDate(report.created_at)}</div>
               </div>
             ))}
-            {txReports.length === 0 && (
+            {reports.length === 0 && (
               <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>{txNoReports}</div>
             )}
           </div>
@@ -331,7 +320,7 @@ export function ReportScreen() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 12 }}>
             <div>
               <div className="font-serif" style={{ fontSize: 20, color: 'var(--tx)', marginBottom: 4 }}>
-                {txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? ''}
+                {reports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? ''}
               </div>
               <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{detail ? formatDate(detail.created_at) : ''}</div>
             </div>
