@@ -98,7 +98,6 @@ function LegacyParentAnnouncementsRedirect() {
 // Syncs role from URL path so sidebar shows correct nav items.
 
 function AppLayout() {
-  const { language } = useApp();
   const { pathname } = useLocation();
 
   // Extract student UUID from URL: /parent/students/:sid/... or /teacher/students/:sid/...
@@ -115,7 +114,6 @@ function AppLayout() {
       <AIPanel
         studentUuid={studentUuid || undefined}
         subjectUuid={subjectUuid || undefined}
-        uiLanguage={language}
       />
     </>
   );

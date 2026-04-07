@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { parent as parentApi } from '@/lib/api';
 import type { ExamScore, PaginationMeta, SubjectSummary } from '@/types/api';
@@ -15,6 +16,7 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function ParentExamScoresScreen() {
+  const { t } = useTranslation('app');
   const { sid } = useParams<{ sid: string }>();
   const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
   const [scores, setScores] = useState<ExamScore[]>([]);
@@ -48,14 +50,14 @@ export function ParentExamScoresScreen() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Exam Scores</div>
-        <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} score record{meta.total !== 1 ? 's' : ''}</div>
+        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('parentExamScores.title')}</div>
+        <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('parentExamScores.count', { count: meta.total })}</div>
       </div>
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
           <select className="input-field" value={subjectUuid} onChange={e => { setPage(1); setSubjectUuid(e.target.value); }}>
-            <option value="">All subjects</option>
+            <option value="">{t('parentExamScores.allSubjects')}</option>
             {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
           </select>
           <input className="input-field" type="date" value={examDateFrom} onChange={e => { setPage(1); setExamDateFrom(e.target.value); }} />
@@ -66,29 +68,29 @@ export function ParentExamScoresScreen() {
           {scores.map(score => (
             <div key={score.uuid} className="card-sm">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{score.exam_name ?? 'Untitled exam'}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{score.exam_name ?? t('parentExamScores.untitledExam')}</div>
                 <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{score.exam_date.slice(0, 10)}</div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{score.subject.name} · {score.author.display_name}</div>
               <div style={{ fontSize: 13, color: 'var(--tx)', marginTop: 8 }}>
-                Score: <strong>{score.score}</strong> / {score.full_score}
+                {t('parentExamScores.scoreLine', { score: score.score, fullScore: score.full_score })}
               </div>
               {score.note && <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 6 }}>{score.note}</div>}
             </div>
           ))}
           {scores.length === 0 && (
             <div style={{ fontSize: 13, color: 'var(--tx3)', textAlign: 'center', padding: '24px 0' }}>
-              No exam scores found for the selected filters.
+              {t('parentExamScores.empty')}
             </div>
           )}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-            Previous
+            {t('actions.previous')}
           </button>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-            Next
+            {t('actions.next')}
           </button>
         </div>
       </div>

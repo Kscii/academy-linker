@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
@@ -91,15 +92,16 @@ function mdToHtml(md: string): string {
 // ── Main screen ───────────────────────────────────────────────
 
 export function ReportScreen() {
+  const { t } = useTranslation('app');
   const { sid } = useParams<{ sid: string }>();
   const { language } = useApp();
 
-  const txTitle       = useTranslatedText('Progress Reports', language);
-  const txSectionHdr  = useTranslatedText('Reports', language);
-  const txDownload    = useTranslatedText('Download PDF', language);
-  const txEmail       = useTranslatedText('Email to me', language);
-  const txSent        = useTranslatedText('✓ Sent!', language);
-  const txNoReports   = useTranslatedText('No reports available.', language);
+  const txTitle       = useTranslatedText(t('nav:reports'), language);
+  const txSectionHdr  = useTranslatedText(t('parentReports.section'), language);
+  const txDownload    = useTranslatedText(t('parentReports.downloadPdf'), language);
+  const txEmail       = useTranslatedText(t('parentReports.emailToMe'), language);
+  const txSent        = useTranslatedText(t('parentReports.sent'), language);
+  const txNoReports   = useTranslatedText(t('parentReports.empty'), language);
 
   const [reports, setReports]             = useState<Report[]>([]);
   const [selectedUuid, setSelectedUuid]   = useState('');
@@ -174,7 +176,7 @@ export function ReportScreen() {
     });
   }, [language, reports]);
 
-  const txSubtitle = useTranslatedText('Browse translated progress reports and archived history.', language);
+  const txSubtitle = useTranslatedText(t('parentReports.subtitle'), language);
 
   // ── PDF download ────────────────────────────────────────────
   const handlePDF = () => {
@@ -269,18 +271,18 @@ export function ReportScreen() {
           </div>
           <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
             <select className="input-field" value={status} onChange={e => { setPage(1); setStatus(e.target.value as typeof status); }}>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-              <option value="all">All</option>
+              <option value="active">{t('parentReports.statusActive')}</option>
+              <option value="archived">{t('parentReports.statusArchived')}</option>
+              <option value="all">{t('parentReports.statusAll')}</option>
             </select>
             <select className="input-field" value={readState} onChange={e => { setPage(1); setReadState(e.target.value as typeof readState); }}>
-              <option value="all">All read states</option>
-              <option value="read">Read</option>
-              <option value="unread">Unread</option>
+              <option value="all">{t('parentReports.readAll')}</option>
+              <option value="read">{t('parentReports.readRead')}</option>
+              <option value="unread">{t('parentReports.readUnread')}</option>
             </select>
             <select className="input-field" value={sort} onChange={e => { setPage(1); setSort(e.target.value as typeof sort); }}>
-              <option value="created_at_desc">Newest first</option>
-              <option value="created_at_asc">Oldest first</option>
+              <option value="created_at_desc">{t('parentReports.sortNewest')}</option>
+              <option value="created_at_asc">{t('parentReports.sortOldest')}</option>
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -312,13 +314,13 @@ export function ReportScreen() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-              Previous
+              {t('actions.previous')}
             </button>
             <div style={{ fontSize: 12, color: 'var(--tx3)', alignSelf: 'center' }}>
-              {meta.page} / {Math.max(meta.total_pages, 1)}
+              {t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}
             </div>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-              Next
+              {t('actions.next')}
             </button>
           </div>
         </div>
@@ -341,7 +343,7 @@ export function ReportScreen() {
                   disabled={resolvingTranslation}
                   style={{ fontSize: 12 }}
                 >
-                  {resolvingTranslation ? '…' : showOriginal ? 'Show translation' : ((detail?.translated_content_markdown || detail?.display_language !== detail?.original_language) ? 'Show original' : 'Translate')}
+                  {resolvingTranslation ? '…' : showOriginal ? t('actions.showTranslation') : ((detail?.translated_content_markdown || detail?.display_language !== detail?.original_language) ? t('actions.showOriginal') : t('actions.translate'))}
                 </button>
               )}
               <button
@@ -352,11 +354,7 @@ export function ReportScreen() {
               >
                 ⬇ {txDownload}
               </button>
-              <button
-                className="btn-secondary"
-                onClick={handleEmail}
-                style={{ color: emailSent ? 'var(--a2)' : undefined, fontSize: 12 }}
-              >
+              <button className="btn-secondary" onClick={handleEmail} style={{ color: emailSent ? 'var(--a2)' : undefined, fontSize: 12 }}>
                 {emailSent ? txSent : `✉ ${txEmail}`}
               </button>
             </div>
@@ -386,7 +384,7 @@ export function ReportScreen() {
           ) : resolvedContent ? (
             <MarkdownView text={resolvedContent} />
           ) : (
-            <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>No content available.</div>
+            <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>{t('parentReports.noContent')}</div>
           )}
         </div>
       </div>

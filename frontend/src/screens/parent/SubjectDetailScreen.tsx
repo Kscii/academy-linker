@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { LineChart } from '@/components/charts/LineChart';
 import { useApp } from '@/contexts/AppContext';
@@ -13,12 +14,13 @@ import type { SubjectDetailResponse, ThreadPost } from '@/types/api';
 import { getSubjectIcon } from '@/lib/constants';
 
 function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor: string }) {
+  const { t } = useTranslation('app');
   function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const days = Math.floor(diff / 86400_000);
-    if (days === 0) return 'today';
-    if (days === 1) return 'yesterday';
-    return `${days}d ago`;
+    if (days === 0) return t('parentSubject.today');
+    if (days === 1) return t('parentSubject.yesterday');
+    return t('parentSubject.daysAgo', { count: days });
   }
 
   const initials = (name: string) =>
@@ -27,7 +29,7 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
   return (
     <div>
       <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-        Teacher Posts ({posts.length})
+        {t('parentSubject.teacherPosts', { count: posts.length })}
       </div>
 
       {posts.map(post => {
@@ -76,6 +78,7 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 // ── Subject Detail Screen ─────────────────────────────────────
 
 export function SubjectDetailScreen() {
+  const { t } = useTranslation('app');
   const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
   const { language } = useApp();
   const [showAvg, setShowAvg] = useState(false);
@@ -151,7 +154,7 @@ export function SubjectDetailScreen() {
   }, [language, detail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!detail) return (
-    <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>Loading…</div>
+    <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>{t('common.loading')}</div>
   );
 
   const subject = detail.subject;
@@ -181,10 +184,10 @@ export function SubjectDetailScreen() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Current Score', value: detail.overview.current_score, color: subjectColor },
-          { label: 'Term Average',  value: detail.overview.term_avg,      color: 'var(--a2)' },
-          { label: 'Highest',       value: detail.overview.highest,        color: 'var(--a3)' },
-          { label: 'Lowest',        value: detail.overview.lowest,         color: 'var(--tx2)' },
+          { label: t('parentSubject.currentScore'), value: detail.overview.current_score, color: subjectColor },
+          { label: t('parentSubject.termAverage'),  value: detail.overview.term_avg,      color: 'var(--a2)' },
+          { label: t('parentSubject.highest'),      value: detail.overview.highest,        color: 'var(--a3)' },
+          { label: t('parentSubject.lowest'),       value: detail.overview.lowest,         color: 'var(--tx2)' },
         ].map((s, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{s.label}</div>
@@ -195,7 +198,7 @@ export function SubjectDetailScreen() {
 
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>Score Trend</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{t('parentSubject.scoreTrend')}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 8, padding: 2 }}>
               {(['term', 'year'] as const).map(p => (
@@ -224,7 +227,7 @@ export function SubjectDetailScreen() {
                 fontFamily: 'var(--font-body)',
               }}
             >
-              Class avg
+              {t('parentSubject.classAvg')}
             </button>
           </div>
         </div>
@@ -239,11 +242,11 @@ export function SubjectDetailScreen() {
           <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: 'var(--tx3)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 16, height: 2, background: subjectColor, display: 'inline-block', borderRadius: 1 }} />
-              Emily
+              {t('parentSubject.studentLine')}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 16, height: 2, background: 'var(--a2)', display: 'inline-block', borderRadius: 1, opacity: 0.7 }} />
-              Class average
+              {t('parentSubject.classAverageLine')}
             </span>
           </div>
         )}
@@ -251,7 +254,7 @@ export function SubjectDetailScreen() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 16 }}>
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Learning Pathway</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('parentSubject.learningPathway')}</div>
           <div className="timeline">
             {txPathway.map(node => (
               <div key={node.uuid} className="timeline-node">
@@ -262,9 +265,9 @@ export function SubjectDetailScreen() {
                   </div>
                   {node.week && <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Week {node.week}</div>}
                   {node.status === 'in_progress' && (
-                    <span className="badge" style={{ background: subjectColor + '18', color: subjectColor, marginTop: 4, fontSize: 10 }}>In progress</span>
+                    <span className="badge" style={{ background: subjectColor + '18', color: subjectColor, marginTop: 4, fontSize: 10 }}>{t('parentSubject.inProgress')}</span>
                   )}
-                  {node.status === 'completed' && <span style={{ fontSize: 11, color: 'var(--a2)' }}>✓ Completed</span>}
+                  {node.status === 'completed' && <span style={{ fontSize: 11, color: 'var(--a2)' }}>✓ {t('parentSubject.completed')}</span>}
                 </div>
               </div>
             ))}
@@ -276,16 +279,16 @@ export function SubjectDetailScreen() {
             border: '1px solid var(--bd)',
           }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>✦</span> AI Insight
+              <span>✦</span> {t('parentSubject.aiInsight')}
             </div>
             {insightLoading ? (
-              <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>Generating insight…</div>
+              <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>{t('parentSubject.generatingInsight')}</div>
             ) : liveInsight ? (
               <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
                 {liveInsight}
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>Unable to load insight.</div>
+              <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>{t('parentSubject.insightError')}</div>
             )}
           </div>
         </div>

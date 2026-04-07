@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
@@ -21,12 +22,13 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export function AnnouncementsScreen() {
+  const { t } = useTranslation('app');
   const { sid } = useParams<{ sid: string }>();
   const studentUuid = sid ?? '';
   const { language, readAnnouncementIds, markAnnouncementRead, setAnnouncementUuids } = useApp();
-  const txTitle    = useTranslatedText('School Notices', language);
-  const txSubtitle = useTranslatedText('Important announcements from the school', language);
-  const txUnread   = useTranslatedText('unread notices', language);
+  const txTitle    = useTranslatedText(t('parentAnnouncements.title'), language);
+  const txSubtitle = useTranslatedText(t('parentAnnouncements.subtitle'), language);
+  const txUnread   = useTranslatedText(t('parentAnnouncements.unreadNotices'), language);
   const [selectedUuid, setSelectedUuid] = useState('');
   const readSet = readAnnouncementIds;
 
@@ -151,7 +153,7 @@ export function AnnouncementsScreen() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       {!isRead && (
                         <span className="badge" style={{ background: catColor, color: '#fff', fontSize: 10 }}>
-                          New
+                          {t('parentAnnouncements.new')}
                         </span>
                       )}
                       {ann.category && (
@@ -180,7 +182,7 @@ export function AnnouncementsScreen() {
 
           {txAnn.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '60px 0' }}>
-              No announcements yet.
+              {t('parentAnnouncements.empty')}
             </div>
           )}
         </div>
@@ -193,13 +195,13 @@ export function AnnouncementsScreen() {
                   <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)', marginBottom: 6 }}>{detail.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
                     {detail.author.display_name} · {formatDate(detail.published_at)}
-                    {detail.due_at ? ` · Due ${formatDate(detail.due_at)}` : ''}
+                    {detail.due_at ? ` · ${t('parentAnnouncements.due', { date: formatDate(detail.due_at) })}` : ''}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   {detail.original_language !== language && (
                     <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} onClick={() => void toggleTranslation()} disabled={resolvingTranslation}>
-                      {resolvingTranslation ? '…' : showOriginal ? 'Show translation' : (detail.translated_content_markdown ? 'Show original' : 'Translate')}
+                      {resolvingTranslation ? '…' : showOriginal ? t('actions.showTranslation') : (detail.translated_content_markdown ? t('actions.showOriginal') : t('actions.translate'))}
                     </button>
                   )}
                   <span className="badge" style={{ background: CATEGORY_COLORS[detail.category] + '18', color: CATEGORY_COLORS[detail.category], fontSize: 11 }}>
@@ -207,7 +209,7 @@ export function AnnouncementsScreen() {
                   </span>
                   {detail.is_important && (
                     <span className="badge" style={{ background: 'var(--a1)18', color: 'var(--a1)', fontSize: 11 }}>
-                      Important
+                      {t('parentAnnouncements.important')}
                     </span>
                   )}
                 </div>
@@ -225,7 +227,7 @@ export function AnnouncementsScreen() {
             </>
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '80px 0' }}>
-              Select an announcement to view details.
+              {t('parentAnnouncements.selectPrompt')}
             </div>
           )}
         </div>
