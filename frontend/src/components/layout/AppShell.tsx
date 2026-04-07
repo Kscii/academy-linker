@@ -23,9 +23,13 @@ interface NavItem {
 const PARENT_NAV: NavItem[] = [
   { id: 'dashboard',  labelKey: 'nav:dashboard',  icon: '🏠', path: (sid) => `/parent/students/${sid}/dashboard` },
   { id: 'grades',     labelKey: 'nav:grades',     icon: '📊', path: (sid) => `/parent/students/${sid}/grades` },
+  { id: 'examScores', labelKey: 'nav:examScores', icon: '📝', path: (sid) => `/parent/students/${sid}/exam-scores` },
+  { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: (sid) => `/parent/students/${sid}/period-metrics` },
   { id: 'messages',   labelKey: 'nav:messages',   icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
   { id: 'reports',    labelKey: 'nav:reports',    icon: '📋', path: (sid) => `/parent/students/${sid}/reports` },
   { id: 'notices',    labelKey: 'nav:notices',    icon: '📢', path: (sid) => `/parent/students/${sid}/tasks` },
+  { id: 'leave',      labelKey: 'nav:leave',      icon: '🗒', path: (sid) => `/parent/students/${sid}/leave` },
+  { id: 'incidents',  labelKey: 'nav:incidents',  icon: '🚨', path: (sid) => `/parent/students/${sid}/incidents` },
   { id: 'resources',  labelKey: 'nav:resources',  icon: '📚', path: (sid) => `/parent/students/${sid}/resources` },
 ];
 

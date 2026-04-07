@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi } from '@/lib/api';
-import type { Report, ReportDetail } from '@/types/api';
+import type { PaginationMeta, Report, ReportDetail } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 
 function formatDate(dateStr: string): string {
@@ -99,24 +99,29 @@ export function ReportScreen() {
   const txDownload    = useTranslatedText('Download PDF', language);
   const txEmail       = useTranslatedText('Email to me', language);
   const txSent        = useTranslatedText('✓ Sent!', language);
+  const txNoReports   = useTranslatedText('No reports available.', language);
 
   const [reports, setReports]             = useState<Report[]>([]);
   const [selectedUuid, setSelectedUuid]   = useState('');
   const [detail, setDetail]               = useState<ReportDetail | null>(null);
   const [readIds, setReadIds]             = useState<Set<string>>(new Set());
   const [emailSent, setEmailSent]         = useState(false);
+  const [page, setPage]                   = useState(1);
+  const [status, setStatus]               = useState<'active' | 'archived' | 'all'>('active');
+  const [readState, setReadState]         = useState<'all' | 'read' | 'unread'>('all');
+  const [sort, setSort]                   = useState<'created_at_desc' | 'created_at_asc'>('created_at_desc');
+  const [meta, setMeta]                   = useState<PaginationMeta>({ page: 1, page_size: 20, total: 0, total_pages: 1 });
 
   // ── Fetch reports list ──────────────────────────────────────
   useEffect(() => {
     if (!sid) return;
-    parentApi.getReports(sid).then(res => {
-      if (res.data.length > 0) {
-        setReports(res.data);
-        setSelectedUuid(res.data[0].uuid);
-        setReadIds(new Set(res.data.filter(r => r.is_read).map(r => r.uuid)));
-      }
+    parentApi.getReports(sid, { page, page_size: 20, status, read_state: readState, sort }).then(res => {
+      setReports(res.data);
+      setMeta(res.meta);
+      setSelectedUuid(prev => (res.data.some(r => r.uuid === prev) ? prev : res.data[0]?.uuid ?? ''));
+      setReadIds(new Set(res.data.filter(r => r.is_read).map(r => r.uuid)));
     }).catch(() => {});
-  }, [sid]);
+  }, [page, readState, sid, sort, status]);
 
   // ── Fetch report detail when selection changes ──────────────
   useEffect(() => {
@@ -125,9 +130,22 @@ export function ReportScreen() {
       setDetail(res.data);
     }).catch(() => {
       const found = reports.find(r => r.uuid === selectedUuid);
-      if (found) setDetail({ ...found, display_content_markdown: '', original_content_markdown: '', translated_content_markdown: null, display_language: 'en', original_language: 'en', translated_language: null, translation_status: 'not_required', translated_at: null, student: undefined });
+      if (found) {
+        setDetail({
+          ...found,
+          author: { uuid: '', display_name: 'Unknown', role: 'teacher' },
+          display_content_markdown: '',
+          original_content_markdown: '',
+          translated_content_markdown: null,
+          display_language: found.translation.display_language,
+          original_language: found.translation.original_language,
+          translated_language: found.translation.translated_language,
+          translation_status: found.translation.translation_status,
+          translated_at: found.translation.translated_at,
+        });
+      }
     });
-  }, [sid, selectedUuid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reports, sid, selectedUuid]);
 
   // ── Select report: mark as read ─────────────────────────────
   const handleSelect = useCallback((uuid: string) => {
@@ -153,17 +171,14 @@ export function ReportScreen() {
     });
   }, [language, reports]);
 
-  const txSubtitle = useTranslatedText(
-    `Weekly updates on ${detail?.student?.preferred_name ?? detail?.student?.full_name ?? ''}'s academic progress`,
-    language,
-  );
+  const txSubtitle = useTranslatedText('Browse translated progress reports and archived history.', language);
 
   // ── PDF download ────────────────────────────────────────────
   const handlePDF = () => {
     const content = detail?.display_content_markdown || '';
     const reportTitle = txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? '';
     const dateStr = detail ? formatDate(detail.created_at) : '';
-    const studentName = detail?.student?.display_name ?? '';
+    const studentName = sid ?? '';
 
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) return;
@@ -209,7 +224,6 @@ export function ReportScreen() {
   };
 
   const currentContent = detail?.display_content_markdown ?? '';
-  const generating = false;
 
   return (
     <div>
@@ -224,6 +238,22 @@ export function ReportScreen() {
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {txSectionHdr}
+          </div>
+          <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+            <select className="input-field" value={status} onChange={e => { setPage(1); setStatus(e.target.value as typeof status); }}>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+              <option value="all">All</option>
+            </select>
+            <select className="input-field" value={readState} onChange={e => { setPage(1); setReadState(e.target.value as typeof readState); }}>
+              <option value="all">All read states</option>
+              <option value="read">Read</option>
+              <option value="unread">Unread</option>
+            </select>
+            <select className="input-field" value={sort} onChange={e => { setPage(1); setSort(e.target.value as typeof sort); }}>
+              <option value="created_at_desc">Newest first</option>
+              <option value="created_at_asc">Oldest first</option>
+            </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {txReports.map(report => (
@@ -248,6 +278,20 @@ export function ReportScreen() {
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>{formatDate(report.created_at)}</div>
               </div>
             ))}
+            {txReports.length === 0 && (
+              <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>{txNoReports}</div>
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
+            <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
+              Previous
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--tx3)', alignSelf: 'center' }}>
+              {meta.page} / {Math.max(meta.total_pages, 1)}
+            </div>
+            <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
+              Next
+            </button>
           </div>
         </div>
 
@@ -262,9 +306,6 @@ export function ReportScreen() {
               <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{detail ? formatDate(detail.created_at) : ''}</div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              {generating && (
-                <span style={{ fontSize: 12, color: 'var(--tx3)', fontStyle: 'italic' }}>{txGenerating}</span>
-              )}
               <button
                 className="btn-secondary"
                 onClick={handlePDF}
@@ -293,7 +334,7 @@ export function ReportScreen() {
           )}
 
           {/* Generated content or skeleton */}
-          {generating && !currentContent ? (
+          {!currentContent && !detail ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '20px 0' }}>
               {[80, 60, 90, 55, 75].map((w, i) => (
                 <div key={i} style={{ height: 14, borderRadius: 6, background: 'var(--bg2)', width: `${w}%`, opacity: 0.6 + i * 0.05 }} />

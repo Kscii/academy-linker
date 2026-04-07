@@ -19,6 +19,9 @@ import type {
   ReportDetail,
   Announcement,
   AnnouncementDetail,
+  ResourceCategory,
+  ResourceDetail,
+  ResourceListItem,
   DiscussionTeacherItem,
   DiscussionParentItem,
   ParentDiscussionThreadResponse,
@@ -194,11 +197,37 @@ export const settingsApi = {
     }),
 };
 
+// ── Resources ────────────────────────────────────────────────
+
+export const resourcesApi = {
+  getList: (params: { page?: number; page_size?: number; category?: string; keyword?: string; audience_role?: string; sort?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
+    if (params.category) q.set('category', params.category);
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.audience_role) q.set('audience_role', params.audience_role);
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiListResponse<ResourceListItem>>(`/resources?${q.toString()}`);
+  },
+
+  getCategories: (params: { audience_role?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.audience_role) q.set('audience_role', params.audience_role);
+    return apiFetch<ApiResponse<ResourceCategory[]>>(`/resources/categories${q.toString() ? `?${q.toString()}` : ''}`);
+  },
+
+  getDetail: (resourceUuid: string) =>
+    apiFetch<ApiResponse<ResourceDetail>>(`/resources/${resourceUuid}`),
+};
+
 // ── Parent ───────────────────────────────────────────────────
 
 export const parent = {
-  getStudents: (page = 1) =>
-    apiFetch<ApiListResponse<StudentSummary>>(`/parents/me/students?page=${page}`),
+  getStudents: (params: { page?: number; page_size?: number } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
+    return apiFetch<ApiListResponse<StudentSummary>>(`/parents/me/students?${q.toString()}`);
+  },
 
   getDashboard: (studentUuid: string, range = '30d') =>
     apiFetch<ApiResponse<DashboardResponse>>(
@@ -215,8 +244,9 @@ export const parent = {
       `/parents/me/students/${studentUuid}/subjects/${subjectUuid}?range=${range}`
     ),
 
-  getReports: (studentUuid: string, params: { page?: number; status?: string; read_state?: string; sort?: string } = {}) => {
+  getReports: (studentUuid: string, params: { page?: number; page_size?: number; status?: string; read_state?: string; sort?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.status) q.set('status', params.status);
     if (params.read_state) q.set('read_state', params.read_state);
     if (params.sort) q.set('sort', params.sort);
@@ -265,13 +295,17 @@ export const parent = {
       method: 'POST',
     }),
 
-  getDiscussionTeachers: (studentUuid: string) =>
-    apiFetch<ApiResponse<DiscussionTeacherItem[]>>(
-      `/parents/me/students/${studentUuid}/discussions/teachers`
-    ),
+  getDiscussionTeachers: (studentUuid: string, params: { sort?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiResponse<DiscussionTeacherItem[]>>(
+      `/parents/me/students/${studentUuid}/discussions/teachers${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
 
-  getDiscussionThread: (studentUuid: string, teacherUuid: string, params: { page?: number; sort?: string; tag?: string; keyword?: string } = {}) => {
+  getDiscussionThread: (studentUuid: string, teacherUuid: string, params: { page?: number; page_size?: number; sort?: string; tag?: string; keyword?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.sort) q.set('sort', params.sort);
     if (params.tag) q.set('tag', params.tag);
     if (params.keyword) q.set('keyword', params.keyword);
@@ -280,8 +314,9 @@ export const parent = {
     );
   },
 
-  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number; exam_date_from?: string; exam_date_to?: string } = {}) => {
+  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number; page_size?: number; exam_date_from?: string; exam_date_to?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
     if (params.exam_date_from) q.set('exam_date_from', params.exam_date_from);
     if (params.exam_date_to) q.set('exam_date_to', params.exam_date_to);
@@ -299,8 +334,9 @@ export const parent = {
     );
   },
 
-  getLeaveRequests: (studentUuid: string, params: { page?: number; status?: string } = {}) => {
+  getLeaveRequests: (studentUuid: string, params: { page?: number; page_size?: number; status?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.status) q.set('status', params.status);
     return apiFetch<ApiListResponse<LeaveRequest>>(
       `/parents/me/students/${studentUuid}/leave?${q.toString()}`
@@ -313,10 +349,13 @@ export const parent = {
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  getIncidentReports: (studentUuid: string, page = 1) =>
-    apiFetch<ApiListResponse<IncidentReport>>(
-      `/parents/me/students/${studentUuid}/incidents?page=${page}`
-    ),
+  getIncidentReports: (studentUuid: string, params: { page?: number; page_size?: number } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
+    return apiFetch<ApiListResponse<IncidentReport>>(
+      `/parents/me/students/${studentUuid}/incidents?${q.toString()}`
+    );
+  },
 
   createIncidentReport: (studentUuid: string, body: CreateIncidentReport) =>
     apiFetch<ApiResponse<{ uuid: string; status: string }>>(
