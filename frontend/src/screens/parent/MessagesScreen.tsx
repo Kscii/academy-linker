@@ -30,13 +30,13 @@ export function MessagesScreen() {
   const { sid } = useParams<{ sid: string }>();
   const { markThreadRead, updateThreadUnreadCounts, threadUnreadCounts, language } = useApp();
 
-
   const [items, setItems] = useState<DiscussionTeacherItem[]>([]);
   const [txItems, setTxItems] = useState<DiscussionTeacherItem[]>([]);
+  const [sort, setSort] = useState<'last_post_at_desc' | 'display_name_asc'>('last_post_at_desc');
 
   useEffect(() => {
     if (!sid) return;
-    parentApi.getDiscussionTeachers(sid).then(res => {
+    parentApi.getDiscussionTeachers(sid, { sort }).then(res => {
       setItems(res.data);
       updateThreadUnreadCounts(
         Object.fromEntries(
@@ -46,7 +46,7 @@ export function MessagesScreen() {
         )
       );
     }).catch(() => {});
-  }, [sid]);
+  }, [sid, sort, updateThreadUnreadCounts]);
 
   useEffect(() => {
     setTxItems(items);
@@ -70,9 +70,8 @@ export function MessagesScreen() {
   const txSubtitle = useTranslatedText("Your conversations with your student's teachers", language);
 
   const handleOpen = (item: DiscussionTeacherItem) => {
-    if (!item.thread_uuid) return;
-    markThreadRead(item.thread_uuid);
-    navigate(`/parent/students/${sid}/conversations/${item.thread_uuid}`, {
+    if (item.thread_uuid) markThreadRead(item.thread_uuid);
+    navigate(`/parent/students/${sid}/conversations/${item.uuid}`, {
       state: {
         teacher: { uuid: item.uuid, display_name: item.display_name },
         subjectCode: item.subjects[0]?.code,
@@ -91,6 +90,13 @@ export function MessagesScreen() {
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
           {txSubtitle}
         </div>
+      </div>
+
+      <div style={{ maxWidth: 220, marginBottom: 16 }}>
+        <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
+          <option value="last_post_at_desc">Recent activity</option>
+          <option value="display_name_asc">Teacher name</option>
+        </select>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

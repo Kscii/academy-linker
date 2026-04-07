@@ -17,6 +17,10 @@ const ACCENT_COLORS: Record<string, string> = {
   a1: 'var(--a1)', a2: 'var(--a2)', a3: 'var(--a3)', a4: 'var(--a4)',
 };
 
+function getSubjectColor(subject: Pick<SubjectSummary, 'code' | 'color'>): string {
+  return (subject.code ? SUBJECT_COLORS[subject.code] : undefined) ?? subject.color ?? 'var(--a1)';
+}
+
 export function GradesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
@@ -39,12 +43,14 @@ export function GradesScreen() {
         if (s) setStudentName(s.preferred_name ?? s.full_name);
       }
       if (subRes) {
-        const statsMap = dashRes
-          ? new Map(dashRes.data.subject_statistics.map(st => [st.subject_uuid, st]))
-          : new Map();
+        const statsMap = new Map(
+          (dashRes?.data.subject_statistics ?? [])
+            .filter(st => st.subject_uuid != null)
+            .map(st => [st.subject_uuid, st] as const)
+        );
         setSubjects(subRes.data.map(sub => ({
           ...sub,
-          color: SUBJECT_COLORS[sub.code] ?? 'var(--a1)',
+          color: getSubjectColor(sub),
           score: statsMap.get(sub.uuid)?.score,
           progress: statsMap.get(sub.uuid)?.progress,
         })));
@@ -149,10 +155,10 @@ export function GradesScreen() {
               className="subject-row"
               onClick={() => navigate(`/parent/students/${sid}/subjects/${sub.uuid}`)}
             >
-              <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: SUBJECT_COLORS[sub.code] ?? sub.color }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: getSubjectColor(sub) }} />
               <div style={{ width: 150, flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{sub.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teachers?.[0]?.display_name ?? sub.teacher?.display_name}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teachers?.[0]?.display_name ?? 'No teacher assigned'}</div>
               </div>
               <div style={{ flex: 1 }}>
                 <div className="progress-bar">
@@ -160,7 +166,7 @@ export function GradesScreen() {
                     className="progress-fill"
                     style={{
                       width: barsReady ? `${sub.progress ?? sub.score ?? 0}%` : '0%',
-                      background: SUBJECT_COLORS[sub.code] ?? sub.color,
+                      background: getSubjectColor(sub),
                       transitionDelay: `${idx * 80}ms`,
                     }}
                   />
@@ -168,7 +174,7 @@ export function GradesScreen() {
               </div>
               <div
                 className="badge subject-row-badge"
-                style={{ background: `${SUBJECT_COLORS[sub.code] ?? sub.color}22`, color: SUBJECT_COLORS[sub.code] ?? sub.color, fontSize: 13, fontWeight: 700, minWidth: 44, justifyContent: 'center' }}
+                style={{ background: `${getSubjectColor(sub)}22`, color: getSubjectColor(sub), fontSize: 13, fontWeight: 700, minWidth: 44, justifyContent: 'center' }}
               >
                 {sub.score ?? '—'}%
               </div>

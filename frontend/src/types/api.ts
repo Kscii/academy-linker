@@ -341,6 +341,41 @@ export interface AnnouncementDetail extends Omit<Announcement, 'translation' | '
   translated_at: string | null;
 }
 
+// ── Resources ────────────────────────────────────────────────
+
+export type ResourceAudienceRole = 'parent' | 'teacher' | 'all';
+
+export interface ResourceCategory {
+  key: string;
+  label: string;
+  resource_count: number;
+}
+
+export interface ResourceListItem {
+  uuid: string;
+  title: string;
+  summary: string | null;
+  category_key: string;
+  category_label: string;
+  audience_role: ResourceAudienceRole;
+  cover_image_url: string | null;
+  external_url: string | null;
+  is_pinned: boolean;
+  published_at: string;
+  translation: TranslationBlock;
+}
+
+export interface ResourceDetail extends Omit<ResourceListItem, 'translation'> {
+  display_content_markdown: string;
+  original_content_markdown: string;
+  translated_content_markdown: string | null;
+  display_language: string;
+  original_language: string;
+  translated_language: string | null;
+  translation_status: TranslationStatus;
+  translated_at: string | null;
+}
+
 // ── Discussion (Parent view) ──────────────────────────────────
 
 export interface DiscussionSubjectBrief {
@@ -827,7 +862,7 @@ export interface SendAiMessageResponse {
   assistant_message: AiMessage;
 }
 
-// ── Leave Requests (未完成) ───────────────────────────────────
+// ── Leave Requests ───────────────────────────────────────────
 
 export type LeaveRequestType = 'sick' | 'personal' | 'family' | 'other';
 export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected';
@@ -851,7 +886,7 @@ export interface CreateLeaveRequest {
   reason?: string | null;
 }
 
-// ── Incident Reports (未完成) ─────────────────────────────────
+// ── Incident Reports ─────────────────────────────────────────
 
 export type IncidentType = 'bullying' | 'drugs' | 'misconduct' | 'other';
 export type IncidentStatus = 'submitted' | 'investigating' | 'resolved';

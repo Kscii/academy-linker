@@ -41,6 +41,10 @@ const LEAVE_STATUS_COLORS: Record<string, string> = {
   pending: 'var(--a3)', approved: 'var(--a2)', rejected: 'var(--warn)',
 };
 
+function getSubjectColor(subject: Pick<SubjectSummary, 'code' | 'color'>): string {
+  return (subject.code ? SUBJECT_COLORS[subject.code] : undefined) ?? subject.color ?? 'var(--a1)';
+}
+
 // ── Upcoming festivals (month is 0-indexed) ───────────────────
 
 interface Festival {
@@ -266,6 +270,52 @@ export function DashboardScreen() {
         </div>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+        <div className="stat-box">
+          <div className="stat-label">Overall Performance</div>
+          <div className="stat-value" style={{ color: 'var(--a1)' }}>
+            {dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—'}
+          </div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">Assignments</div>
+          <div className="stat-value" style={{ color: 'var(--a2)' }}>
+            {dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—'}
+          </div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">Unread Posts</div>
+          <div className="stat-value" style={{ color: 'var(--a3)' }}>
+            {dashboard?.dashboard_context.unread_post_count ?? 0}
+          </div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">Unread Notices</div>
+          <div className="stat-value" style={{ color: 'var(--a4)' }}>
+            {dashboard?.dashboard_context.unread_announcement_count ?? 0}
+          </div>
+        </div>
+      </div>
+
+      {dashboard?.important_post_banners?.length ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>Important Messages</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {dashboard.important_post_banners.slice(0, 3).map(item => (
+              <button
+                key={item.post_uuid}
+                className="btn-secondary"
+                style={{ width: '100%', textAlign: 'left', padding: '10px 14px' }}
+                onClick={() => navigate(`/parent/students/${sid}/discussions`)}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{item.title ?? item.teacher_display_name}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx2)' }}>{item.preview_text}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {/* Celebration banner — birthday (≤7d) or upcoming festival (≤14d) */}
       {(birthdayDays !== null && birthdayDays <= 7) ? (
         <div className="announcement-banner" style={{
@@ -366,7 +416,7 @@ export function DashboardScreen() {
             {subjects.slice(0, 5).map((sub, i) => {
               const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
               const times = ['9:00', '10:30', '11:00', '13:00', '14:30'];
-              const color = SUBJECT_COLORS[sub.code] ?? sub.color ?? 'var(--a1)';
+              const color = getSubjectColor(sub);
               return (
                 <div key={sub.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 28, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, flexShrink: 0 }}>{days[i]}</div>
@@ -528,11 +578,11 @@ export function DashboardScreen() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {subjects.slice(0, 3).map(sub => {
-              const tips = SUBJECT_TIPS[sub.code];
+              const tips = sub.code ? SUBJECT_TIPS[sub.code] : undefined;
               if (!tips) return null;
               const stat = dashboard?.subject_statistics?.find(s => s.subject_uuid === sub.uuid);
               const score = stat?.score ?? sub.score ?? 100;
-              const color = SUBJECT_COLORS[sub.code] ?? sub.color ?? 'var(--a1)';
+              const color = getSubjectColor(sub);
               const isBelow = score < 70;
               const tip = isBelow ? tips.below : tips.good;
               return (

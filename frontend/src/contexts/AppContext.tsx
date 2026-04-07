@@ -131,7 +131,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const markThreadRead = useCallback((key: string) => {
     setThreadUnreadCounts(prev => ({ ...prev, [key]: 0 }));
     recentlyReadRef.current.set(key, Date.now());
-    fetch(`/api/threads/${key}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
   }, []);
 
   const updateThreadUnreadCounts = useCallback((counts: Record<string, number>) => {

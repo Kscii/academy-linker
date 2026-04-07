@@ -139,7 +139,7 @@ export function TeacherReportsScreen() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
           <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Reports</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>Create and update teacher reports</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>Create, edit, and manage teacher reports in one place</div>
         </div>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={openCreate}>
           New Report
