@@ -518,6 +518,7 @@ def update_post(
     """
     更新帖子字段。title/content_markdown 为 None 时不修改。
     tags 非 None 时整体替换现有标签。
+    若正文变更，调用方应同步将翻译缓存标记为 stale。
     """
     if title is not None:
         post.title = title

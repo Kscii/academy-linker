@@ -24,9 +24,10 @@ from sqlalchemy.orm import Session
 from ac_link.common.deps import get_current_user
 from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import discussion as discussion_crud
+from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.communication import Tag
-from ac_link.db.orm.enums import TagScope, UserRole
+from ac_link.db.orm.enums import TagScope, TranslationResourceType, UserRole
 from ac_link.db.orm.user import User
 from ac_link.dto.auth import ApiResponse, SuccessResponse
 from ac_link.dto.discussion import PostCreate, PostItem, PostUpdate, build_post_item
@@ -115,6 +116,12 @@ def update_post(
         content_markdown=body.content_markdown,
         tags=new_tags,
     )
+    if body.content_markdown is not None:
+        translation_crud.mark_translations_stale(
+            db,
+            TranslationResourceType.POST,
+            post.id,
+        )
     db.commit()
 
     post = discussion_crud.get_post_by_uuid(db, post_uuid)
