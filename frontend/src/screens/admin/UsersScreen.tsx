@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminUser, CreateUserRequest, PaginationMeta, UserRole } from '@/types/api';
 
@@ -37,6 +38,7 @@ function toUserRow(item: AdminUser): UserRow {
 }
 
 export function AdminUsersScreen() {
+  const { t } = useTranslation('app');
   const [users, setUsers] = useState<UserRow[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
   const [keyword, setKeyword] = useState('');
@@ -95,11 +97,11 @@ export function AdminUsersScreen() {
 
   const handleSave = async () => {
     if (!form.display_name.trim() || !form.email.trim()) {
-      setError('Name and email are required.');
+      setError(t('adminUsers.requiredNameEmail'));
       return;
     }
     if (!editing && !form.password.trim()) {
-      setError('Password is required.');
+      setError(t('adminUsers.requiredPassword'));
       return;
     }
 
@@ -132,7 +134,7 @@ export function AdminUsersScreen() {
       await loadUsers();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to save user.');
+      setError(msg ?? t('adminUsers.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -142,51 +144,51 @@ export function AdminUsersScreen() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Users</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} user{meta.total !== 1 ? 's' : ''}</div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('adminUsers.title')}</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('adminUsers.count', { count: meta.total })}</div>
         </div>
         <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={openCreate}>
-          + New User
+          + {t('adminUsers.new')}
         </button>
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.3fr) repeat(4, minmax(120px, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Search</label>
-            <input className="input-field" placeholder="Search by name or email" value={keyword} onChange={e => setKeyword(e.target.value)} />
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.search')}</label>
+            <input className="input-field" placeholder={t('adminUsers.searchPlaceholder')} value={keyword} onChange={e => setKeyword(e.target.value)} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Role</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.role')}</label>
             <select className="input-field" value={role} onChange={e => setRole(e.target.value as typeof role)}>
-              <option value="all">All roles</option>
-              <option value="teacher">Teacher</option>
-              <option value="parent">Parent</option>
-              <option value="admin">Admin</option>
+              <option value="all">{t('adminUsers.allRoles')}</option>
+              <option value="teacher">{t('adminUsers.teacher')}</option>
+              <option value="parent">{t('adminUsers.parent')}</option>
+              <option value="admin">{t('adminUsers.admin')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.status')}</label>
             <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)}>
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('common.all')}</option>
+              <option value="active">{t('common.active')}</option>
+              <option value="inactive">{t('common.inactive')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Sort</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.sort')}</label>
             <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-              <option value="display_name_asc">Name A-Z</option>
-              <option value="created_at_desc">Newest</option>
-              <option value="created_at_asc">Oldest</option>
+              <option value="display_name_asc">{t('adminUsers.sortNameAsc')}</option>
+              <option value="created_at_desc">{t('adminUsers.sortNewest')}</option>
+              <option value="created_at_asc">{t('adminUsers.sortOldest')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Page</label>
-            <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>{meta.page} / {Math.max(meta.total_pages, 1)}</div>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.page')}</label>
+            <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>{t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}</div>
           </div>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => { setPage(1); void loadUsers(); }}>
-            Apply
+            {t('actions.apply')}
           </button>
         </div>
       </div>
@@ -194,43 +196,43 @@ export function AdminUsersScreen() {
       {showForm && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-            {editing ? 'Edit User' : 'New User'}
+            {editing ? t('adminUsers.editTitle') : t('adminUsers.newTitle')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {!editing && (
               <div>
-                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Role</label>
+                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.role')}</label>
                 <select className="input-field" value={form.role} onChange={e => setForm(prev => ({ ...prev, role: e.target.value as UserRole }))}>
-                  <option value="teacher">Teacher</option>
-                  <option value="parent">Parent</option>
-                  <option value="admin">Admin</option>
+                  <option value="teacher">{t('adminUsers.teacher')}</option>
+                  <option value="parent">{t('adminUsers.parent')}</option>
+                  <option value="admin">{t('adminUsers.admin')}</option>
                 </select>
               </div>
             )}
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Full Name</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.fullName')}</label>
               <input className="input-field" value={form.display_name} onChange={e => setForm(prev => ({ ...prev, display_name: e.target.value }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Email</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.email')}</label>
               <input className="input-field" type="email" value={form.email} disabled={editing} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>
-                {editing ? 'Phone Number (overwrite if provided)' : 'Phone Number'}
+                {editing ? t('adminUsers.phoneOverwrite') : t('adminUsers.phone')}
               </label>
-              <input className="input-field" value={form.phone_number ?? ''} placeholder={editing ? 'Unknown from list response' : '+61 4xx xxx xxx'} onChange={e => setForm(prev => ({ ...prev, phone_number: e.target.value, phone_dirty: true }))} />
+              <input className="input-field" value={form.phone_number ?? ''} placeholder={editing ? t('adminUsers.phoneUnknownPlaceholder') : t('adminUsers.phoneExample')} onChange={e => setForm(prev => ({ ...prev, phone_number: e.target.value, phone_dirty: true }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{editing ? 'New Password (leave blank to keep)' : 'Password'}</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{editing ? t('adminUsers.newPassword') : t('adminUsers.password')}</label>
               <input className="input-field" type="password" value={form.password} onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))} />
             </div>
             {editing && (
               <div>
-                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminUsers.status')}</label>
                 <select className="input-field" value={String(form.is_active ?? true)} onChange={e => setForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
+                  <option value="true">{t('common.active')}</option>
+                  <option value="false">{t('common.inactive')}</option>
                 </select>
               </div>
             )}
@@ -238,10 +240,10 @@ export function AdminUsersScreen() {
           {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a1)' }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleSave()} disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('actions.saving') : t('actions.save')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => setShowForm(false)}>
-              Cancel
+              {t('actions.cancel')}
             </button>
           </div>
         </div>
@@ -256,13 +258,13 @@ export function AdminUsersScreen() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{user.display_name}</div>
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{user.email}</div>
-              <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{user.role} · Phone: {user.phone_number ?? 'Not returned by list API'}</div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('adminUsers.phoneSummary', { role: user.role, phone: user.phone_number ?? t('adminUsers.notReturnedByListApi') })}</div>
             </div>
             <span className="badge" style={{ background: user.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: user.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
-              {user.is_active ? 'Active' : 'Inactive'}
+              {user.is_active ? t('common.active') : t('common.inactive')}
             </span>
             <button className="btn-secondary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => openEdit(user)}>
-              Edit
+              {t('actions.edit')}
             </button>
           </div>
         ))}
@@ -270,10 +272,10 @@ export function AdminUsersScreen() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-          Previous
+          {t('actions.previous')}
         </button>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-          Next
+          {t('actions.next')}
         </button>
       </div>
     </div>

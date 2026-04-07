@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export const LANGUAGES = [
   { code: 'en', nativeName: 'English',           englishName: 'English' },
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function LanguageCombobox({ value, onChange, compact = false }: Props) {
+  const { t } = useTranslation('app');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -111,7 +113,7 @@ export function LanguageCombobox({ value, onChange, compact = false }: Props) {
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search language…"
+              placeholder={t('languageCombobox.searchPlaceholder')}
               style={{
                 width: '100%', padding: '6px 10px',
                 background: 'var(--bg2)', border: '1px solid var(--bd)',
@@ -130,7 +132,7 @@ export function LanguageCombobox({ value, onChange, compact = false }: Props) {
           <div style={{ maxHeight: 220, overflowY: 'auto' }}>
             {filtered.length === 0 ? (
               <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--tx3)', textAlign: 'center' }}>
-                No results
+                {t('common.noResults')}
               </div>
             ) : (
               filtered.map(lang => (

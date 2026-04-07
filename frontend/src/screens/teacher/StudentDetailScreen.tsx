@@ -3,11 +3,13 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
 import type { TeacherStudentDashboard } from '@/types/api';
 
 export function StudentDetailScreen() {
+  const { t } = useTranslation('app');
   const navigate = useNavigate();
   const { studentUuid } = useParams<{ studentUuid: string }>();
   const [dashboard, setDashboard] = useState<TeacherStudentDashboard | null>(null);
@@ -19,7 +21,7 @@ export function StudentDetailScreen() {
 
   if (!dashboard) {
     return (
-      <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>Loading…</div>
+      <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>{t('common.loading')}</div>
     );
   }
 
@@ -38,7 +40,7 @@ export function StudentDetailScreen() {
           fontFamily: 'var(--font-body)',
         }}
       >
-        ← Back
+        ← {t('teacherStudentDetail.back')}
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
@@ -51,11 +53,11 @@ export function StudentDetailScreen() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, color: 'var(--tx2)' }}>
-              {student.sid ?? 'No SID'} · {student.grade_level ?? '—'} · {student.class_name ?? '—'}
+              {student.sid ?? t('common.noSid')} · {student.grade_level ?? t('common.notAvailable')} · {student.class_name ?? t('common.notAvailable')}
             </span>
             {student.preferred_name && (
               <span className="badge" style={{ fontSize: 10 }}>
-                Preferred: {student.preferred_name}
+                {t('teacherStudentDetail.preferred', { name: student.preferred_name })}
               </span>
             )}
           </div>
@@ -64,10 +66,10 @@ export function StudentDetailScreen() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Performance', value: summary_cards.overall_performance_index != null ? `${Math.round(summary_cards.overall_performance_index)}%` : '—', color: 'var(--a1)' },
-          { label: 'Attendance', value: summary_cards.attendance_rate != null ? `${Math.round(summary_cards.attendance_rate * 100)}%` : '—', color: 'var(--a2)' },
-          { label: 'Completion', value: summary_cards.assignment_completion_rate != null ? `${Math.round(summary_cards.assignment_completion_rate * 100)}%` : '—', color: 'var(--a3)' },
-          { label: 'Unread Posts', value: unread_post_count, color: 'var(--a4)' },
+          { label: t('teacherStudentDetail.performance'), value: summary_cards.overall_performance_index != null ? `${Math.round(summary_cards.overall_performance_index)}%` : t('common.notAvailable'), color: 'var(--a1)' },
+          { label: t('teacherStudentDetail.attendance'), value: summary_cards.attendance_rate != null ? `${Math.round(summary_cards.attendance_rate * 100)}%` : t('common.notAvailable'), color: 'var(--a2)' },
+          { label: t('teacherStudentDetail.completion'), value: summary_cards.assignment_completion_rate != null ? `${Math.round(summary_cards.assignment_completion_rate * 100)}%` : t('common.notAvailable'), color: 'var(--a3)' },
+          { label: t('teacherStudentDetail.unreadPosts'), value: unread_post_count, color: 'var(--a4)' },
         ].map((item, index) => (
           <div key={index} className="stat-box">
             <div className="stat-label">{item.label}</div>
@@ -79,50 +81,50 @@ export function StudentDetailScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-            Latest Summary
+            {t('teacherStudentDetail.latestSummary')}
           </div>
           {summaryText ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6 }}>{summaryText}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <span className="badge" style={{ fontSize: 10 }}>
-                  Report: {summary_cards.summary?.report_title ?? '—'}
+                  {t('teacherStudentDetail.report', { value: summary_cards.summary?.report_title ?? t('common.notAvailable') })}
                 </span>
                 <span className="badge" style={{ fontSize: 10 }}>
-                  Lang: {summary_cards.summary?.display_language ?? '—'}
+                  {t('teacherStudentDetail.lang', { value: summary_cards.summary?.display_language ?? t('common.notAvailable') })}
                 </span>
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: 'var(--tx3)' }}>No summary available.</div>
+            <div style={{ fontSize: 13, color: 'var(--tx3)' }}>{t('teacherStudentDetail.noSummary')}</div>
           )}
         </div>
 
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-            Quick Actions
+            {t('teacherStudentDetail.quickActions')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/messages?student=${student.uuid}`)}>
-              Open parent discussion
+              {t('teacherStudentDetail.openParentDiscussion')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/reports?student=${student.uuid}`)}>
-              Create report
+              {t('teacherStudentDetail.createReport')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/posts?mode=announcement&student=${student.uuid}`)}>
-              Create announcement
+              {t('teacherStudentDetail.createAnnouncement')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/exam-scores?student=${student.uuid}`)}>
-              Manage exam scores
+              {t('teacherStudentDetail.manageExamScores')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/period-metrics?student=${student.uuid}`)}>
-              Manage period metrics
+              {t('teacherStudentDetail.managePeriodMetrics')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/ai-reports?student=${student.uuid}`)}>
-              Generate AI report
+              {t('teacherStudentDetail.generateAiReport')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate('/teacher/find-student')}>
-              Back to student search
+              {t('teacherStudentDetail.backToStudentSearch')}
             </button>
           </div>
         </div>

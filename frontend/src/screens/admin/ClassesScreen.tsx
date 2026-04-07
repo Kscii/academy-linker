@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminClass, AdminStudent, AdminUser, CreateClassRequest, PaginationMeta, UpdateClassRequest } from '@/types/api';
 
@@ -31,6 +32,7 @@ const EMPTY_FORM: ClassForm = {
 };
 
 export function AdminClassesScreen() {
+  const { t } = useTranslation('app');
   const [classes, setClasses] = useState<AdminClass[]>([]);
   const [teachers, setTeachers] = useState<AdminUser[]>([]);
   const [allStudents, setAllStudents] = useState<AdminStudent[]>([]);
@@ -97,7 +99,7 @@ export function AdminClassesScreen() {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      setError('Class name is required.');
+      setError(t('adminClasses.classNameRequired'));
       return;
     }
     setSaving(true);
@@ -125,7 +127,7 @@ export function AdminClassesScreen() {
       await loadData();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to save class.');
+      setError(msg ?? t('adminClasses.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -152,62 +154,62 @@ export function AdminClassesScreen() {
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>Classes</div>
+          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{t('adminClasses.title')}</div>
           <button className="btn-primary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={openCreate}>
-            + New
+            + {t('adminClasses.new')}
           </button>
         </div>
 
         <div className="card" style={{ marginBottom: 12, padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>Total: {meta.total}</div>
-          <input className="input-field" placeholder="Grade level" value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} style={{ marginBottom: 8 }} />
-          <input className="input-field" placeholder="Academic year" value={academicYear} onChange={e => setAcademicYear(e.target.value)} style={{ marginBottom: 8 }} />
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>{t('adminClasses.total', { count: meta.total })}</div>
+          <input className="input-field" placeholder={t('adminClasses.gradeLevelPlaceholder')} value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} style={{ marginBottom: 8 }} />
+          <input className="input-field" placeholder={t('adminClasses.academicYearPlaceholder')} value={academicYear} onChange={e => setAcademicYear(e.target.value)} style={{ marginBottom: 8 }} />
           <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)} style={{ marginBottom: 8 }}>
-            <option value="all">All statuses</option>
-            <option value="active">Active only</option>
-            <option value="inactive">Inactive only</option>
+            <option value="all">{t('adminClasses.allStatuses')}</option>
+            <option value="active">{t('adminClasses.activeOnly')}</option>
+            <option value="inactive">{t('adminClasses.inactiveOnly')}</option>
           </select>
           <button className="btn-secondary" style={{ width: '100%' }} onClick={() => { setPage(1); void loadData(); }}>
-            Apply Filters
+            {t('actions.applyFilters')}
           </button>
         </div>
 
         {showForm && (
           <div className="card" style={{ marginBottom: 12, padding: 14 }}>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Class Name *</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.className')}</label>
               <input className="input-field" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} />
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Grade Level</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.gradeLevel')}</label>
               <input className="input-field" value={form.grade_level} onChange={e => setForm(prev => ({ ...prev, grade_level: e.target.value }))} />
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Academic Year</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.academicYear')}</label>
               <input className="input-field" value={form.academic_year} onChange={e => setForm(prev => ({ ...prev, academic_year: e.target.value }))} />
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Homeroom Teacher</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.homeroomTeacher')}</label>
               <select className="input-field" value={form.homeroom_teacher_uuid} onChange={e => setForm(prev => ({ ...prev, homeroom_teacher_uuid: e.target.value }))}>
-                <option value="">None</option>
+                <option value="">{t('adminClasses.none')}</option>
                 {teachers.map(teacher => <option key={teacher.uuid} value={teacher.uuid}>{teacher.display_name}</option>)}
               </select>
             </div>
             {editing && (
               <div style={{ marginBottom: 8 }}>
-                <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Status</label>
+                <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.status')}</label>
                 <select className="input-field" value={String(form.is_active)} onChange={e => setForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
+                  <option value="true">{t('common.active')}</option>
+                  <option value="false">{t('common.inactive')}</option>
                 </select>
               </div>
             )}
             {error && <div style={{ fontSize: 12, color: 'var(--a1)', marginBottom: 8 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn-primary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => void handleSave()} disabled={saving}>
-                {saving ? '…' : 'Save'}
+                {saving ? '…' : t('actions.save')}
               </button>
-              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }} onClick={() => setShowForm(false)}>Cancel</button>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }} onClick={() => setShowForm(false)}>{t('actions.cancel')}</button>
             </div>
           </div>
         )}
@@ -218,15 +220,15 @@ export function AdminClassesScreen() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{item.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>{item.grade_level ?? 'No grade'} · {item.student_count} students</div>
-                  {item.homeroom_teacher && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 1 }}>HR: {item.homeroom_teacher.display_name}</div>}
+                  <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>{item.grade_level ?? t('adminClasses.noGrade')} · {t('adminClasses.studentsCount', { count: item.student_count })}</div>
+                  {item.homeroom_teacher && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 1 }}>{t('adminClasses.hr', { name: item.homeroom_teacher.display_name })}</div>}
                 </div>
                 <span className="badge" style={{ background: item.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: item.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10, height: 'fit-content' }}>
-                  {item.is_active ? 'Active' : 'Inactive'}
+                  {item.is_active ? t('common.active') : t('common.inactive')}
                 </span>
               </div>
               <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12, marginTop: 8 }} onClick={(e) => { e.stopPropagation(); openEdit(item); }}>
-                Edit
+                {t('actions.edit')}
               </button>
             </div>
           ))}
@@ -234,10 +236,10 @@ export function AdminClassesScreen() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 12 }}>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-            Previous
+            {t('actions.previous')}
           </button>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-            Next
+            {t('actions.next')}
           </button>
         </div>
       </div>
@@ -245,20 +247,20 @@ export function AdminClassesScreen() {
       {current ? (
         <div className="card">
           <div className="font-serif" style={{ fontSize: 20, color: 'var(--tx)', marginBottom: 4 }}>{current.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: 4 }}>{current.grade_level ?? 'No grade level'}</div>
-          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 20 }}>Academic year: {current.academic_year ?? 'Not set'}</div>
+          <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: 4 }}>{current.grade_level ?? t('adminClasses.noGradeLevel')}</div>
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 20 }}>{t('adminClasses.academicYearLabel', { value: current.academic_year ?? t('common.notAvailable') })}</div>
 
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-            Students ({current.student_count})
+            {t('adminClasses.studentsSection', { count: current.student_count })}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <select className="input-field" value={addSid} onChange={e => setAddSid(e.target.value)} style={{ flex: 1 }}>
-              <option value="">— Add a student —</option>
+              <option value="">{`— ${t('adminClasses.addStudent')} —`}</option>
               {enrollable.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}{student.sid ? ` (${student.sid})` : ''}</option>)}
             </select>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: 12, flexShrink: 0, opacity: addSid ? 1 : 0.4 }} onClick={() => void handleAddStudent()} disabled={!addSid || adding}>
-              {adding ? '…' : 'Add'}
+              {adding ? '…' : t('adminClasses.addStudent')}
             </button>
           </div>
 
@@ -270,21 +272,21 @@ export function AdminClassesScreen() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{student.full_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{student.sid ?? 'No SID'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{student.sid ?? t('common.noSid')}</div>
                 </div>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a1)', fontSize: 16, padding: '2px 4px' }} title="Remove from class" onClick={() => void handleRemoveStudent(student.uuid)}>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a1)', fontSize: 16, padding: '2px 4px' }} title={t('adminClasses.addStudent')} onClick={() => void handleRemoveStudent(student.uuid)}>
                   ×
                 </button>
               </div>
             ))}
             {classStudents.length === 0 && (
-              <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>No students enrolled yet.</div>
+              <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>{t('adminClasses.noStudentsEnrolled')}</div>
             )}
           </div>
         </div>
       ) : (
         <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, color: 'var(--tx3)', fontSize: 14 }}>
-          Select a class to manage
+          {t('adminClasses.selectClassToManage')}
         </div>
       )}
     </div>

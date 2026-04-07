@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch, useTranslatedText } from '@/lib/translate';
+import { translateBatch } from '@/lib/translate';
 import { getSubjectColor } from '@/lib/constants';
 import { parent as parentApi } from '@/lib/api';
 import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary } from '@/types/api';
@@ -45,21 +45,21 @@ const LEAVE_STATUS_COLORS: Record<string, string> = {
 
 interface Festival {
   icon: string;
-  name: string;
+  nameKey: string;
   month: number;  // 0-indexed
   day: number;
 }
 
 const FESTIVALS: Festival[] = [
-  { icon: '🐣', name: 'Easter',           month: 3,  day: 5  },
-  { icon: '🎖️', name: 'ANZAC Day',        month: 3,  day: 25 },
-  { icon: '👩', name: "Mother's Day",     month: 4,  day: 10 },
-  { icon: '🐉', name: 'Dragon Boat Festival', month: 5, day: 2 },
-  { icon: '👨', name: "Father's Day",     month: 8,  day: 6  },
-  { icon: '🌕', name: 'Mid-Autumn Festival', month: 9, day: 6 },
-  { icon: '🎃', name: 'Halloween',        month: 9,  day: 31 },
-  { icon: '🎄', name: 'Christmas',        month: 11, day: 25 },
-  { icon: '🎆', name: 'New Year',         month: 11, day: 31 },
+  { icon: '🐣', nameKey: 'easter',           month: 3,  day: 5  },
+  { icon: '🎖️', nameKey: 'anzacDay',        month: 3,  day: 25 },
+  { icon: '👩', nameKey: 'mothersDay',     month: 4,  day: 10 },
+  { icon: '🐉', nameKey: 'dragonBoatFestival', month: 5, day: 2 },
+  { icon: '👨', nameKey: 'fathersDay',     month: 8,  day: 6  },
+  { icon: '🌕', nameKey: 'midAutumnFestival', month: 9, day: 6 },
+  { icon: '🎃', nameKey: 'halloween',        month: 9,  day: 31 },
+  { icon: '🎄', nameKey: 'christmas',        month: 11, day: 25 },
+  { icon: '🎆', nameKey: 'newYear',         month: 11, day: 31 },
 ];
 
 /** Returns the next festival within `within` days, or null */
@@ -78,28 +78,31 @@ function nextFestival(within = 14): (Festival & { daysLeft: number }) | null {
 
 // ── Subject-based teaching suggestions ───────────────────────
 
-const SUBJECT_TIPS: Record<string, { below: string; good: string }> = {
-  math:    { below: 'Try 10 min of Khan Academy together each evening — short worked examples beat long homework sessions.', good: 'Keep the momentum with puzzle games or coding challenges to deepen logical thinking.' },
-  english: { below: 'Read aloud together for 15 min nightly. Discussing the story builds both vocabulary and comprehension.', good: 'Encourage a short personal journal — writing freely builds fluency and voice.' },
-  science: { below: 'Relate lessons to everyday life: cooking = chemistry, weather = physics. Curiosity beats memorisation.', good: 'Science podcasts or YouTube channels like Kurzgesagt make concepts stick outside the classroom.' },
-  hass:    { below: 'Watch a 5-min documentary clip on the current topic together and discuss one thing that surprised you.', good: 'Visiting a local museum or cultural event brings history and geography to life.' },
-  pe:      { below: 'Encourage 30 min of active play daily — sport participation builds confidence alongside fitness.', good: 'Celebrate personal bests, not just wins. Growth mindset in PE transfers to all subjects.' },
-  arts:    { below: 'Set aside time to create together — even simple drawing reinforces fine motor skills and self-expression.', good: 'Attend a local performance or exhibition together to show that the arts are valued.' },
-};
+function normalizeSubjectTipKey(code?: string | null): 'math' | 'english' | 'science' | 'hass' | 'pe' | 'arts' | null {
+  if (!code) return null;
+  const key = code.trim().toLowerCase();
+  if (['math', 'mathematics', 'maths'].includes(key)) return 'math';
+  if (['english', 'eng'].includes(key)) return 'english';
+  if (['science', 'sci'].includes(key)) return 'science';
+  if (['hass', 'history', 'his', 'geography', 'geo'].includes(key)) return 'hass';
+  if (['pe', 'physical education', 'sport'].includes(key)) return 'pe';
+  if (['arts', 'art', 'music', 'drama'].includes(key)) return 'arts';
+  return null;
+}
 
 const WELLBEING_TIPS = [
-  { icon: '🌱', title: 'Celebrate effort, not just results', body: 'Praising the process — trying hard, persisting through difficulty — builds a growth mindset that lasts a lifetime.' },
-  { icon: '📖', title: '20 minutes of reading a day', body: 'Daily reading, even on weekends, is one of the strongest predictors of long-term academic success across all subjects.' },
-  { icon: '💬', title: 'Ask "What was interesting today?"', body: 'Open-ended questions spark reflection. Children who narrate their day retain learning better and feel more connected.' },
-  { icon: '😴', title: 'Sleep is a study tool', body: 'The brain consolidates memories during sleep. Consistent bedtimes improve focus, mood, and test performance.' },
-  { icon: '🎯', title: 'Small goals, big wins', body: 'Breaking study into 25-minute focused sessions with short breaks (Pomodoro) reduces anxiety and improves retention.' },
+  { icon: '🌱', titleKey: 'celebrateEffortTitle', bodyKey: 'celebrateEffortBody' },
+  { icon: '📖', titleKey: 'readingTitle', bodyKey: 'readingBody' },
+  { icon: '💬', titleKey: 'interestingTodayTitle', bodyKey: 'interestingTodayBody' },
+  { icon: '😴', titleKey: 'sleepTitle', bodyKey: 'sleepBody' },
+  { icon: '🎯', titleKey: 'smallGoalsTitle', bodyKey: 'smallGoalsBody' },
 ];
 
 export function DashboardScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
   const { user, language } = useApp();
-  const { t } = useTranslation('dashboard');
+  const { t } = useTranslation(['dashboard', 'app']);
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
@@ -174,65 +177,65 @@ export function DashboardScreen() {
 
   // Wellbeing tip of the day (rotates by day-of-week)
   const tip = WELLBEING_TIPS[new Date().getDay() % WELLBEING_TIPS.length];
-  const txTipTitle = useTranslatedText(tip.title, language);
-  const txTipBody  = useTranslatedText(tip.body, language);
+  const txTipTitle = t(`app:parentDashboard.wellbeingTips.${tip.titleKey}`);
+  const txTipBody  = t(`app:parentDashboard.wellbeingTips.${tip.bodyKey}`);
 
-  const txTrendLabel    = useTranslatedText('Overall Learning Trend', language);
-  const txActivityLabel = useTranslatedText('Upcoming Activities', language);
-  const txViewAll       = useTranslatedText('View all', language);
-  const txWellbeing     = useTranslatedText('Growth & Wellbeing', language);
-  const txScheduleLabel = useTranslatedText("This Week's Schedule", language);
+  const txTrendLabel    = t('app:parentDashboard.overallLearningTrend');
+  const txActivityLabel = t('app:parentDashboard.upcomingActivities');
+  const txViewAll       = t('app:parentDashboard.viewAll');
+  const txWellbeing     = t('app:parentDashboard.wellbeing');
+  const txScheduleLabel = t('app:parentDashboard.scheduleLabel');
 
   // Leave request labels
-  const txLeaveTitle       = useTranslatedText('Leave Requests', language);
-  const txLeaveNew         = useTranslatedText('+ New', language);
-  const txLeaveCancel      = useTranslatedText('✕ Cancel', language);
-  const txLeaveSubmit      = useTranslatedText('Submit Request', language);
-  const txLeaveSubmitting  = useTranslatedText('Submitting…', language);
-  const txLeaveNoData      = useTranslatedText('No leave requests', language);
-  const txLeaveReason      = useTranslatedText('Reason (optional)', language);
-  const txLeaveSick        = useTranslatedText('Sick Leave', language);
-  const txLeavePersonal    = useTranslatedText('Personal', language);
-  const txLeaveFamily      = useTranslatedText('Family', language);
-  const txLeaveOther       = useTranslatedText('Other', language);
-  const txLeaveSickLabel   = useTranslatedText('sick leave', language);
-  const txLeavePersonalLabel = useTranslatedText('personal leave', language);
-  const txLeaveFamilyLabel = useTranslatedText('family leave', language);
-  const txLeaveOtherLabel  = useTranslatedText('other leave', language);
-  const txPending          = useTranslatedText('Pending', language);
-  const txApproved         = useTranslatedText('Approved', language);
-  const txRejected         = useTranslatedText('Rejected', language);
+  const txLeaveTitle       = t('app:parentDashboard.leaveRequestsTitle');
+  const txLeaveNew         = t('app:parentDashboard.newLeave');
+  const txLeaveCancel      = t('app:parentDashboard.cancelLeave');
+  const txLeaveSubmit      = t('app:parentDashboard.submitRequest');
+  const txLeaveSubmitting  = t('app:parentDashboard.submitting');
+  const txLeaveNoData      = t('app:parentDashboard.noLeaveRequests');
+  const txLeaveReason      = t('app:parentDashboard.reasonOptional');
+  const txLeaveSick        = t('app:parentDashboard.sickLeave');
+  const txLeavePersonal    = t('app:parentDashboard.personalLeave');
+  const txLeaveFamily      = t('app:parentDashboard.familyLeave');
+  const txLeaveOther       = t('app:parentDashboard.otherLeave');
+  const txLeaveSickLabel   = t('app:parentDashboard.sickLeaveLabel');
+  const txLeavePersonalLabel = t('app:parentDashboard.personalLeaveLabel');
+  const txLeaveFamilyLabel = t('app:parentDashboard.familyLeaveLabel');
+  const txLeaveOtherLabel  = t('app:parentDashboard.otherLeaveLabel');
+  const txPending          = t('app:parentDashboard.pending');
+  const txApproved         = t('app:parentDashboard.approved');
+  const txRejected         = t('app:parentDashboard.rejected');
 
   // Birthday labels
-  const txBirthdayTitle    = useTranslatedText('Birthday', language);
-  const txNoBirthday       = useTranslatedText('No birthday info', language);
-  const txHappyBirthday    = useTranslatedText(`Happy Birthday, ${studentName.split(' ')[0]}!`, language);
-  const txBirthdayWish     = useTranslatedText('Wishing a wonderful day!', language);
-  const txNoUpcoming       = useTranslatedText('No upcoming activities', language);
+  const txBirthdayTitle    = t('app:parentDashboard.birthday');
+  const txNoBirthday       = t('app:parentDashboard.noBirthday');
+  const txHappyBirthday    = t('app:parentDashboard.happyBirthday', { name: studentName.split(' ')[0] });
+  const txBirthdayWish     = t('app:parentDashboard.birthdayWish');
+  const txNoUpcoming       = t('app:parentDashboard.noUpcomingActivities');
 
-  const txDaysToGoTemplate  = useTranslatedText('{N} days to go!', language);
-  const txInDaysTemplate    = useTranslatedText('in {N} days', language);
-  const txDaysUntilTemplate = useTranslatedText('{N} days until {festival}', language);
-  const txTodayIs           = useTranslatedText("Today is {festival}! 🎉", language);
-  const txBirthdayOf        = useTranslatedText("{name}'s birthday", language);
+  const txDaysToGoTemplate  = t('app:parentDashboard.daysToGo', { count: '{{count}}' });
+  const txInDaysTemplate    = t('app:parentDashboard.inDays', { count: '{{count}}' });
+  const txDaysUntilTemplate = t('app:parentDashboard.daysUntilFestival', { count: '{{count}}', festival: '{{festival}}' });
+  const txTodayIs           = t('app:parentDashboard.todayIsFestival', { festival: '{festival}' });
+  const txBirthdayOf        = t('app:parentDashboard.birthdayOf', { name: '{name}' });
 
   // Teaching suggestions labels
-  const txSuggestTitle  = useTranslatedText('Teaching Suggestions', language);
-  const txForSubject    = useTranslatedText('For {subject}', language);
+  const txSuggestTitle  = t('app:parentDashboard.teachingSuggestions');
+  const txForSubject    = t('app:parentDashboard.forSubject', { subject: '{subject}' });
 
   // Incident report labels
-  const txIncidentTitle    = useTranslatedText('Report an Incident', language);
-  const txIncidentSubtitle = useTranslatedText('Bullying · Drugs · Misconduct', language);
-  const txIncidentCancel   = useTranslatedText('✕ Cancel', language);
-  const txIncidentReport   = useTranslatedText('Report', language);
-  const txIncidentSending  = useTranslatedText('Sending…', language);
-  const txIncidentDone     = useTranslatedText('✓ Report received. School staff will follow up confidentially.', language);
-  const txIncidentDesc     = useTranslatedText('Describe what happened…', language);
-  const txAnonymous        = useTranslatedText('Submit anonymously', language);
-  const txIncidentBullying = useTranslatedText('Bullying', language);
-  const txIncidentDrugs    = useTranslatedText('Drug / Substance', language);
-  const txIncidentMisconduct = useTranslatedText('Inappropriate Behavior', language);
-  const txIncidentOther    = useTranslatedText('Other', language);
+  const txIncidentTitle    = t('app:parentDashboard.reportIncident');
+  const txIncidentSubtitle = t('app:parentDashboard.incidentSubtitle');
+  const txIncidentCancel   = t('app:parentDashboard.cancelIncident');
+  const txIncidentReport   = t('app:parentDashboard.report');
+  const txIncidentSending  = t('app:parentDashboard.sending');
+  const txIncidentDone     = t('app:parentDashboard.incidentDone');
+  const txIncidentDesc     = t('app:parentDashboard.incidentDescription');
+  const txAnonymous        = t('app:parentDashboard.submitAnonymously');
+  const txIncidentBullying = t('app:parentDashboard.incidentBullying');
+  const txIncidentDrugs    = t('app:parentDashboard.incidentDrugs');
+  const txIncidentMisconduct = t('app:parentDashboard.incidentMisconduct');
+  const txIncidentOther    = t('app:parentDashboard.incidentOther');
 
   // Determine what to show in the celebration banner
   const birthdayDays = studentBirthday ? daysUntilBirthday(studentBirthday) : null;
@@ -262,31 +265,31 @@ export function DashboardScreen() {
           {t('goodMorning', { name: user?.display_name?.split(' ')[0] ?? 'Parent' })}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {t('studentUpdateToday', { student: studentName })} — <strong>Week 8, Term 2</strong>
+          {t('studentUpdateToday', { student: studentName })} — <strong>{t('app:parentDashboard.weekTerm')}</strong>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         <div className="stat-box">
-          <div className="stat-label">Overall Performance</div>
+          <div className="stat-label">{t('app:parentDashboard.overallPerformance')}</div>
           <div className="stat-value" style={{ color: 'var(--a1)' }}>
             {dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—'}
           </div>
         </div>
         <div className="stat-box">
-          <div className="stat-label">Assignments</div>
+          <div className="stat-label">{t('app:parentDashboard.assignments')}</div>
           <div className="stat-value" style={{ color: 'var(--a2)' }}>
             {dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—'}
           </div>
         </div>
         <div className="stat-box">
-          <div className="stat-label">Unread Posts</div>
+          <div className="stat-label">{t('app:parentDashboard.unreadPosts')}</div>
           <div className="stat-value" style={{ color: 'var(--a3)' }}>
             {dashboard?.dashboard_context.unread_post_count ?? 0}
           </div>
         </div>
         <div className="stat-box">
-          <div className="stat-label">Unread Notices</div>
+          <div className="stat-label">{t('app:parentDashboard.unreadNotices')}</div>
           <div className="stat-value" style={{ color: 'var(--a4)' }}>
             {dashboard?.dashboard_context.unread_announcement_count ?? 0}
           </div>
@@ -295,7 +298,7 @@ export function DashboardScreen() {
 
       {dashboard?.important_post_banners?.length ? (
         <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>Important Messages</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>{t('app:parentDashboard.importantMessages')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {dashboard.important_post_banners.slice(0, 3).map(item => (
               <button
@@ -339,8 +342,8 @@ export function DashboardScreen() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.9, marginBottom: 2 }}>
               {upcomingFest.daysLeft === 0
-                ? txTodayIs.replace('{festival}', upcomingFest.name)
-                : txDaysUntilTemplate.replace('{N}', String(upcomingFest.daysLeft)).replace('{festival}', upcomingFest.name)}
+                ? txTodayIs.replace('{festival}', t(`app:parentDashboard.festivals.${upcomingFest.nameKey}`))
+                : txDaysUntilTemplate.replace('{N}', String(upcomingFest.daysLeft)).replace('{festival}', t(`app:parentDashboard.festivals.${upcomingFest.nameKey}`))}
             </div>
             <div style={{ fontSize: 11, opacity: 0.8 }}>
               {new Date(new Date().getFullYear(), upcomingFest.month, upcomingFest.day)
@@ -410,7 +413,13 @@ export function DashboardScreen() {
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>{txScheduleLabel}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {subjects.slice(0, 5).map((sub, i) => {
-              const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+              const days = [
+                t('app:parentDashboard.weekdays.mon'),
+                t('app:parentDashboard.weekdays.tue'),
+                t('app:parentDashboard.weekdays.wed'),
+                t('app:parentDashboard.weekdays.thu'),
+                t('app:parentDashboard.weekdays.fri'),
+              ];
               const times = ['9:00', '10:30', '11:00', '13:00', '14:30'];
               const color = getSubjectColor(sub.code) || sub.color || 'var(--a1)';
               return (
@@ -574,13 +583,13 @@ export function DashboardScreen() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {subjects.slice(0, 3).map(sub => {
-              const tips = sub.code ? SUBJECT_TIPS[sub.code] : undefined;
-              if (!tips) return null;
+              const tipKey = normalizeSubjectTipKey(sub.code);
+              if (!tipKey) return null;
               const stat = dashboard?.subject_statistics?.find(s => s.subject_uuid === sub.uuid);
               const score = stat?.score ?? sub.score ?? 100;
               const color = getSubjectColor(sub.code) || sub.color || 'var(--a1)';
               const isBelow = score < 70;
-              const tip = isBelow ? tips.below : tips.good;
+              const tip = t(`app:parentDashboard.subjectTips.${tipKey}.${isBelow ? 'below' : 'good'}`);
               return (
                 <div key={sub.uuid} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{
@@ -675,7 +684,7 @@ export function DashboardScreen() {
 
           {!showIncidentForm && !incidentDone && (
             <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.7 }}>
-              If you have concerns about your child's safety or wellbeing at school, you can report them here. All reports are handled confidentially by school staff.
+              {t('app:parentDashboard.confidentialIncidentHint')}
             </div>
           )}
         </div>
