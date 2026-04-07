@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
-DEMO_EMAIL_DOMAIN = "academy-link.test"
+DEMO_EMAIL_DOMAIN = os.getenv("SEED_DEMO_EMAIL_DOMAIN", "academy-link.dev")
 DEFAULT_PASSWORD = "DemoPass123!"
 
 
@@ -107,4 +108,3 @@ PRIVATE_TAG_SPECS = (
     ("teacher_ada", "homework-check"),
     ("teacher_lin", "science-lab"),
 )
-
