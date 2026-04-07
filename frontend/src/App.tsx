@@ -31,10 +31,13 @@ import { AnnouncementsScreen } from '@/screens/parent/AnnouncementsScreen';
 
 // Admin screens
 import { AdminOverviewScreen }  from '@/screens/admin/OverviewScreen';
+import { AdminUsersScreen }     from '@/screens/admin/UsersScreen';
 import { AdminTeachersScreen }  from '@/screens/admin/TeachersScreen';
 import { AdminClassesScreen }   from '@/screens/admin/ClassesScreen';
 import { AdminStudentsScreen }  from '@/screens/admin/StudentsScreen';
 import { AdminParentsScreen }   from '@/screens/admin/ParentsScreen';
+import { AdminTeachingAssignmentsScreen } from '@/screens/admin/TeachingAssignmentsScreen';
+import { AdminSystemTagsScreen } from '@/screens/admin/SystemTagsScreen';
 
 // Teacher screens
 import { TeacherDashboardScreen } from '@/screens/teacher/DashboardScreen';
@@ -120,10 +123,13 @@ function AppRoutes() {
 
           {/* Admin routes */}
           <Route path="/admin/dashboard" element={<AdminOverviewScreen />} />
+          <Route path="/admin/users"     element={<AdminUsersScreen />} />
           <Route path="/admin/teachers"  element={<AdminTeachersScreen />} />
           <Route path="/admin/classes"   element={<AdminClassesScreen />} />
           <Route path="/admin/students"  element={<AdminStudentsScreen />} />
           <Route path="/admin/parents"   element={<AdminParentsScreen />} />
+          <Route path="/admin/assignments/teaching" element={<AdminTeachingAssignmentsScreen />} />
+          <Route path="/admin/tags/system" element={<AdminSystemTagsScreen />} />
 
           {/* Teacher routes */}
           <Route path="/teacher/dashboard"                         element={<TeacherDashboardScreen />} />

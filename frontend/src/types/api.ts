@@ -563,6 +563,13 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface UpdateUserRequest {
+  display_name?: string | null;
+  phone_number?: string | null;
+  avatar_url?: string | null;
+  is_active?: boolean | null;
+}
+
 export interface CreateUserRequest {
   role: UserRole;
   display_name: string;
@@ -593,6 +600,16 @@ export interface CreateStudentRequest {
   date_of_birth?: string | null;
 }
 
+export interface UpdateStudentRequest {
+  sid?: string | null;
+  full_name?: string | null;
+  preferred_name?: string | null;
+  class_uuid?: string | null;
+  avatar_url?: string | null;
+  date_of_birth?: string | null;
+  is_active?: boolean | null;
+}
+
 export interface AdminClass {
   uuid: string;
   name: string;
@@ -604,11 +621,29 @@ export interface AdminClass {
   created_at: string;
 }
 
+export interface AdminClassMutationResponse {
+  uuid: string;
+  name: string;
+  grade_level: string | null;
+  academic_year: string | null;
+  homeroom_teacher: { uuid: string; display_name: string } | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface CreateClassRequest {
   name: string;
   grade_level?: string | null;
   academic_year?: string | null;
   homeroom_teacher_uuid?: string | null;
+}
+
+export interface UpdateClassRequest {
+  name?: string | null;
+  grade_level?: string | null;
+  academic_year?: string | null;
+  homeroom_teacher_uuid?: string | null;
+  is_active?: boolean | null;
 }
 
 export interface ParentStudentBinding {
@@ -628,6 +663,12 @@ export interface CreateBindingRequest {
   is_primary?: boolean;
 }
 
+export interface UpdateBindingRequest {
+  relationship_label?: string | null;
+  is_primary?: boolean | null;
+  is_active?: boolean | null;
+}
+
 export interface TeachingAssignment {
   uuid: string;
   teacher_uuid: string;
@@ -641,6 +682,24 @@ export interface CreateTeachingAssignmentRequest {
   teacher_uuid: string;
   student_uuid: string;
   subject_uuid: string;
+}
+
+export interface UpdateTeachingAssignmentRequest {
+  is_active?: boolean | null;
+}
+
+export interface CreateSystemTagRequest {
+  name: string;
+  is_selectable_by_parent?: boolean;
+  is_selectable_by_teacher?: boolean;
+  affects_business_logic?: boolean;
+}
+
+export interface UpdateSystemTagRequest {
+  name?: string | null;
+  is_selectable_by_parent?: boolean | null;
+  is_selectable_by_teacher?: boolean | null;
+  affects_business_logic?: boolean | null;
 }
 
 // ── Request bodies ────────────────────────────────────────────
@@ -777,4 +836,3 @@ export interface CreateIncidentReport {
   description: string;
   is_anonymous: boolean;
 }
-

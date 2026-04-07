@@ -41,15 +41,23 @@ import type {
   AdminOverview,
   AdminUser,
   CreateUserRequest,
+  UpdateUserRequest,
   AdminStudent,
   CreateStudentRequest,
+  UpdateStudentRequest,
   AdminClass,
+  AdminClassMutationResponse,
   CreateClassRequest,
+  UpdateClassRequest,
   ParentStudentBinding,
   CreateBindingRequest,
+  UpdateBindingRequest,
   TeachingAssignment,
   CreateTeachingAssignmentRequest,
+  UpdateTeachingAssignmentRequest,
   SystemTag,
+  CreateSystemTagRequest,
+  UpdateSystemTagRequest,
   LoginRequest,
   CreatePostRequest,
   UpdatePostRequest,
@@ -473,8 +481,9 @@ export const admin = {
   getOverview: () =>
     apiFetch<ApiResponse<AdminOverview>>('/admin/overview'),
 
-  getUsers: (params: { page?: number; role?: string; keyword?: string; sort?: string } = {}) => {
+  getUsers: (params: { page?: number; page_size?: number; role?: string; keyword?: string; sort?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.role) q.set('role', params.role);
     if (params.keyword) q.set('keyword', params.keyword);
     if (params.sort) q.set('sort', params.sort);
@@ -487,14 +496,15 @@ export const admin = {
       body: JSON.stringify(body),
     }),
 
-  updateUser: (userUuid: string, body: { display_name?: string | null; phone_number?: string | null; avatar_url?: string | null; is_active?: boolean | null }) =>
+  updateUser: (userUuid: string, body: UpdateUserRequest) =>
     apiFetch<ApiResponse<AdminUser>>(`/admin/users/${userUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
 
-  getStudents: (params: { page?: number; keyword?: string; class_uuid?: string; is_active?: boolean; sort?: string } = {}) => {
+  getStudents: (params: { page?: number; page_size?: number; keyword?: string; class_uuid?: string; is_active?: boolean; sort?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.keyword) q.set('keyword', params.keyword);
     if (params.class_uuid) q.set('class_uuid', params.class_uuid);
     if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
@@ -508,7 +518,7 @@ export const admin = {
       body: JSON.stringify(body),
     }),
 
-  updateStudent: (studentUuid: string, body: Partial<CreateStudentRequest> & { is_active?: boolean | null }) =>
+  updateStudent: (studentUuid: string, body: UpdateStudentRequest) =>
     apiFetch<ApiResponse<AdminStudent>>(`/admin/students/${studentUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -520,8 +530,9 @@ export const admin = {
       { method: 'POST', body: JSON.stringify({ new_class_uuid: newClassUuid }) }
     ),
 
-  getClasses: (params: { page?: number; grade_level?: string; is_active?: boolean; academic_year?: string; homeroom_teacher_uuid?: string } = {}) => {
+  getClasses: (params: { page?: number; page_size?: number; grade_level?: string; is_active?: boolean; academic_year?: string; homeroom_teacher_uuid?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.grade_level) q.set('grade_level', params.grade_level);
     if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
     if (params.academic_year) q.set('academic_year', params.academic_year);
@@ -530,19 +541,21 @@ export const admin = {
   },
 
   createClass: (body: CreateClassRequest) =>
-    apiFetch<ApiResponse<AdminClass>>('/admin/classes', {
+    apiFetch<ApiResponse<AdminClassMutationResponse>>('/admin/classes', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
 
-  updateClass: (classUuid: string, body: Partial<CreateClassRequest> & { is_active?: boolean | null }) =>
-    apiFetch<ApiResponse<AdminClass>>(`/admin/classes/${classUuid}`, {
+  updateClass: (classUuid: string, body: UpdateClassRequest) =>
+    apiFetch<ApiResponse<AdminClassMutationResponse>>(`/admin/classes/${classUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
 
-  getBindings: (params: { parent_uuid?: string; student_uuid?: string; is_active?: boolean } = {}) => {
+  getBindings: (params: { page?: number; page_size?: number; parent_uuid?: string; student_uuid?: string; is_active?: boolean } = {}) => {
     const q = new URLSearchParams();
+    if (params.page !== undefined) q.set('page', String(params.page));
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.parent_uuid) q.set('parent_uuid', params.parent_uuid);
     if (params.student_uuid) q.set('student_uuid', params.student_uuid);
     if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
@@ -557,14 +570,16 @@ export const admin = {
       body: JSON.stringify(body),
     }),
 
-  updateBinding: (bindingUuid: string, body: { relationship_label?: string | null; is_primary?: boolean | null; is_active?: boolean | null }) =>
+  updateBinding: (bindingUuid: string, body: UpdateBindingRequest) =>
     apiFetch<ApiResponse<ParentStudentBinding>>(`/admin/bindings/parent_student/${bindingUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
 
-  getTeachingAssignments: (params: { teacher_uuid?: string; student_uuid?: string; subject_uuid?: string; is_active?: boolean } = {}) => {
+  getTeachingAssignments: (params: { page?: number; page_size?: number; teacher_uuid?: string; student_uuid?: string; subject_uuid?: string; is_active?: boolean } = {}) => {
     const q = new URLSearchParams();
+    if (params.page !== undefined) q.set('page', String(params.page));
+    if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
     if (params.teacher_uuid) q.set('teacher_uuid', params.teacher_uuid);
     if (params.student_uuid) q.set('student_uuid', params.student_uuid);
     if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
@@ -580,7 +595,7 @@ export const admin = {
       body: JSON.stringify(body),
     }),
 
-  updateTeachingAssignment: (assignmentUuid: string, body: { is_active?: boolean | null }) =>
+  updateTeachingAssignment: (assignmentUuid: string, body: UpdateTeachingAssignmentRequest) =>
     apiFetch<ApiResponse<TeachingAssignment>>(`/admin/assignments/teaching/${assignmentUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -589,13 +604,13 @@ export const admin = {
   getSystemTags: () =>
     apiFetch<ApiResponse<SystemTag[]>>('/admin/tags/system'),
 
-  createSystemTag: (body: { name: string; is_selectable_by_parent?: boolean; is_selectable_by_teacher?: boolean; affects_business_logic?: boolean }) =>
+  createSystemTag: (body: CreateSystemTagRequest) =>
     apiFetch<ApiResponse<SystemTag>>('/admin/tags/system', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
 
-  updateSystemTag: (tagUuid: string, body: { name?: string | null; is_selectable_by_parent?: boolean | null; is_selectable_by_teacher?: boolean | null; affects_business_logic?: boolean | null }) =>
+  updateSystemTag: (tagUuid: string, body: UpdateSystemTagRequest) =>
     apiFetch<ApiResponse<SystemTag>>(`/admin/tags/system/${tagUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),

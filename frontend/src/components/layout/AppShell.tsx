@@ -38,10 +38,13 @@ const TEACHER_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { id: 'dashboard', labelKey: 'nav:dashboard',  icon: '🏠', path: '/admin/dashboard' },
+  { id: 'users',     labelKey: 'nav:users',      icon: '🧾', path: '/admin/users' },
   { id: 'teachers',  labelKey: 'nav:teachers',   icon: '👨‍🏫', path: '/admin/teachers' },
   { id: 'classes',   labelKey: 'nav:classes',    icon: '🏫', path: '/admin/classes' },
   { id: 'students',  labelKey: 'nav:students',   icon: '🎒', path: '/admin/students' },
   { id: 'parents',   labelKey: 'nav:parents',    icon: '👪', path: '/admin/parents' },
+  { id: 'assignments', labelKey: 'nav:teachingAssignments', icon: '🧩', path: '/admin/assignments/teaching' },
+  { id: 'systemTags', labelKey: 'nav:systemTags', icon: '🏷', path: '/admin/tags/system' },
 ];
 
 const SHARED_NAV: NavItem[] = [

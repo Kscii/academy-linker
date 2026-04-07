@@ -10,10 +10,12 @@
   "language": "Language",
   "posts": "Class Posts",
   "announcements": "Announcements",
+  "users": "Users",
   "teachers": "Teachers",
   "classes": "Classes",
   "students": "Students",
-  "parents": "Parents"
-,
+  "parents": "Parents",
+  "teachingAssignments": "Teaching Assignments",
+  "systemTags": "System Tags",
   "grades": "Grades"
 }
