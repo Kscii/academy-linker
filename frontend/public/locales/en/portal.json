@@ -67,7 +67,7 @@
   "attendancePlaceholder": "Attendance rate (0.0 - 1.0)",
   "aiReportsTitle": "AI Reports",
   "aiReportsSubtitle": "Generate AI reports using the teacher API",
-  "wholeStudent": "Whole student",
+  "wholeStudent": "All assigned subjects",
   "extraInstruction": "Extra instruction (optional)",
   "generateAIReport": "Generate AI Report",
   "generating": "Generating…",

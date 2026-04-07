@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
-import { translateBatch, useTranslatedText } from '@/lib/translate';
 import type { Announcement, AnnouncementDetail } from '@/types/api';
 
 function formatDate(dateStr: string): string {
@@ -26,14 +25,13 @@ export function AnnouncementsScreen() {
   const { sid } = useParams<{ sid: string }>();
   const studentUuid = sid ?? '';
   const { language, readAnnouncementIds, markAnnouncementRead, setAnnouncementUuids } = useApp();
-  const txTitle    = useTranslatedText(t('parentAnnouncements.title'), language);
-  const txSubtitle = useTranslatedText(t('parentAnnouncements.subtitle'), language);
-  const txUnread   = useTranslatedText(t('parentAnnouncements.unreadNotices'), language);
+  const txTitle = t('parentAnnouncements.title');
+  const txSubtitle = t('parentAnnouncements.subtitle');
+  const txUnread = t('parentAnnouncements.unreadNotices');
   const [selectedUuid, setSelectedUuid] = useState('');
   const readSet = readAnnouncementIds;
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [txAnn, setTxAnn] = useState<Announcement[]>([]);
   const [detail, setDetail] = useState<AnnouncementDetail | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [resolvingTranslation, setResolvingTranslation] = useState(false);
@@ -59,20 +57,6 @@ export function AnnouncementsScreen() {
       setDetail(res.data);
     }).catch(() => {});
   }, [selectedUuid]);
-
-  useEffect(() => {
-    setTxAnn(announcements);
-    if (language === 'en') return;
-    const texts = announcements.flatMap(a => [a.title, a.body_preview ?? '', a.category ?? '']);
-    translateBatch(texts, language).then(results => {
-      setTxAnn(announcements.map((a, i) => ({
-        ...a,
-        title:        results[i * 3]     || a.title,
-        body_preview: results[i * 3 + 1] || a.body_preview,
-        category:     (results[i * 3 + 2] || a.category) as Announcement['category'],
-      })));
-    });
-  }, [language, announcements]);
 
   const handleOpen = (ann: Announcement) => {
     setSelectedUuid(ann.uuid);
@@ -131,7 +115,7 @@ export function AnnouncementsScreen() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {txAnn.map(ann => {
+          {announcements.map(ann => {
             const isRead = readSet.has(ann.uuid);
             const catColor = CATEGORY_COLORS[ann.category ?? 'announcement'] ?? 'var(--a4)';
             const isSelected = selectedUuid === ann.uuid;
@@ -180,7 +164,7 @@ export function AnnouncementsScreen() {
             );
           })}
 
-          {txAnn.length === 0 && (
+          {announcements.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '60px 0' }}>
               {t('parentAnnouncements.empty')}
             </div>

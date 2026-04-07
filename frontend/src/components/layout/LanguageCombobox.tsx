@@ -84,7 +84,7 @@ export function LanguageCombobox({ value, onChange, compact = false }: Props) {
       >
         <span style={{ fontSize: 14 }}>🌐</span>
         <span style={{ flex: 1, textAlign: 'left' }}>
-          {compact ? current.code.toUpperCase() : current.nativeName}
+          {current.nativeName}
         </span>
         <span style={{ fontSize: 10, opacity: 0.6 }}>{open ? '▴' : '▾'}</span>
       </button>

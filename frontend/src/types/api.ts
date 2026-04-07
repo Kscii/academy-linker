@@ -797,7 +797,7 @@ export interface UpdatePostRequest {
 // ── Translation resolve ───────────────────────────────────────
 
 export interface TranslationResolveRequest {
-  resource_type: 'report' | 'announcement' | 'post';
+  resource_type: 'report' | 'announcement' | 'post' | 'resource';
   resource_uuid: string;
 }
 

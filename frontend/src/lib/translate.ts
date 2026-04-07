@@ -1,133 +1,35 @@
 // ============================================================
-// translate.ts — 内容翻译工具
-// 流程: 本地内存缓存 → 后端缓存 → DeepSeek AI 翻译
+// translate.ts — legacy compatibility helpers
+// Deprecated: dynamic business-content translation now goes
+// through resource detail fields + /api/translations/resolve.
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
-// ── Auto-refresh helper ───────────────────────────────────────
-// When any API call returns 401 (expired token), silently try
-// /api/auth/refresh once, then retry the original request.
-let _refreshing: Promise<boolean> | null = null;
-
-async function tryRefresh(): Promise<boolean> {
-  if (_refreshing) return _refreshing;
-  _refreshing = fetch('/api/auth/refresh', {
-    method: 'POST', credentials: 'include',
-  }).then(r => r.ok).catch(() => false).finally(() => { _refreshing = null; });
-  return _refreshing;
+export async function translateText(text: string): Promise<string> {
+  return text;
 }
 
-export async function apiFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-  const res = await fetch(input, { credentials: 'include', ...init });
-  if (res.status === 401) {
-    const refreshed = await tryRefresh();
-    if (refreshed) {
-      return fetch(input, { credentials: 'include', ...init });
-    }
-  }
-  return res;
+export async function translateBatch(texts: string[]): Promise<string[]> {
+  return texts;
 }
 
-// 本地内存缓存，避免重复请求同一内容
-const localCache = new Map<string, string>();
-
-function cacheKey(text: string, lang: string) {
-  return `${lang}:${text}`;
-}
-
-export async function translateText(
-  text: string,
-  targetLang: string,
-  sourceLang = 'en',
-): Promise<string> {
-  if (!text.trim() || targetLang === sourceLang) return text;
-
-  const key = cacheKey(text, targetLang);
-  if (localCache.has(key)) return localCache.get(key)!;
-
-  try {
-    const res = await apiFetch('/api/content/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        target_language: targetLang,
-        source_language: sourceLang,
-      }),
-    });
-    if (!res.ok) return text;
-    const data = await res.json();
-    const translated: string = data.data.translated_text;
-    localCache.set(key, translated);
-    return translated;
-  } catch {
-    return text;
-  }
-}
-
-/** 批量翻译，并发请求 */
-export async function translateBatch(
-  texts: string[],
-  targetLang: string,
-): Promise<string[]> {
-  return Promise.all(texts.map(t => translateText(t, targetLang)));
-}
-
-/** Hook: 翻译单段文本，非英文时自动请求 */
-export function useTranslatedText(text: string, lang: string): string {
+export function useTranslatedText(text: string): string {
   const [result, setResult] = useState(text);
-  const prevRef = useRef({ text, lang });
 
   useEffect(() => {
-    if (lang === 'en' || !text) {
-      setResult(text);
-      return;
-    }
-    let cancelled = false;
-    // 先显示原文，翻译完成后替换
     setResult(text);
-    translateText(text, lang).then(t => {
-      if (!cancelled) setResult(t);
-    });
-    return () => { cancelled = true; };
-  }, [text, lang]);
-
-  // 语言切换时立即重置
-  if (prevRef.current.lang !== lang || prevRef.current.text !== text) {
-    prevRef.current = { text, lang };
-  }
+  }, [text]);
 
   return result;
 }
 
-/** Hook: 翻译帖子数组（title + content_markdown），返回翻译后的副本 */
-export function useTranslatedPosts<T extends { title?: string; content_markdown: string }>(
-  posts: T[],
-  lang: string,
-): T[] {
+export function useTranslatedPosts<T extends { title?: string; content_markdown: string }>(posts: T[]): T[] {
   const [translated, setTranslated] = useState<T[]>(posts);
 
   useEffect(() => {
-    if (lang === 'en' || posts.length === 0) {
-      setTranslated(posts);
-      return;
-    }
-    let cancelled = false;
-
-    const allTexts = posts.flatMap(p => [p.title ?? '', p.content_markdown]);
-    translateBatch(allTexts, lang).then(results => {
-      if (cancelled) return;
-      const out = posts.map((p, i) => ({
-        ...p,
-        title: results[i * 2] || p.title,
-        content_markdown: results[i * 2 + 1] || p.content_markdown,
-      }));
-      setTranslated(out);
-    });
-
-    return () => { cancelled = true; };
-  }, [posts, lang]);
+    setTranslated(posts);
+  }, [posts]);
 
   return translated;
 }

@@ -6,7 +6,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch } from '@/lib/translate';
 import { getSubjectColor } from '@/lib/constants';
 import { parent as parentApi } from '@/lib/api';
 import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary } from '@/types/api';
@@ -101,7 +100,7 @@ const WELLBEING_TIPS = [
 export function DashboardScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { user, language } = useApp();
+  const { user } = useApp();
   const { t } = useTranslation(['dashboard', 'app']);
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -164,16 +163,6 @@ export function DashboardScreen() {
       setLeaveSubmitting(false);
     }
   }
-
-  // Translate activity titles
-  const [txAnn, setTxAnn] = useState<Announcement[]>([]);
-  useEffect(() => {
-    setTxAnn(announcements);
-    if (language === 'en' || announcements.length === 0) return;
-    translateBatch(announcements.map(a => a.title), language).then(results => {
-      setTxAnn(announcements.map((a, i) => ({ ...a, title: results[i] || a.title })));
-    });
-  }, [language, announcements]);
 
   // Wellbeing tip of the day (rotates by day-of-week)
   const tip = WELLBEING_TIPS[new Date().getDay() % WELLBEING_TIPS.length];
@@ -381,9 +370,9 @@ export function DashboardScreen() {
               {txViewAll} ›
             </button>
           </div>
-          {txAnn.length > 0 ? (
+          {announcements.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {txAnn.map(ann => {
+              {announcements.map(ann => {
                 const color = CATEGORY_COLORS[ann.category ?? 'Default'] ?? CATEGORY_COLORS.Default;
                 const icon  = CATEGORY_ICONS[ann.category ?? 'Default'] ?? CATEGORY_ICONS.Default;
                 return (

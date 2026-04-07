@@ -1411,7 +1411,7 @@
 }
 ```
 
-> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
 >
 > **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
 
@@ -2014,7 +2014,7 @@
 }
 ```
 
-> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
 
 ---
 
@@ -3296,7 +3296,7 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 - 仅 `teacher` 可调用
 - `title` 由后端自动生成；前端只传递生成意图，不拼接完整 prompt
 - `source_type` 固定为 `ai`，不可由客户端传入
-- `subject_uuid = null` 表示学生整体 AI 报告；非 null 表示该学生该学科 AI 报告
+- `subject_uuid = null` 表示“当前教师对该学生负责的全部学科”的聚合 AI 报告；非 null 表示该学生该学科 AI 报告
 - 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
 - 同一 `student + subject(含 null) + period_start + period_end + report_type` 只允许存在一条 AI report；若已存在，则覆盖同一条 report，而不是创建新记录
 - 自动定时生成任务与手动接口共用同一套生成逻辑与唯一性规则
@@ -3318,7 +3318,7 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 
 ```json
 {
-  "resource_type": "report | announcement | post",
+  "resource_type": "report | announcement | post | resource",
   "resource_uuid": "string"
 }
 ```
@@ -3326,19 +3326,21 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 #### 规则
 
 - 目标语言优先级：`user_settings.language` > `Accept-Language` > 系统默认值 `en-AU`
-- 仅支持 `report`、`announcement`、`post` 三类资源
+- 仅支持 `report`、`announcement`、`post`、`resource` 四类资源
 - 若当前目标语言译文已存在缓存，则直接读取并返回
 - 若缓存不存在且 `ai_auto_translate_enabled=false`，返回 `403 auto_translation_disabled`
 - 若缓存不存在且允许自动翻译，则执行翻译、写入缓存并返回
 - 若翻译失败，返回 `500 ai_translation_failed`
 - `resource_type=post` 可用于家长/老师 discussion 页面中单条帖子的按需翻译；成功写入缓存后，后续 discussion 详情接口会直接回填该帖子的译文字段
+- `resource_type=resource` 可用于资源中心详情页的按需翻译
+- 若 `resource_type=post` 且该帖子已被软删除，则返回 `404 not_found`，不会继续生成新的译文缓存
 
 #### Success 200
 
 ```json
 {
   "data": {
-    "resource_type": "report | announcement | post",
+    "resource_type": "report | announcement | post | resource",
     "resource_uuid": "string",
     "display_content_markdown": "string",
     "original_content_markdown": "string",
