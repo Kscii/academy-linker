@@ -9,6 +9,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"  # 仅绑定本机，通过 SSH 隧道访问，不暴露到公网
     volumes:
       - academy_linker_pgdata:/var/lib/postgresql/data
       - ./src/ac_link/db/init:/docker-entrypoint-initdb.d:ro
