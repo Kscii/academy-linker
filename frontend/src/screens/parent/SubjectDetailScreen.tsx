@@ -10,6 +10,7 @@ import { useApp } from '@/contexts/AppContext';
 import { translateBatch } from '@/lib/translate';
 import { parent as parentApi, ai as aiApi } from '@/lib/api';
 import type { SubjectDetailResponse, ThreadPost } from '@/types/api';
+import { getSubjectIcon } from '@/lib/constants';
 
 function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor: string }) {
   function timeAgo(dateStr: string): string {
@@ -165,9 +166,7 @@ export function SubjectDetailScreen() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 20,
         }}>
-          {subject.code === 'math' ? '📐' : subject.code === 'english' ? '📖' :
-           subject.code === 'science' ? '🔬' : subject.code === 'hass' ? '🌍' :
-           subject.code === 'pe' ? '⚽' : '🎨'}
+          {getSubjectIcon(subject.code)}
         </div>
         <div>
           <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{txSubjectName}</div>

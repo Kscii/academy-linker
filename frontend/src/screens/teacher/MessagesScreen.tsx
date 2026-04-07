@@ -5,9 +5,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
-import { teacher as teacherApi, posts as postsApi } from '@/lib/api';
+import { teacher as teacherApi, posts as postsApi, translations } from '@/lib/api';
 import type { DiscussionParentItem, PostTag, TeacherStudentListItem, ThreadPost } from '@/types/api';
-import { translateText, useTranslatedText } from '@/lib/translate';
+import { useTranslatedText } from '@/lib/translate';
 
 const POLL_INTERVAL = 5_000;
 
@@ -64,10 +64,9 @@ export function TeacherMessagesScreen() {
   const [threadKeyword, setThreadKeyword] = useState('');
   const [threadTag, setThreadTag] = useState('');
   const [threadPage] = useState(1);
-  const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string; loading: boolean; shown: boolean }>>({});
+  const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string | null; loading: boolean; showOriginal: boolean }>>({});
 
   const txTranslate = useTranslatedText('Translate', language);
-  const txHide = useTranslatedText('Hide translation', language);
 
   const activeStudent = students.find(student => student.uuid === activeStudentUuid) ?? null;
   const parentsForActiveStudent = parentLists[activeStudentUuid] ?? [];
@@ -161,14 +160,33 @@ export function TeacherMessagesScreen() {
   const handleTranslate = useCallback(async (post: ThreadPost) => {
     const id = post.uuid;
     const existing = msgTranslations[id];
-    if (existing?.text) {
-      setMsgTranslations(prev => ({ ...prev, [id]: { ...prev[id], shown: !prev[id].shown } }));
+    if (existing) {
+      setMsgTranslations(prev => ({ ...prev, [id]: { ...prev[id], showOriginal: !prev[id].showOriginal } }));
       return;
     }
-    setMsgTranslations(prev => ({ ...prev, [id]: { text: '', loading: true, shown: true } }));
-    const translated = await translateText(post.content_markdown, language);
-    setMsgTranslations(prev => ({ ...prev, [id]: { text: translated, loading: false, shown: true } }));
-  }, [language, msgTranslations]);
+    if (post.translated_content_markdown) {
+      setMsgTranslations(prev => ({
+        ...prev,
+        [id]: {
+          text: post.translated_content_markdown,
+          loading: false,
+          showOriginal: post.display_language !== post.original_language,
+        },
+      }));
+      return;
+    }
+    setMsgTranslations(prev => ({ ...prev, [id]: { text: '', loading: true, showOriginal: false } }));
+    try {
+      const res = await translations.resolve({ resource_type: 'post', resource_uuid: post.uuid });
+      const translated = res.data.translated_content_markdown ?? res.data.display_content_markdown;
+      setMsgTranslations(prev => ({ ...prev, [id]: { text: translated, loading: false, showOriginal: false } }));
+      if (activeStudentUuid && activeParentUuid) {
+        await loadThread(activeStudentUuid, activeParentUuid);
+      }
+    } catch {
+      setMsgTranslations(prev => ({ ...prev, [id]: { text: post.content_markdown, loading: false, showOriginal: false } }));
+    }
+  }, [activeParentUuid, activeStudentUuid, loadThread, msgTranslations]);
 
   const sendReply = async (text: string) => {
     if (!text.trim() || !threadUuid || sending) return;
@@ -194,7 +212,7 @@ export function TeacherMessagesScreen() {
   const startEditing = (post: ThreadPost) => {
     setEditingPostUuid(post.uuid);
     setEditingTitle(post.title ?? '');
-    setEditingContent(post.content_markdown);
+    setEditingContent(post.original_content_markdown);
     setEditingTagUuids(post.tags.map(tag => tag.uuid));
   };
 
@@ -335,6 +353,11 @@ export function TeacherMessagesScreen() {
               const isTeacher = post.author.role === 'teacher';
               const tx = msgTranslations[post.uuid];
               const isEditing = editingPostUuid === post.uuid;
+              const canTranslate = post.original_language !== language;
+              const isShowingOriginal = tx?.showOriginal ?? false;
+              const bubbleText = isShowingOriginal
+                ? post.original_content_markdown
+                : (tx?.text ?? post.content_markdown);
               return (
                 <div key={post.uuid} style={{ display: 'flex', gap: 10, flexDirection: isTeacher ? 'row-reverse' : 'row' }}>
                   <div className="avatar" style={{ flexShrink: 0, background: isTeacher ? 'var(--a4)' : 'var(--bg2)', color: isTeacher ? '#fff' : 'var(--tx2)', fontSize: 11 }}>
@@ -389,7 +412,7 @@ export function TeacherMessagesScreen() {
                       </div>
                     ) : (
                       <div style={{ background: isTeacher ? 'var(--a4)' : 'var(--card)', color: isTeacher ? '#fff' : 'var(--tx)', border: isTeacher ? 'none' : '1px solid var(--bd)', borderRadius: isTeacher ? '14px 14px 2px 14px' : '14px 14px 14px 2px', padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
-                        {post.content_markdown}
+                        {bubbleText}
                       </div>
                     )}
                     {(isEditing ? editingTagUuids.length > 0 : post.tags.length > 0) && (
@@ -404,20 +427,17 @@ export function TeacherMessagesScreen() {
                         ))}
                       </div>
                     )}
-                    {tx?.shown && (
-                      <div style={{ marginTop: 4, padding: '7px 12px', borderRadius: isTeacher ? '12px 12px 2px 12px' : '12px 12px 12px 2px', background: isTeacher ? 'var(--a4)18' : 'var(--bg)', border: '1px solid var(--bd)', fontSize: 12, lineHeight: 1.55, color: 'var(--tx2)', fontStyle: 'italic' }}>
-                        {tx.loading ? <span style={{ opacity: 0.5 }}>···</span> : tx.text}
-                      </div>
-                    )}
                     <div style={{ display: 'flex', justifyContent: isTeacher ? 'flex-end' : 'flex-start', marginTop: 3 }}>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <button
-                          onClick={() => void handleTranslate(post)}
-                          disabled={tx?.loading}
-                          style={{ background: 'none', border: 'none', cursor: tx?.loading ? 'default' : 'pointer', color: 'var(--a1)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)', opacity: tx?.loading ? 0.5 : 1 }}
-                        >
-                          {tx?.loading ? '···' : tx?.shown ? txHide : txTranslate}
-                        </button>
+                        {canTranslate && (
+                          <button
+                            onClick={() => void handleTranslate(post)}
+                            disabled={tx?.loading}
+                            style={{ background: 'none', border: 'none', cursor: tx?.loading ? 'default' : 'pointer', color: 'var(--a1)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)', opacity: tx?.loading ? 0.5 : 1 }}
+                          >
+                            {tx?.loading ? '···' : isShowingOriginal ? 'Show translation' : ((post.translated_content_markdown || tx?.text || post.display_language !== post.original_language) ? 'Show original' : txTranslate)}
+                          </button>
+                        )}
                         {isTeacher && !isEditing && (
                           <>
                             <button

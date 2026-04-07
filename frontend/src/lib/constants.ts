@@ -4,8 +4,38 @@
 // they are NOT returned by the API.
 // ============================================================
 
+function normalizeSubjectCode(code: string | null | undefined): string {
+  const normalized = (code ?? '').trim().toLowerCase();
+  switch (normalized) {
+    case 'mathematics':
+    case 'math':
+    case 'maths':
+    case 'mth':
+      return 'math';
+    case 'eng':
+    case 'ela':
+    case 'language-arts':
+      return 'english';
+    case 'sci':
+      return 'science';
+    case 'his':
+    case 'history':
+    case 'geo':
+    case 'geography':
+    case 'civics':
+      return 'hass';
+    case 'physical-education':
+    case 'sport':
+      return 'pe';
+    case 'art':
+      return 'arts';
+    default:
+      return normalized;
+  }
+}
+
 /**
- * Maps a subject code (lowercase) to a CSS color string.
+ * Maps a subject code (normalized lowercase) to a CSS color string.
  * Falls back to a neutral color for unknown codes.
  */
 export const SUBJECT_COLORS: Record<string, string> = {
@@ -28,9 +58,28 @@ export const SUBJECT_BG: Record<string, string> = {
 
 /** Returns the color for a subject code, defaulting to a neutral grey. */
 export function getSubjectColor(code: string | null | undefined): string {
-  return SUBJECT_COLORS[(code ?? '').toLowerCase()] ?? '#8A8A8A';
+  return SUBJECT_COLORS[normalizeSubjectCode(code)] ?? '#8A8A8A';
 }
 
 export function getSubjectBg(code: string | null | undefined): string {
-  return SUBJECT_BG[(code ?? '').toLowerCase()] ?? 'rgba(138,138,138,0.12)';
+  return SUBJECT_BG[normalizeSubjectCode(code)] ?? 'rgba(138,138,138,0.12)';
+}
+
+export function getSubjectIcon(code: string | null | undefined): string {
+  switch (normalizeSubjectCode(code)) {
+    case 'math':
+      return '📐';
+    case 'english':
+      return '📖';
+    case 'science':
+      return '🔬';
+    case 'hass':
+      return '🌍';
+    case 'pe':
+      return '⚽';
+    case 'arts':
+      return '🎨';
+    default:
+      return '📚';
+  }
 }

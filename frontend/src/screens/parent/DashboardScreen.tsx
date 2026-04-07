@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
-import { SUBJECT_COLORS } from '@/lib/constants';
+import { getSubjectColor } from '@/lib/constants';
 import { parent as parentApi } from '@/lib/api';
 import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
@@ -40,10 +40,6 @@ const LEAVE_TYPE_ICONS: Record<string, string> = {
 const LEAVE_STATUS_COLORS: Record<string, string> = {
   pending: 'var(--a3)', approved: 'var(--a2)', rejected: 'var(--warn)',
 };
-
-function getSubjectColor(subject: Pick<SubjectSummary, 'code' | 'color'>): string {
-  return (subject.code ? SUBJECT_COLORS[subject.code] : undefined) ?? subject.color ?? 'var(--a1)';
-}
 
 // ── Upcoming festivals (month is 0-indexed) ───────────────────
 
@@ -377,7 +373,7 @@ export function DashboardScreen() {
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{txActivityLabel}</div>
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--a1)', fontFamily: 'var(--font-body)', padding: 0 }}
-              onClick={() => navigate(`/parent/students/${sid}/tasks`)}
+              onClick={() => navigate(`/parent/students/${sid}/announcements`)}
             >
               {txViewAll} ›
             </button>
@@ -391,7 +387,7 @@ export function DashboardScreen() {
                   <div
                     key={ann.uuid}
                     style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}
-                    onClick={() => navigate(`/parent/students/${sid}/tasks`)}
+                    onClick={() => navigate(`/parent/students/${sid}/announcements`)}
                   >
                     <div style={{ width: 34, height: 34, borderRadius: 8, background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                       {icon}
@@ -416,7 +412,7 @@ export function DashboardScreen() {
             {subjects.slice(0, 5).map((sub, i) => {
               const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
               const times = ['9:00', '10:30', '11:00', '13:00', '14:30'];
-              const color = getSubjectColor(sub);
+              const color = getSubjectColor(sub.code) || sub.color || 'var(--a1)';
               return (
                 <div key={sub.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 28, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, flexShrink: 0 }}>{days[i]}</div>
@@ -582,7 +578,7 @@ export function DashboardScreen() {
               if (!tips) return null;
               const stat = dashboard?.subject_statistics?.find(s => s.subject_uuid === sub.uuid);
               const score = stat?.score ?? sub.score ?? 100;
-              const color = getSubjectColor(sub);
+              const color = getSubjectColor(sub.code) || sub.color || 'var(--a1)';
               const isBelow = score < 70;
               const tip = isBelow ? tips.below : tips.good;
               return (

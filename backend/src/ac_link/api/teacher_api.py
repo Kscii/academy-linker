@@ -19,7 +19,7 @@ from __future__ import annotations
 import math
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from ac_link.common.deps import require_teacher
@@ -28,9 +28,10 @@ from ac_link.crud import discussion as discussion_crud
 from ac_link.crud import metrics as metrics_crud
 from ac_link.crud import score as score_crud
 from ac_link.crud import teacher as teacher_crud
+from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.enums import AnnouncementCategory, ReportType, UserRole
-from ac_link.db.orm.user import User
+from ac_link.db.orm.enums import AnnouncementCategory, ReportType, TranslationResourceType, UserRole
+from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
 from ac_link.dto.auth import ApiResponse
 from ac_link.dto.discussion import (
@@ -68,6 +69,7 @@ from ac_link.dto.teacher import (
     UpdateExamScoreRequest,
     UpsertPeriodMetricRequest,
 )
+from ac_link.services.translation_helpers import get_target_language
 
 router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
 
@@ -464,6 +466,7 @@ def list_discussion_parents(
 def get_discussion_with_parent(
     student_uuid: UUID,
     parent_uuid: UUID,
+    request: Request,
     page: int = 1,
     page_size: int = 20,
     sort: str = "created_at_desc",
@@ -508,6 +511,20 @@ def get_discussion_with_parent(
         keyword=keyword,
     )
 
+    user_settings = db.query(UserSettings).filter(
+        UserSettings.user_id == current_user.id
+    ).first()
+    target_language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
+    post_translations = translation_crud.get_translations_batch(
+        db,
+        TranslationResourceType.POST,
+        [post.id for post in posts],
+        target_language,
+    )
+
     data = TeacherDiscussionPageData(
         thread_uuid=thread.uuid,
         student=StudentBrief(
@@ -520,7 +537,7 @@ def get_discussion_with_parent(
             display_name=parent_user.display_name,
             avatar_url=parent_user.avatar_url,
         ),
-        posts=[build_post_item(p) for p in posts],
+        posts=[build_post_item(p, post_translations.get(p.id)) for p in posts],
         meta=PaginationMeta(
             page=page,
             page_size=page_size,
