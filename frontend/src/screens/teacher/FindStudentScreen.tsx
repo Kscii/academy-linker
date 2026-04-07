@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { teacher as teacherApi } from '@/lib/api';
 import type { PaginationMeta, TeacherClass, TeacherStudentListItem } from '@/types/api';
 
@@ -15,6 +16,7 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function FindStudentScreen() {
+  const { t } = useTranslation('app');
   const navigate = useNavigate();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
@@ -72,10 +74,10 @@ export function FindStudentScreen() {
     <div>
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 6 }}>
-          Find Student
+          {t('teacherFindStudent.title')}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          Search across all your assigned students
+          {t('teacherFindStudent.subtitle')}
         </div>
       </div>
 
@@ -88,33 +90,33 @@ export function FindStudentScreen() {
             <input
               className="input-field"
               style={{ paddingLeft: 40, fontSize: 15 }}
-              placeholder="Search by name or SID…"
+              placeholder={t('teacherFindStudent.searchPlaceholder')}
               value={query}
               onChange={e => setQuery(e.target.value)}
               autoFocus
             />
           </div>
           <select className="input-field" value={selectedClassUuid} onChange={e => setSelectedClassUuid(e.target.value)}>
-            <option value="">All classes</option>
+            <option value="">{t('teacherFindStudent.allClasses')}</option>
             {classes.map(item => <option key={item.uuid} value={item.uuid}>{item.name}</option>)}
           </select>
           <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-            <option value="full_name_asc">Name A-Z</option>
-            <option value="full_name_desc">Name Z-A</option>
-            <option value="sid_asc">SID A-Z</option>
-            <option value="sid_desc">SID Z-A</option>
-            <option value="score_desc">Score High-Low</option>
-            <option value="score_asc">Score Low-High</option>
-            <option value="last_activity_at_desc">Latest Activity</option>
+            <option value="full_name_asc">{t('teacherFindStudent.sortNameAsc')}</option>
+            <option value="full_name_desc">{t('teacherFindStudent.sortNameDesc')}</option>
+            <option value="sid_asc">{t('teacherFindStudent.sortSidAsc')}</option>
+            <option value="sid_desc">{t('teacherFindStudent.sortSidDesc')}</option>
+            <option value="score_desc">{t('teacherFindStudent.sortScoreDesc')}</option>
+            <option value="score_asc">{t('teacherFindStudent.sortScoreAsc')}</option>
+            <option value="last_activity_at_desc">{t('teacherFindStudent.sortLatestActivity')}</option>
           </select>
           <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>
-            Page {meta.page} / {Math.max(meta.total_pages, 1)}
+            {t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}
           </div>
         </div>
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 14, fontWeight: 700 }}>
-        {loading ? 'Searching…' : `${meta.total} ${meta.total === 1 ? 'student' : 'students'} found`}
+        {loading ? t('actions.searching') : t('teacherFindStudent.count', { count: meta.total })}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
@@ -136,11 +138,11 @@ export function FindStudentScreen() {
                   {item.full_name}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                  {item.sid ?? 'No SID'} · {item.grade_level ?? '—'} · {item.class_name ?? '—'}
+                  {item.sid ?? t('common.noSid', 'No SID')} · {item.grade_level ?? t('common.notAvailable')} · {item.class_name ?? t('common.notAvailable')}
                 </div>
                 {item.preferred_name && (
                   <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>
-                    Preferred name: {item.preferred_name}
+                    {t('teacherFindStudent.preferredName', { name: item.preferred_name })}
                   </div>
                 )}
                 {item.score != null && (
@@ -155,7 +157,7 @@ export function FindStudentScreen() {
                 )}
                 {item.last_activity_at && (
                   <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>
-                    Last activity: {new Date(item.last_activity_at).toLocaleString()}
+                    {t('teacherFindStudent.lastActivity', { value: new Date(item.last_activity_at).toLocaleString() })}
                   </div>
                 )}
               </div>
@@ -167,17 +169,17 @@ export function FindStudentScreen() {
       {!loading && results.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--tx3)' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>No students found</div>
-          <div style={{ fontSize: 13, marginTop: 6 }}>Try a different name, SID, or class filter</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{t('teacherFindStudent.emptyTitle')}</div>
+          <div style={{ fontSize: 13, marginTop: 6 }}>{t('teacherFindStudent.emptySubtitle')}</div>
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-          Previous
+          {t('actions.previous')}
         </button>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-          Next
+          {t('actions.next')}
         </button>
       </div>
     </div>

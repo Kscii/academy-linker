@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { teacher as teacherApi, posts as postsApi, translations } from '@/lib/api';
@@ -10,13 +11,6 @@ import type { DiscussionParentItem, PostTag, TeacherStudentListItem, ThreadPost 
 import { useTranslatedText } from '@/lib/translate';
 
 const POLL_INTERVAL = 5_000;
-
-const AI_DRAFTS = [
-  "Thank you for reaching out. I'm reviewing the student's recent progress and will keep you updated.",
-  "I'd be happy to schedule a meeting to discuss this in more detail.",
-  "I recommend focusing on the suggested activities in the class portal this week.",
-  "This is a common challenge at this stage. Here are my suggestions:",
-];
 
 interface StudentConvoSummary {
   preview: string | null;
@@ -29,17 +23,8 @@ function initials(name: string): string {
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function timeAgo(dateStr?: string | null): string {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const h = Math.floor(diff / 3600_000);
-  const d = Math.floor(diff / 86400_000);
-  if (h < 1) return 'Just now';
-  if (h < 24) return `${h}h ago`;
-  return `${d}d ago`;
-}
-
 export function TeacherMessagesScreen() {
+  const { t } = useTranslation('app');
   const { markThreadRead, threadUnreadCounts, language } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
@@ -67,6 +52,21 @@ export function TeacherMessagesScreen() {
   const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string | null; loading: boolean; showOriginal: boolean }>>({});
 
   const txTranslate = useTranslatedText('Translate', language);
+  const aiDrafts = [
+    t('teacherMessages.aiDrafts.reviewingProgress'),
+    t('teacherMessages.aiDrafts.scheduleMeeting'),
+    t('teacherMessages.aiDrafts.focusActivities'),
+    t('teacherMessages.aiDrafts.commonChallenge'),
+  ];
+  const timeAgo = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const h = Math.floor(diff / 3600_000);
+    const d = Math.floor(diff / 86400_000);
+    if (h < 1) return t('teacherMessages.justNow');
+    if (h < 24) return t('teacherMessages.hoursAgo', { count: h });
+    return t('teacherMessages.daysAgo', { count: d });
+  };
 
   const activeStudent = students.find(student => student.uuid === activeStudentUuid) ?? null;
   const parentsForActiveStudent = parentLists[activeStudentUuid] ?? [];
@@ -81,7 +81,7 @@ export function TeacherMessagesScreen() {
         return bTime - aTime;
       })[0];
       summaries[studentUuid] = {
-        preview: previewParent ? `Parent: ${previewParent.display_name}` : null,
+        preview: previewParent ? t('teacherMessages.parentPreview', { name: previewParent.display_name }) : null,
         unread: parents.reduce((sum, parent) => sum + parent.unread_post_count, 0),
         parentName: previewParent?.display_name ?? null,
         lastPostAt: previewParent?.last_post_at ?? null,
@@ -243,7 +243,7 @@ export function TeacherMessagesScreen() {
   };
 
   const deletePost = async (postUuid: string) => {
-    if (!window.confirm('Delete this message?')) return;
+    if (!window.confirm(t('teacherMessages.deleteConfirm'))) return;
     await postsApi.delete(postUuid);
     if (editingPostUuid === postUuid) {
       cancelEditing();
@@ -257,13 +257,13 @@ export function TeacherMessagesScreen() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>Messages</div>
+        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>{t('teacherMessages.title')}</div>
       </div>
 
       <div className="messages-split">
         <div className="conversation-list">
           <div style={{ padding: '14px 16px', fontSize: 12, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--bd)' }}>
-            Parent conversations
+            {t('teacherMessages.parentConversations')}
           </div>
           {students.map(student => {
             const summary = studentSummaries[student.uuid];
@@ -287,7 +287,7 @@ export function TeacherMessagesScreen() {
                     )}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--tx3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {summary?.preview ?? student.class_name ?? 'No parent linked'}
+                    {summary?.preview ?? student.class_name ?? t('teacherMessages.noParentLinked')}
                   </div>
                 </div>
                 {unreadCount > 0 && (
@@ -309,7 +309,7 @@ export function TeacherMessagesScreen() {
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{activeStudent?.full_name ?? '—'}</div>
                 <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                  {activeStudent?.sid ?? 'No SID'} · {activeStudent?.class_name ?? '—'}
+                  {activeStudent?.sid ?? t('common.noSid')} · {activeStudent?.class_name ?? t('common.notAvailable')}
                 </div>
               </div>
             </div>
@@ -326,19 +326,19 @@ export function TeacherMessagesScreen() {
                 </button>
               ))}
               {parentsForActiveStudent.length === 0 && (
-                <span style={{ fontSize: 12, color: 'var(--tx3)' }}>No parent linked</span>
+                <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('teacherMessages.noParentLinked')}</span>
               )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px', gap: 8 }}>
-              <input className="input-field" placeholder="Search title or content" value={threadKeyword} onChange={e => setThreadKeyword(e.target.value)} />
+              <input className="input-field" placeholder={t('teacherMessages.searchPlaceholder')} value={threadKeyword} onChange={e => setThreadKeyword(e.target.value)} />
               <select className="input-field" value={threadTag} onChange={e => setThreadTag(e.target.value)}>
-                <option value="">All tags</option>
+                <option value="">{t('teacherMessages.allTags')}</option>
                 {availableTags.map(tag => <option key={tag.uuid} value={tag.name}>{tag.name}</option>)}
               </select>
               <select className="input-field" value={threadSort} onChange={e => setThreadSort(e.target.value as typeof threadSort)}>
-                <option value="created_at_desc">Newest first</option>
-                <option value="created_at_asc">Oldest first</option>
+                <option value="created_at_desc">{t('teacherMessages.sortNewest')}</option>
+                <option value="created_at_asc">{t('teacherMessages.sortOldest')}</option>
               </select>
             </div>
           </div>
@@ -346,7 +346,7 @@ export function TeacherMessagesScreen() {
           <div className="thread-messages">
             {messages.length === 0 && (
               <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '40px 0' }}>
-                {activeParent ? 'No messages yet.' : 'No parent linked to this student.'}
+                {activeParent ? t('teacherMessages.noMessagesYet') : t('teacherMessages.noParentLinkedStudent')}
               </div>
             )}
             {messages.map(post => {
@@ -376,7 +376,7 @@ export function TeacherMessagesScreen() {
                       <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <input
                           className="input-field"
-                          placeholder="Optional title"
+                          placeholder={t('teacherMessages.optionalTitle')}
                           value={editingTitle}
                           onChange={e => setEditingTitle(e.target.value)}
                         />
@@ -403,10 +403,10 @@ export function TeacherMessagesScreen() {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={cancelEditing}>
-                            Cancel
+                            {t('actions.cancel')}
                           </button>
                           <button className="btn-primary" style={{ width: 'auto', padding: '8px 16px' }} disabled={!editingContent.trim() || savingEdit} onClick={() => void saveEdit()}>
-                            {savingEdit ? 'Saving…' : 'Save'}
+                            {savingEdit ? t('teacherMessages.saving') : t('actions.save')}
                           </button>
                         </div>
                       </div>
@@ -435,7 +435,7 @@ export function TeacherMessagesScreen() {
                             disabled={tx?.loading}
                             style={{ background: 'none', border: 'none', cursor: tx?.loading ? 'default' : 'pointer', color: 'var(--a1)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)', opacity: tx?.loading ? 0.5 : 1 }}
                           >
-                            {tx?.loading ? '···' : isShowingOriginal ? 'Show translation' : ((post.translated_content_markdown || tx?.text || post.display_language !== post.original_language) ? 'Show original' : txTranslate)}
+                            {tx?.loading ? '···' : isShowingOriginal ? t('actions.showTranslation') : ((post.translated_content_markdown || tx?.text || post.display_language !== post.original_language) ? t('actions.showOriginal') : txTranslate)}
                           </button>
                         )}
                         {isTeacher && !isEditing && (
@@ -444,13 +444,13 @@ export function TeacherMessagesScreen() {
                               onClick={() => startEditing(post)}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a2)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}
                             >
-                              Edit
+                              {t('actions.edit')}
                             </button>
                             <button
                               onClick={() => void deletePost(post.uuid)}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c43c3c', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}
                             >
-                              Delete
+                              {t('actions.delete')}
                             </button>
                           </>
                         )}
@@ -465,7 +465,7 @@ export function TeacherMessagesScreen() {
           <div className="thread-input-area">
             {showAiChips && (
               <div style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {AI_DRAFTS.map(draft => (
+                {aiDrafts.map(draft => (
                   <button key={draft} className="chip" style={{ fontSize: 11 }} onClick={() => { setReply(draft); setShowAiChips(false); }}>
                     {draft.slice(0, 40)}…
                   </button>
@@ -495,12 +495,12 @@ export function TeacherMessagesScreen() {
                 style={{ flexShrink: 0, fontSize: 12, background: showAiChips ? 'var(--a4)' : undefined, color: showAiChips ? '#fff' : undefined }}
                 onClick={() => setShowAiChips(prev => !prev)}
               >
-                ✦ AI Draft
+                ✦ {t('teacherMessages.aiDraft')}
               </button>
               <textarea
                 className="input-field"
                 style={{ flex: 1, resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 42 }}
-                placeholder={activeParent ? `Reply to ${activeParent.display_name}…` : 'No parent linked'}
+                placeholder={activeParent ? t('teacherMessages.replyTo', { name: activeParent.display_name }) : t('teacherMessages.noParentLinked')}
                 value={reply}
                 rows={2}
                 disabled={!activeParent}
@@ -513,7 +513,7 @@ export function TeacherMessagesScreen() {
                 }}
               />
               <button className="btn-primary" style={{ width: 'auto', padding: '8px 18px', flexShrink: 0, alignSelf: 'flex-end' }} onClick={() => void sendReply(reply)} disabled={!reply.trim() || sending || !activeParent}>
-                Send
+                {t('actions.send')}
               </button>
             </div>
           </div>

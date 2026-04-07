@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getSubjectColor } from '@/lib/constants';
 import type { DiscussionTeacherItem, ThreadPost } from '@/types/api';
@@ -18,13 +19,13 @@ function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-function formatDateLabel(dateStr: string): string {
+function formatDateLabel(dateStr: string, t: (key: string, options?: Record<string, unknown>) => string): string {
   const d = new Date(dateStr);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  if (d.toDateString() === today.toDateString()) return t('parentConversation.today');
+  if (d.toDateString() === yesterday.toDateString()) return t('parentConversation.yesterday');
   return d.toLocaleDateString('en-AU', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
@@ -35,6 +36,7 @@ interface MsgTx {
 }
 
 export function ConversationScreen() {
+  const { t } = useTranslation('app');
   const navigate = useNavigate();
   const { sid, teacherUuid } = useParams<{ sid: string; teacherUuid: string }>();
   const { language, markThreadRead } = useApp();
@@ -93,9 +95,9 @@ export function ConversationScreen() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const txViewGrades = useTranslatedText('View grades', language);
-  const txNoMessages = useTranslatedText(`No messages yet. Send a message to ${teacherItem?.display_name ?? ''}.`, language);
-  const txTranslate = useTranslatedText('Translate', language);
+  const txViewGrades = useTranslatedText(t('parentConversation.viewGrades'), language);
+  const txNoMessages = useTranslatedText(t('parentConversation.noMessages', { name: teacherItem?.display_name ?? '' }), language);
+  const txTranslate = useTranslatedText(t('actions.translate'), language);
 
   const subject = teacherItem?.subjects[0] ?? null;
   const subjectColor = getSubjectColor(subject?.code);
@@ -110,7 +112,7 @@ export function ConversationScreen() {
     const groups: { label: string; msgs: ThreadPost[] }[] = [];
     let lastLabel = '';
     for (const msg of messages) {
-      const label = formatDateLabel(msg.created_at);
+      const label = formatDateLabel(msg.created_at, t);
       if (label !== lastLabel) {
         groups.push({ label, msgs: [] });
         lastLabel = label;
@@ -186,7 +188,7 @@ export function ConversationScreen() {
   };
 
   const deletePost = async (postUuid: string) => {
-    if (!window.confirm('Delete this message?')) return;
+    if (!window.confirm(t('parentConversation.deleteConfirm'))) return;
     await postsApi.delete(postUuid);
     if (editingPostUuid === postUuid) cancelEditing();
     await loadThread();
@@ -197,7 +199,7 @@ export function ConversationScreen() {
   const isOverLimit = charLeft < 0;
 
   if (!teacherItem) {
-    return <div style={{ padding: 32, color: 'var(--tx3)' }}>Conversation not found.</div>;
+    return <div style={{ padding: 32, color: 'var(--tx3)' }}>{t('parentConversation.notFound')}</div>;
   }
 
   return (
@@ -237,14 +239,14 @@ export function ConversationScreen() {
       </div>
 
       <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--bd)', background: 'var(--card)', display: 'grid', gridTemplateColumns: '1fr 180px 180px', gap: 8, flexShrink: 0 }}>
-        <input className="input-field" placeholder="Search title or content" value={keyword} onChange={e => setKeyword(e.target.value)} />
+        <input className="input-field" placeholder={t('parentConversation.searchPlaceholder')} value={keyword} onChange={e => setKeyword(e.target.value)} />
         <select className="input-field" value={tag} onChange={e => setTag(e.target.value)}>
-          <option value="">All tags</option>
+          <option value="">{t('parentConversation.allTags')}</option>
           {availableTags.map(item => <option key={item.uuid} value={item.name}>{item.name}</option>)}
         </select>
         <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-          <option value="created_at_desc">Newest first</option>
-          <option value="created_at_asc">Oldest first</option>
+          <option value="created_at_desc">{t('parentConversation.sortNewest')}</option>
+          <option value="created_at_asc">{t('parentConversation.sortOldest')}</option>
         </select>
       </div>
 
@@ -303,10 +305,10 @@ export function ConversationScreen() {
                         />
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
                           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} onClick={cancelEditing}>
-                            Cancel
+                            {t('parentConversation.cancel')}
                           </button>
                           <button className="btn-primary" style={{ width: 'auto', padding: '8px 12px' }} disabled={!editingContent.trim() || savingEdit} onClick={() => void saveEdit()}>
-                            {savingEdit ? 'Saving…' : 'Save'}
+                            {savingEdit ? t('parentConversation.saving') : t('actions.save')}
                           </button>
                         </div>
                       </div>

@@ -11,7 +11,7 @@ i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'zh', 'vi', 'ar', 'fr', 'es', 'pt', 'de', 'ja', 'ko', 'it', 'hi', 'th', 'ms', 'id', 'tl'],
     defaultNS: 'common',
-    ns: ['common', 'nav', 'login', 'settings', 'dashboard', 'messages', 'portal'],
+    ns: ['common', 'nav', 'login', 'settings', 'dashboard', 'messages', 'portal', 'app', 'landing'],
     backend: {
       loadPath: '/locales/{{lng}}/{{ns}}.json',
     },

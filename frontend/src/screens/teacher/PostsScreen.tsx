@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
 import type { AnnouncementCategory, AnnouncementDetail, CreateAnnouncementRequest, TeacherClass, TeacherStudentListItem } from '@/types/api';
@@ -10,6 +11,7 @@ import type { AnnouncementCategory, AnnouncementDetail, CreateAnnouncementReques
 const ANNOUNCEMENT_CATEGORIES: AnnouncementCategory[] = ['announcement', 'task'];
 
 export function TeacherPostsScreen() {
+  const { t } = useTranslation('app');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStudentUuid = searchParams.get('student') ?? '';
@@ -111,7 +113,7 @@ export function TeacherPostsScreen() {
 
     let done = 0;
     let failed = 0;
-    setProgress(`Sending 0 / ${targetStudents.length}…`);
+    setProgress(t('teacherPosts.sendingProgress', { done: 0, total: targetStudents.length }));
 
     const createdAnnouncements: AnnouncementDetail[] = [];
 
@@ -148,36 +150,36 @@ export function TeacherPostsScreen() {
         } catch {
           failed++;
         }
-        setProgress(`Sending ${done + failed} / ${targetStudents.length}…`);
+        setProgress(t('teacherPosts.sendingProgress', { done: done + failed, total: targetStudents.length }));
       })
     );
 
     setPublishing(false);
     setProgress('');
     if (failed === 0) {
-      setSuccessMsg(`Announcement sent to ${done} student${done !== 1 ? 's' : ''}.`);
+      setSuccessMsg(t('teacherPosts.sentSuccess', { count: done }));
       if (createdAnnouncements.length > 0) {
         setAnnouncements(prev => [...createdAnnouncements, ...prev.filter(item => !createdAnnouncements.some(created => created.uuid === item.uuid))]);
       }
       resetForm();
     } else {
-      setErrorMsg(`${done} sent, ${failed} failed. Check your data and try again.`);
+      setErrorMsg(t('teacherPosts.sendFailure', { done, failed }));
     }
   };
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>Announcements</div>
+        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>{t('teacherPosts.title')}</div>
         <div style={{ fontSize: 13, color: 'var(--tx3)', marginTop: 4 }}>
-          Create and update announcements and tasks using the teacher API contract
+          {t('teacherPosts.subtitle')}
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 340px', gap: 0, border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden', minHeight: 560 }}>
         <div style={{ background: 'var(--card)', borderRight: '1px solid var(--bd)', overflowY: 'auto' }}>
           <div style={{ padding: '14px 16px', fontSize: 11, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--bd)' }}>
-            Recipients
+            {t('teacherPosts.recipients')}
           </div>
 
           {classes.map(cls => {
@@ -197,7 +199,7 @@ export function TeacherPostsScreen() {
                     </div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--tx3)', paddingLeft: 14 }}>
-                    All {studentsInClass.length} students
+                    {t('teacherPosts.allStudents', { count: studentsInClass.length })}
                   </div>
                 </div>
 
@@ -224,16 +226,16 @@ export function TeacherPostsScreen() {
         <div style={{ background: 'var(--bg)', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {!target && (
             <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '60px 0' }}>
-              Select a class or student to compose content.
+              {t('teacherPosts.selectRecipient')}
             </div>
           )}
 
           {target && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--tx3)' }}>To:</span>
+                <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('teacherPosts.to')}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: 'var(--a1)15', color: 'var(--a1)' }}>
-                  {selectedClass ? `${selectedClass.name} — all ${targetStudents.length} students` : selectedStudent?.full_name}
+                  {selectedClass ? t('teacherPosts.classRecipients', { name: selectedClass.name, count: targetStudents.length }) : selectedStudent?.full_name}
                 </span>
               </div>
 
@@ -245,18 +247,18 @@ export function TeacherPostsScreen() {
                 ))}
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)', cursor: 'pointer', marginLeft: 8 }}>
                   <input type="checkbox" checked={isImportant} onChange={e => setIsImportant(e.target.checked)} style={{ width: 14, height: 14 }} />
-                  Important
+                  {t('teacherPosts.important')}
                 </label>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <input className="input-field" placeholder="Announcement title…" value={title} onChange={e => setTitle(e.target.value)} />
-                <input className="input-field" placeholder="Subject UUID (optional)" value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)} />
+                <input className="input-field" placeholder={t('teacherPosts.titlePlaceholder')} value={title} onChange={e => setTitle(e.target.value)} />
+                <input className="input-field" placeholder={t('teacherPosts.subjectUuidPlaceholder')} value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)} />
               </div>
 
               <textarea
                 className="input-field"
-                placeholder="Write your announcement…"
+                placeholder={t('teacherPosts.contentPlaceholder')}
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 rows={8}
@@ -264,7 +266,7 @@ export function TeacherPostsScreen() {
               />
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <input className="input-field" placeholder="Original language" value={originalLanguage} onChange={e => setOriginalLanguage(e.target.value)} />
+                <input className="input-field" placeholder={t('teacherPosts.originalLanguagePlaceholder')} value={originalLanguage} onChange={e => setOriginalLanguage(e.target.value)} />
                 <input type="datetime-local" className="input-field" value={publishedAt} onChange={e => setPublishedAt(e.target.value)} />
                 <input type="datetime-local" className="input-field" value={dueAt} onChange={e => setDueAt(e.target.value)} />
               </div>
@@ -280,7 +282,7 @@ export function TeacherPostsScreen() {
                   onClick={() => void handlePublish()}
                   disabled={!title.trim() || !content.trim() || publishing}
                 >
-                  {publishing ? 'Sending…' : editingAnnouncementUuid ? 'Update announcement' : `Send announcement to ${targetStudents.length} student${targetStudents.length !== 1 ? 's' : ''}`}
+                  {publishing ? t('teacherPosts.sendingProgress', { done: 0, total: targetStudents.length }) : editingAnnouncementUuid ? t('teacherPosts.updateAnnouncement') : t('teacherPosts.sendAnnouncement', { count: targetStudents.length })}
                 </button>
               </div>
             </>
@@ -288,18 +290,18 @@ export function TeacherPostsScreen() {
         </div>
 
         <div style={{ background: 'var(--card)', borderLeft: '1px solid var(--bd)', padding: 20, overflowY: 'auto' }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>Session Announcements</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>{t('teacherPosts.sessionAnnouncements')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {announcements.map(announcement => (
               <div key={announcement.uuid} className="card-sm">
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{announcement.title}</div>
                   <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }} onClick={() => openAnnouncementEdit(announcement)}>
-                    Edit
+                    {t('actions.edit')}
                   </button>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
-                  {announcement.category} · {announcement.subject?.name ?? 'All subjects'}
+                  {announcement.category} · {announcement.subject?.name ?? t('teacherPosts.allSubjects')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 6, lineHeight: 1.6 }}>
                   {announcement.display_content_markdown.slice(0, 140)}{announcement.display_content_markdown.length > 140 ? '…' : ''}
@@ -308,7 +310,7 @@ export function TeacherPostsScreen() {
             ))}
             {announcements.length === 0 && (
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                Announcements created in this session can be reopened here for updates.
+                {t('teacherPosts.sessionHint')}
               </div>
             )}
           </div>

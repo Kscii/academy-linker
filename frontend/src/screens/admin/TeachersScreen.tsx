@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminUser, CreateUserRequest, PaginationMeta } from '@/types/api';
 
@@ -35,6 +36,7 @@ function toTeacherRow(item: AdminUser): TeacherRow {
 }
 
 export function AdminTeachersScreen() {
+  const { t } = useTranslation('app');
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
   const [keyword, setKeyword] = useState('');
@@ -102,11 +104,11 @@ export function AdminTeachersScreen() {
 
   const handleSave = async () => {
     if (!form.display_name.trim() || !form.email.trim()) {
-      setError('Name and email are required.');
+      setError(t('adminTeachers.requiredNameEmail'));
       return;
     }
     if (!editing && !form.password.trim()) {
-      setError('Password is required.');
+      setError(t('adminTeachers.requiredPassword'));
       return;
     }
 
@@ -139,7 +141,7 @@ export function AdminTeachersScreen() {
       await loadTeachers();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to save.');
+      setError(msg ?? t('adminTeachers.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -149,44 +151,44 @@ export function AdminTeachersScreen() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Teachers</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} teacher{meta.total !== 1 ? 's' : ''}</div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('adminTeachers.title')}</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('adminTeachers.count', { count: meta.total })}</div>
         </div>
         <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={openCreate}>
-          + New Teacher
+          + {t('adminTeachers.new')}
         </button>
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.3fr) repeat(3, minmax(140px, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Search</label>
-            <input className="input-field" placeholder="Search by name or email" value={keyword} onChange={e => setKeyword(e.target.value)} />
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.search')}</label>
+            <input className="input-field" placeholder={t('adminTeachers.searchPlaceholder')} value={keyword} onChange={e => setKeyword(e.target.value)} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.status')}</label>
             <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)}>
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('common.all')}</option>
+              <option value="active">{t('common.active')}</option>
+              <option value="inactive">{t('common.inactive')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Sort</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.sort')}</label>
             <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-              <option value="display_name_asc">Name A-Z</option>
-              <option value="created_at_desc">Newest</option>
-              <option value="created_at_asc">Oldest</option>
+              <option value="display_name_asc">{t('adminTeachers.sortNameAsc')}</option>
+              <option value="created_at_desc">{t('adminTeachers.sortNewest')}</option>
+              <option value="created_at_asc">{t('adminTeachers.sortOldest')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Page</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.page')}</label>
             <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>
-              {meta.page} / {Math.max(meta.total_pages, 1)}
+              {t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}
             </div>
           </div>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => void runSearch()}>
-            Apply
+            {t('actions.apply')}
           </button>
         </div>
       </div>
@@ -194,40 +196,40 @@ export function AdminTeachersScreen() {
       {showForm && (
         <div className="card" style={{ marginBottom: 20, borderColor: 'var(--a4)', borderWidth: 1.5 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-            {editing ? 'Edit Teacher' : 'New Teacher'}
+            {editing ? t('adminTeachers.editTitle') : t('adminTeachers.newTitle')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Full Name</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.fullName')}</label>
               <input className="input-field" value={form.display_name} onChange={e => setForm(prev => ({ ...prev, display_name: e.target.value }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Email</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.email')}</label>
               <input className="input-field" type="email" value={form.email} disabled={editing} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>
-                {editing ? 'Phone Number (overwrite if provided)' : 'Phone Number'}
+                {editing ? t('adminTeachers.phoneOverwrite') : t('adminTeachers.phone')}
               </label>
               <input
                 className="input-field"
                 value={form.phone_number ?? ''}
-                placeholder={editing ? 'Unknown from list response' : '+61 4xx xxx xxx'}
+                placeholder={editing ? t('adminTeachers.phoneUnknownPlaceholder') : t('adminTeachers.phoneExample')}
                 onChange={e => setForm(prev => ({ ...prev, phone_number: e.target.value, phone_dirty: true }))}
               />
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>
-                {editing ? 'New Password (leave blank to keep)' : 'Password'}
+                {editing ? t('adminTeachers.newPassword') : t('adminTeachers.password')}
               </label>
               <input className="input-field" type="password" value={form.password} onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))} />
             </div>
             {editing && (
               <div>
-                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminTeachers.status')}</label>
                 <select className="input-field" value={String(form.is_active ?? true)} onChange={e => setForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
+                  <option value="true">{t('common.active')}</option>
+                  <option value="false">{t('common.inactive')}</option>
                 </select>
               </div>
             )}
@@ -235,10 +237,10 @@ export function AdminTeachersScreen() {
           {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a1)' }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleSave()} disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('actions.saving') : t('actions.save')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => setShowForm(false)}>
-              Cancel
+              {t('actions.cancel')}
             </button>
           </div>
         </div>
@@ -253,11 +255,11 @@ export function AdminTeachersScreen() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{teacher.display_name}</div>
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{teacher.email}</div>
-              <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Phone: {teacher.phone_number ?? 'Not returned by list API'}</div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('adminUsers.phoneSummary', { role: t('adminTeachers.teacher'), phone: teacher.phone_number ?? t('adminUsers.notReturnedByListApi') })}</div>
             </div>
             <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: 'right', flexShrink: 0 }}>
               <span className="badge" style={{ background: teacher.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: teacher.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
-                {teacher.is_active ? 'Active' : 'Inactive'}
+                {teacher.is_active ? t('common.active') : t('common.inactive')}
               </span>
             </div>
             <button className="btn-secondary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12, flexShrink: 0 }} onClick={() => openEdit(teacher)}>

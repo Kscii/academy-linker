@@ -14,7 +14,7 @@ const CLASS_ACCENT = ['var(--a1)', 'var(--a2)', 'var(--a3)', 'var(--a4)'];
 export function TeacherDashboardScreen() {
   const navigate = useNavigate();
   const { user } = useApp();
-  const { t } = useTranslation('dashboard');
+  const { t } = useTranslation(['dashboard', 'app']);
   const [overview, setOverview] = useState<TeacherOverview | null>(null);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function TeacherDashboardScreen() {
   }, []);
 
   if (!overview) return (
-    <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>Loading…</div>
+    <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>{t('app:common.loading')}</div>
   );
 
   const { summary, classes } = overview;
@@ -55,7 +55,7 @@ export function TeacherDashboardScreen() {
           <div className="stat-label">{t('unreadMsgs')}</div>
           <div className="stat-value" style={{ color: 'var(--a4)' }}>{summary.unread_message_count}</div>
           {summary.unread_message_count > 0 && (
-            <div style={{ fontSize: 10, color: 'var(--a4)', marginTop: 4, fontWeight: 700 }}>View all →</div>
+            <div style={{ fontSize: 10, color: 'var(--a4)', marginTop: 4, fontWeight: 700 }}>{t('app:teacherDashboard.viewAll')} →</div>
           )}
         </div>
       </div>
@@ -85,7 +85,7 @@ export function TeacherDashboardScreen() {
                   </div>
                   {cls.is_homeroom && (
                     <span className="subject-chip" style={{ background: accent + '22', color: accent, fontSize: 10 }}>
-                      Homeroom
+                      {t('app:teacherDashboard.homeroom')}
                     </span>
                   )}
                 </div>

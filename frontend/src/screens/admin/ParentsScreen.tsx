@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminUser, AdminStudent, CreateUserRequest, PaginationMeta, ParentStudentBinding } from '@/types/api';
 
@@ -27,6 +28,7 @@ function toParentRow(item: AdminUser): ParentRow {
 }
 
 export function AdminParentsScreen() {
+  const { t } = useTranslation('app');
   const [parents, setParents] = useState<ParentRow[]>([]);
   const [students, setStudents] = useState<AdminStudent[]>([]);
   const [bindings, setBindings] = useState<ParentStudentBinding[]>([]);
@@ -76,11 +78,11 @@ export function AdminParentsScreen() {
 
   const handleCreate = async () => {
     if (!form.display_name.trim() || !form.email.trim()) {
-      setError('Name and email are required.');
+      setError(t('adminParents.requiredNameEmail'));
       return;
     }
     if (!form.password.trim()) {
-      setError('Password is required.');
+      setError(t('adminParents.requiredPassword'));
       return;
     }
     setSaving(true);
@@ -98,7 +100,7 @@ export function AdminParentsScreen() {
       await loadParents();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to create parent.');
+      setError(msg ?? t('adminParents.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -135,49 +137,49 @@ export function AdminParentsScreen() {
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>Parents</div>
+          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{t('adminParents.title')}</div>
           <button className="btn-primary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => { setShowForm(prev => !prev); setError(''); }}>
-            + New
+            + {t('adminParents.new')}
           </button>
         </div>
 
         <div className="card" style={{ marginBottom: 12, padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>Total: {meta.total}</div>
-          <input className="input-field" placeholder="Search by name or email" value={keyword} onChange={e => setKeyword(e.target.value)} style={{ marginBottom: 8 }} />
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>{t('adminParents.total', { count: meta.total })}</div>
+          <input className="input-field" placeholder={t('adminParents.searchPlaceholder')} value={keyword} onChange={e => setKeyword(e.target.value)} style={{ marginBottom: 8 }} />
           <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)} style={{ marginBottom: 8 }}>
-            <option value="all">All statuses</option>
-            <option value="active">Active only</option>
-            <option value="inactive">Inactive only</option>
+            <option value="all">{t('adminParents.allStatuses')}</option>
+            <option value="active">{t('adminParents.activeOnly')}</option>
+            <option value="inactive">{t('adminParents.inactiveOnly')}</option>
           </select>
           <button className="btn-secondary" style={{ width: '100%' }} onClick={() => { setPage(1); void loadParents(); }}>
-            Apply Filters
+            {t('actions.applyFilters')}
           </button>
         </div>
 
         {showForm && (
           <div className="card" style={{ marginBottom: 12, padding: 14 }}>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Full Name *</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminParents.fullName')}</label>
               <input className="input-field" value={form.display_name} onChange={e => setForm(prev => ({ ...prev, display_name: e.target.value }))} />
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Email *</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminParents.email')}</label>
               <input className="input-field" type="email" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} />
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Phone Number</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminParents.phone')}</label>
               <input className="input-field" value={form.phone_number ?? ''} onChange={e => setForm(prev => ({ ...prev, phone_number: e.target.value }))} />
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>Password *</label>
+              <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminParents.password')}</label>
               <input className="input-field" type="password" value={form.password} onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))} />
             </div>
             {error && <div style={{ fontSize: 12, color: 'var(--a1)', marginBottom: 8 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn-primary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => void handleCreate()} disabled={saving}>
-                {saving ? '…' : 'Create'}
+                {saving ? '…' : t('adminParents.create')}
               </button>
-              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }} onClick={() => setShowForm(false)}>Cancel</button>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }} onClick={() => setShowForm(false)}>{t('actions.cancel')}</button>
             </div>
           </div>
         )}
@@ -195,7 +197,7 @@ export function AdminParentsScreen() {
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{parent.display_name}</div>
                 <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 1 }}>{parent.email}</div>
                 <div style={{ fontSize: 11, color: 'var(--tx2)', marginTop: 2 }}>
-                  {childCount > 0 ? `${childCount} child${childCount > 1 ? 'ren' : ''}` : 'No children linked'}
+                  {childCount > 0 ? t('adminParents.childrenCount', { count: childCount }) : t('adminParents.noChildrenLinked')}
                 </div>
               </div>
             );
@@ -221,21 +223,21 @@ export function AdminParentsScreen() {
             <div>
               <div className="font-serif" style={{ fontSize: 18, color: 'var(--tx)' }}>{current.display_name}</div>
               <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{current.email}</div>
-              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>Phone: {current.phone_number ?? 'Not returned by list API'}</div>
+              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('adminParents.phoneSummary', { phone: current.phone_number ?? t('adminUsers.notReturnedByListApi') })}</div>
             </div>
           </div>
 
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-            Linked Children ({currentBindings.length})
+            {t('adminParents.linkedChildren', { count: currentBindings.length })}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <select className="input-field" value={bindSid} onChange={e => setBindSid(e.target.value)} style={{ flex: 1 }}>
-              <option value="">— Link a student —</option>
+              <option value="">{`— ${t('adminParents.linkStudent')} —`}</option>
               {bindable.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}{student.sid ? ` (${student.sid})` : ''}</option>)}
             </select>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: 12, flexShrink: 0, opacity: bindSid ? 1 : 0.4 }} onClick={() => void handleBind()} disabled={!bindSid || binding}>
-              {binding ? '…' : 'Link'}
+              {binding ? '…' : t('adminParents.link')}
             </button>
           </div>
 
@@ -250,9 +252,9 @@ export function AdminParentsScreen() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{student.full_name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{student.sid ?? 'No SID'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{student.sid ?? t('common.noSid')}</div>
                   </div>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a1)', fontSize: 16, padding: '2px 4px' }} title="Unlink student" onClick={() => void handleUnbind(student.uuid)}>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a1)', fontSize: 16, padding: '2px 4px' }} title={t('adminParents.unlinkStudent')} onClick={() => void handleUnbind(student.uuid)}>
                     ×
                   </button>
                 </div>
@@ -260,14 +262,14 @@ export function AdminParentsScreen() {
             })}
             {currentBindings.length === 0 && (
               <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-                No children linked. Use the picker above to link a student.
+                {t('adminParents.noChildrenHint')}
               </div>
             )}
           </div>
         </div>
       ) : (
         <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, color: 'var(--tx3)', fontSize: 14 }}>
-          Select a parent to manage
+          {t('adminParents.selectParentToManage')}
         </div>
       )}
     </div>

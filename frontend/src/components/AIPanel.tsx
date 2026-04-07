@@ -4,14 +4,13 @@
 // ============================================================
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { translateBatch, useTranslatedText, translateText } from '@/lib/translate';
+import { useTranslation } from 'react-i18next';
 import { ai } from '@/lib/api';
 import type { AiMessage, AiContextType } from '@/types/api';
 
 interface AIPanelProps {
   studentUuid?: string;
   subjectUuid?: string;
-  uiLanguage?: string;
 }
 
 let msgIdCounter = 0;
@@ -33,50 +32,36 @@ function resolveContextType(studentUuid?: string, subjectUuid?: string): AiConte
   return 'global';
 }
 
-export function AIPanel({ studentUuid, subjectUuid, uiLanguage = 'en' }: AIPanelProps) {
+export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
+  const { t } = useTranslation('app');
   const [open, setOpen] = useState(false);
 
   const defaultGreeting = studentUuid
-    ? "Hi! I'm your AI assistant. Ask me anything about this student's progress."
-    : "Hi! I'm your AI assistant. Ask me anything.";
+    ? t('aiPanel.greetingStudent')
+    : t('aiPanel.greetingGlobal');
 
   const [messages, setMessages] = useState<DisplayMessage[]>([
     { id: genId(), role: 'assistant', text: defaultGreeting },
   ]);
 
-  // ── Translated static UI ──────────────────────────────────────
-  const txPlaceholder = useTranslatedText('Ask anything…', uiLanguage);
-  const txSend        = useTranslatedText('Send', uiLanguage);
-  const txTitle       = useTranslatedText('AI Assistant', uiLanguage);
+  const txPlaceholder = t('aiPanel.placeholder');
+  const txSend = t('actions.send');
+  const txTitle = t('aiPanel.title');
 
-  // ── Translated greeting ───────────────────────────────────────
   useEffect(() => {
-    if (uiLanguage === 'en') {
-      setMessages(prev => [{ ...prev[0], text: defaultGreeting }, ...prev.slice(1)]);
-      return;
-    }
-    translateText(defaultGreeting, uiLanguage).then(translated => {
-      setMessages(prev => {
-        if (prev[0]?.role === 'assistant') {
-          return [{ ...prev[0], text: translated }, ...prev.slice(1)];
-        }
-        return prev;
-      });
+    setMessages(prev => {
+      if (prev[0]?.role === 'assistant') {
+        return [{ ...prev[0], text: defaultGreeting }, ...prev.slice(1)];
+      }
+      return prev;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uiLanguage]);
+  }, [defaultGreeting]);
 
   // ── Quick chips ───────────────────────────────────────────────
   const baseChips = studentUuid
-    ? ['Overall performance?', 'Which subject needs focus?', 'Tips to improve']
-    : ['What can you help with?', 'Summarise recent activity', 'Give me a report'];
-  const [chips, setChips] = useState(baseChips);
-
-  useEffect(() => {
-    if (uiLanguage === 'en') { setChips(baseChips); return; }
-    translateBatch(baseChips, uiLanguage).then(setChips);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uiLanguage]);
+    ? [t('aiPanel.quickPerformance'), t('aiPanel.quickFocus'), t('aiPanel.quickTips')]
+    : [t('aiPanel.quickHelp'), t('aiPanel.quickSummary'), t('aiPanel.quickReport')];
+  const chips = baseChips;
 
   // ── Conversation state ────────────────────────────────────────
   const [conversationUuid, setConversationUuid] = useState<string | null>(null);
@@ -133,7 +118,7 @@ export function AIPanel({ studentUuid, subjectUuid, uiLanguage = 'en' }: AIPanel
     } catch {
       setMessages(prev => [
         ...prev,
-        { id: genId(), role: 'assistant', text: 'Sorry, AI service is unavailable. Please try again later.' },
+        { id: genId(), role: 'assistant', text: t('aiPanel.serviceUnavailable') },
       ]);
     } finally {
       setThinking(false);
@@ -231,7 +216,7 @@ export function AIPanel({ studentUuid, subjectUuid, uiLanguage = 'en' }: AIPanel
               }}>✦</div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{txTitle}</div>
-                <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Powered by AI</div>
+                <div style={{ fontSize: 10, color: 'var(--tx3)' }}>{t('aiPanel.poweredByAi')}</div>
               </div>
             </div>
             <button
@@ -265,7 +250,7 @@ export function AIPanel({ studentUuid, subjectUuid, uiLanguage = 'en' }: AIPanel
                   className="chip"
                   style={{ fontSize: 11 }}
                   onClick={() => sendMessage(baseChips[i])}
-                  disabled={thinking}
+        disabled={thinking}
                 >{chip}</button>
               ))}
             </div>
@@ -298,7 +283,7 @@ export function AIPanel({ studentUuid, subjectUuid, uiLanguage = 'en' }: AIPanel
         onMouseDown={startDrag}
         onTouchStart={startDrag}
         onClick={handleFabClick}
-        aria-label="AI Assistant"
+        aria-label={t('aiPanel.ariaLabel')}
       >
         ✦
       </button>
