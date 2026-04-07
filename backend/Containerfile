@@ -12,10 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
 # 先复制依赖声明，利用层缓存（依赖未变则不重装）
 COPY pyproject.toml ./
 COPY src/ src/
+COPY entrypoint.sh ./
 
 # 安装所有依赖及项目本身（--system 写入系统 Python，容器内无需虚拟环境）
-RUN uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache . \
+    && chmod +x entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "ac_link.run:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动时：初始化数据库表 → 创建管理员（若配置）→ 启动 uvicorn
+CMD ["./entrypoint.sh"]
