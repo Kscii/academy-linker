@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminClass, AdminStudent, CreateStudentRequest, PaginationMeta, UpdateStudentRequest } from '@/types/api';
 
@@ -35,6 +36,7 @@ const EMPTY_FORM: StudentForm = {
 };
 
 export function AdminStudentsScreen() {
+  const { t } = useTranslation('app');
   const [students, setStudents] = useState<AdminStudent[]>([]);
   const [classes, setClasses] = useState<AdminClass[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
@@ -95,7 +97,7 @@ export function AdminStudentsScreen() {
 
   const handleSave = async () => {
     if (!form.full_name.trim()) {
-      setError('Full name is required.');
+      setError(t('adminStudents.fullNameRequired'));
       return;
     }
     setSaving(true);
@@ -127,7 +129,7 @@ export function AdminStudentsScreen() {
       await loadStudents();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to save student.');
+      setError(msg ?? t('adminStudents.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -137,90 +139,90 @@ export function AdminStudentsScreen() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Students</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} student{meta.total !== 1 ? 's' : ''}</div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('adminStudents.title')}</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('adminStudents.count', { count: meta.total })}</div>
         </div>
         <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={openCreate}>
-          + New Student
+          + {t('adminStudents.new')}
         </button>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) repeat(4, minmax(120px, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Search</label>
-            <input className="input-field" placeholder="Name, preferred name or SID" value={keyword} onChange={e => setKeyword(e.target.value)} />
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.search')}</label>
+            <input className="input-field" placeholder={t('adminStudents.searchPlaceholder')} value={keyword} onChange={e => setKeyword(e.target.value)} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Class</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.class')}</label>
             <select className="input-field" value={selectedClassUuid} onChange={e => setSelectedClassUuid(e.target.value)}>
-              <option value="">All classes</option>
+              <option value="">{t('adminStudents.allClasses')}</option>
               {classes.map(item => <option key={item.uuid} value={item.uuid}>{item.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.status')}</label>
             <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)}>
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('common.all')}</option>
+              <option value="active">{t('common.active')}</option>
+              <option value="inactive">{t('common.inactive')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Sort</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.sort')}</label>
             <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-              <option value="full_name_asc">Name A-Z</option>
-              <option value="created_at_desc">Newest</option>
-              <option value="created_at_asc">Oldest</option>
+              <option value="full_name_asc">{t('adminStudents.sortNameAsc')}</option>
+              <option value="created_at_desc">{t('adminStudents.sortNewest')}</option>
+              <option value="created_at_asc">{t('adminStudents.sortOldest')}</option>
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Page</label>
-            <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>{meta.page} / {Math.max(meta.total_pages, 1)}</div>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.page')}</label>
+            <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>{t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}</div>
           </div>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => { setPage(1); void loadStudents(); }}>
-            Apply
+            {t('actions.apply')}
           </button>
         </div>
       </div>
 
       {showForm && (
         <div className="card" style={{ marginBottom: 20, borderColor: 'var(--a2)', borderWidth: 1.5 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>{editing ? 'Edit Student' : 'New Student'}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>{editing ? t('adminStudents.editTitle') : t('adminStudents.newTitle')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Full Name *</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.fullName')}</label>
               <input className="input-field" value={form.full_name} onChange={e => setForm(prev => ({ ...prev, full_name: e.target.value }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Preferred Name</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.preferredName')}</label>
               <input className="input-field" value={form.preferred_name} onChange={e => setForm(prev => ({ ...prev, preferred_name: e.target.value }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Student ID</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.studentId')}</label>
               <input className="input-field" value={form.sid} onChange={e => setForm(prev => ({ ...prev, sid: e.target.value }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Class</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.class')}</label>
               <select className="input-field" value={form.class_uuid} onChange={e => setForm(prev => ({ ...prev, class_uuid: e.target.value }))}>
-                <option value="">Unassigned</option>
+                <option value="">{t('adminStudents.unassigned')}</option>
                 {classes.map(item => <option key={item.uuid} value={item.uuid}>{item.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Avatar URL</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.avatarUrl')}</label>
               <input className="input-field" value={form.avatar_url} onChange={e => setForm(prev => ({ ...prev, avatar_url: e.target.value }))} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Date of Birth</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.dateOfBirth')}</label>
               <input className="input-field" type="date" value={form.date_of_birth} onChange={e => setForm(prev => ({ ...prev, date_of_birth: e.target.value }))} />
             </div>
             {editing && (
               <div>
-                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+                <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('adminStudents.status')}</label>
                 <select className="input-field" value={String(form.is_active)} onChange={e => setForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
+                  <option value="true">{t('common.active')}</option>
+                  <option value="false">{t('common.inactive')}</option>
                 </select>
               </div>
             )}
@@ -228,10 +230,10 @@ export function AdminStudentsScreen() {
           {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a1)' }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleSave()} disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('actions.saving') : t('actions.save')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => setShowForm(false)}>
-              Cancel
+              {t('actions.cancel')}
             </button>
           </div>
         </div>
@@ -245,29 +247,29 @@ export function AdminStudentsScreen() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{student.full_name}</div>
-              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{student.sid ?? '—'} · {student.class_name ?? 'Unassigned'} · {student.grade_level ?? '—'}</div>
+              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{student.sid ?? t('common.notAvailable')} · {student.class_name ?? t('adminStudents.unassigned')} · {student.grade_level ?? t('common.notAvailable')}</div>
             </div>
             <span className="badge" style={{ background: student.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: student.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
-              {student.is_active ? 'Active' : 'Inactive'}
+              {student.is_active ? t('common.active') : t('common.inactive')}
             </span>
             <button className="btn-secondary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => openEdit(student)}>
-              Edit
+              {t('actions.edit')}
             </button>
           </div>
         ))}
         {students.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '40px 0' }}>
-            No students found for the current filters.
+            {t('adminStudents.noStudentsForFilters')}
           </div>
         )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-          Previous
+          {t('actions.previous')}
         </button>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-          Next
+          {t('actions.next')}
         </button>
       </div>
     </div>

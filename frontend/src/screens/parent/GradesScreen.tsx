@@ -21,7 +21,7 @@ export function GradesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
   const { language } = useApp();
-  const { t } = useTranslation('dashboard');
+  const { t } = useTranslation(['dashboard', 'app']);
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
@@ -74,8 +74,8 @@ export function GradesScreen() {
     });
   }, [language, subjects, dashboard]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
 
-  const txTitle = useTranslatedText('Academic Performance', language);
-  const txSubtitle = useTranslatedText(`${studentName}'s grades and progress`, language);
+  const txTitle = useTranslatedText(t('app:parentGrades.title'), language);
+  const txSubtitle = useTranslatedText(t('app:parentGrades.subtitle', { name: studentName }), language);
 
   return (
     <div>
@@ -154,7 +154,7 @@ export function GradesScreen() {
               <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: getSubjectColor(sub.code) || sub.color || 'var(--a1)' }} />
               <div style={{ width: 150, flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{sub.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teachers?.[0]?.display_name ?? 'No teacher assigned'}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{sub.teachers?.[0]?.display_name ?? t('app:parentGrades.noTeacherAssigned')}</div>
               </div>
               <div style={{ flex: 1 }}>
                 <div className="progress-bar">

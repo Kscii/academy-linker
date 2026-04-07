@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { teacher as teacherApi } from '@/lib/api';
 import type { ClassGradeStats, PaginationMeta, TeacherClass, TeacherClassStudentItem } from '@/types/api';
 
@@ -15,6 +16,7 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function ClassDetailScreen() {
+  const { t } = useTranslation('app');
   const navigate = useNavigate();
   const { classUuid } = useParams<{ classUuid: string }>();
   const [cls, setCls] = useState<TeacherClass | null>(null);
@@ -63,7 +65,7 @@ export function ClassDetailScreen() {
 
   if (!cls) {
     return (
-      <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>Loading…</div>
+      <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>{t('common.loading')}</div>
     );
   }
 
@@ -78,7 +80,7 @@ export function ClassDetailScreen() {
           fontFamily: 'var(--font-body)',
         }}
       >
-        ← Back to Dashboard
+        ← {t('teacherClassDetail.backToDashboard')}
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
@@ -88,28 +90,28 @@ export function ClassDetailScreen() {
         <div>
           <div className="font-serif" style={{ fontSize: 24, color: 'var(--tx)' }}>{cls.name}</div>
           <div style={{ fontSize: 13, color: 'var(--tx2)' }}>
-            Grade {cls.grade_level ?? '—'} · {cls.academic_year ?? '—'}
-            {cls.is_homeroom && <span className="badge" style={{ marginLeft: 8, background: 'var(--a1)20', color: 'var(--a1)', fontSize: 10 }}>Homeroom</span>}
+            {t('teacherClassDetail.grade', { value: cls.grade_level ?? t('common.notAvailable') })} · {cls.academic_year ?? t('common.notAvailable')}
+            {cls.is_homeroom && <span className="badge" style={{ marginLeft: 8, background: 'var(--a1)20', color: 'var(--a1)', fontSize: 10 }}>{t('teacherClassDetail.homeroom')}</span>}
           </div>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
         <div className="stat-box">
-          <div className="stat-label">Students</div>
+          <div className="stat-label">{t('teacherClassDetail.students')}</div>
           <div className="stat-value" style={{ color: 'var(--a1)' }}>{cls.student_count}</div>
         </div>
         <div className="stat-box">
-          <div className="stat-label">Page Total</div>
+          <div className="stat-label">{t('teacherClassDetail.pageTotal')}</div>
           <div className="stat-value" style={{ color: 'var(--a2)' }}>{meta.total}</div>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Grade Stats</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('teacherClassDetail.gradeStats')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr)', gap: 10, marginBottom: 16 }}>
           <select className="input-field" value={subjectUuid} onChange={e => { setPage(1); setSubjectUuid(e.target.value); }}>
-            <option value="">All subjects</option>
+            <option value="">{t('teacherClassDetail.allSubjects')}</option>
             {subjectOptions.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
           </select>
           <input className="input-field" type="date" value={examDateFrom} onChange={e => setExamDateFrom(e.target.value)} />
@@ -120,19 +122,19 @@ export function ClassDetailScreen() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }}>
               <div className="stat-box">
-                <div className="stat-label">Average</div>
+                <div className="stat-label">{t('teacherClassDetail.average')}</div>
                 <div className="stat-value" style={{ color: 'var(--a2)' }}>{gradeStats.summary.avg_score.toFixed(1)}</div>
               </div>
               <div className="stat-box">
-                <div className="stat-label">Highest</div>
+                <div className="stat-label">{t('teacherClassDetail.highest')}</div>
                 <div className="stat-value" style={{ color: 'var(--a1)' }}>{gradeStats.summary.max_score.toFixed(1)}</div>
               </div>
               <div className="stat-box">
-                <div className="stat-label">Lowest</div>
+                <div className="stat-label">{t('teacherClassDetail.lowest')}</div>
                 <div className="stat-value" style={{ color: 'var(--a4)' }}>{gradeStats.summary.min_score.toFixed(1)}</div>
               </div>
               <div className="stat-box">
-                <div className="stat-label">Exams</div>
+                <div className="stat-label">{t('teacherClassDetail.exams')}</div>
                 <div className="stat-value" style={{ color: 'var(--tx)' }}>{gradeStats.summary.exam_count}</div>
               </div>
             </div>
@@ -140,7 +142,7 @@ export function ClassDetailScreen() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {gradeStats.students.length === 0 ? (
                 <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-                  No grade statistics found for the selected filters.
+                  {t('teacherClassDetail.noGradeStatsForFilters')}
                 </div>
               ) : (
                 gradeStats.students.map(student => (
@@ -148,19 +150,19 @@ export function ClassDetailScreen() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{student.full_name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{student.sid ?? 'No SID'}</div>
+                        <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{student.sid ?? t('common.noSid', 'No SID')}</div>
                       </div>
                       <button className="chip" onClick={() => navigate(`/teacher/students/${student.student_uuid}`)}>
-                        Open student
+                        {t('teacherClassDetail.openStudent')}
                       </button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
                       {student.subject_scores.map(subject => (
                         <div key={subject.subject_uuid} style={{ border: '1px solid var(--bd)', borderRadius: 10, padding: 10, background: 'var(--card)' }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{subject.subject_name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Average {subject.avg_score.toFixed(1)}</div>
-                          <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Latest {subject.latest_score.toFixed(1)}</div>
-                          <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Exams {subject.exam_count}</div>
+                          <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('teacherClassDetail.averageValue', { value: subject.avg_score.toFixed(1) })}</div>
+                          <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('teacherClassDetail.latestValue', { value: subject.latest_score.toFixed(1) })}</div>
+                          <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{t('teacherClassDetail.examsValue', { value: subject.exam_count })}</div>
                         </div>
                       ))}
                     </div>
@@ -171,32 +173,32 @@ export function ClassDetailScreen() {
           </>
         ) : (
           <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-            No grade statistics available.
+            {t('teacherClassDetail.noGradeStatsAvailable')}
           </div>
         )}
       </div>
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(160px, 1fr) auto', gap: 10, marginBottom: 16 }}>
-          <input className="input-field" placeholder="Search by SID or student name" value={keyword} onChange={e => { setPage(1); setKeyword(e.target.value); }} />
+          <input className="input-field" placeholder={t('teacherClassDetail.searchPlaceholder')} value={keyword} onChange={e => { setPage(1); setKeyword(e.target.value); }} />
           <select className="input-field" value={subjectUuid} onChange={e => { setPage(1); setSubjectUuid(e.target.value); }}>
-            <option value="">All subjects</option>
+            <option value="">{t('teacherClassDetail.allSubjects')}</option>
             {subjectOptions.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
           </select>
           <div className="input-field" style={{ display: 'flex', alignItems: 'center' }}>
-            Page {meta.page} / {Math.max(meta.total_pages, 1)}
+            {t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}
           </div>
         </div>
 
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Students</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('teacherClassDetail.studentsSection')}</div>
         {students.length === 0 ? (
           <div style={{ color: 'var(--tx3)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>
-            No students found.
+            {t('teacherClassDetail.noStudentsFound')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 32px', gap: 12, padding: '6px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--bd)' }}>
-              <span>Student</span><span>Subjects</span><span />
+              <span>{t('teacherClassDetail.studentColumn')}</span><span>{t('teacherClassDetail.subjectsColumn')}</span><span />
             </div>
 
             {students.map(item => {
@@ -215,7 +217,7 @@ export function ClassDetailScreen() {
                     </div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{item.full_name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{item.sid ?? 'No SID'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{item.sid ?? t('common.noSid', 'No SID')}</div>
                       {item.preferred_name && (
                         <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{item.preferred_name}</div>
                       )}
@@ -236,10 +238,10 @@ export function ClassDetailScreen() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-          Previous
+          {t('actions.previous')}
         </button>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-          Next
+          {t('actions.next')}
         </button>
       </div>
     </div>

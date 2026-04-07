@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi } from '@/lib/api';
@@ -10,22 +11,12 @@ import type { DiscussionTeacherItem } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { getSubjectColor } from '@/lib/constants';
 
-function timeAgo(dateStr?: string): string {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / 86400_000);
-  const hours = Math.floor(diff / 3600_000);
-  if (hours < 1) return 'Just now';
-  if (hours < 24) return `${hours}h ago`;
-  if (days === 1) return 'Yesterday';
-  return `${days}d ago`;
-}
-
 function initials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
 export function MessagesScreen() {
+  const { t } = useTranslation('app');
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
   const { markThreadRead, updateThreadUnreadCounts, threadUnreadCounts, language } = useApp();
@@ -66,8 +57,18 @@ export function MessagesScreen() {
     });
   }, [language, items]);
 
-  const txTitle = useTranslatedText('Messages', language);
-  const txSubtitle = useTranslatedText("Your conversations with your student's teachers", language);
+  const txTitle = useTranslatedText(t('parentMessages.title'), language);
+  const txSubtitle = useTranslatedText(t('parentMessages.subtitle'), language);
+  const formatTimeAgo = (dateStr?: string): string => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const days = Math.floor(diff / 86400_000);
+    const hours = Math.floor(diff / 3600_000);
+    if (hours < 1) return t('parentMessages.justNow');
+    if (hours < 24) return t('parentMessages.hoursAgo', { count: hours });
+    if (days === 1) return t('parentMessages.yesterday');
+    return t('parentMessages.daysAgo', { count: days });
+  };
 
   const handleOpen = (item: DiscussionTeacherItem) => {
     if (item.thread_uuid) markThreadRead(item.thread_uuid);
@@ -94,8 +95,8 @@ export function MessagesScreen() {
 
       <div style={{ maxWidth: 220, marginBottom: 16 }}>
         <select className="input-field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-          <option value="last_post_at_desc">Recent activity</option>
-          <option value="display_name_asc">Teacher name</option>
+          <option value="last_post_at_desc">{t('parentMessages.sortRecent')}</option>
+          <option value="display_name_asc">{t('parentMessages.sortTeacher')}</option>
         </select>
       </div>
 
@@ -129,7 +130,7 @@ export function MessagesScreen() {
                     {item.display_name}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
-                    {timeAgo(item.last_post_at ?? undefined)}
+                    {formatTimeAgo(item.last_post_at ?? undefined)}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
