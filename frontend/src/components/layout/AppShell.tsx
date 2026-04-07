@@ -33,6 +33,11 @@ const TEACHER_NAV: NavItem[] = [
   { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '🏠', path: '/teacher/dashboard' },
   { id: 'messages',     labelKey: 'nav:messages',     icon: '💬', path: '/teacher/messages' },
   { id: 'announcements', labelKey: 'nav:announcements', icon: '📢', path: '/teacher/posts' },
+  { id: 'reports',      labelKey: 'nav:reports',      icon: '📋', path: '/teacher/reports' },
+  { id: 'tags',         labelKey: 'nav:tags',         icon: '🏷', path: '/teacher/tags' },
+  { id: 'examScores',   labelKey: 'nav:examScores',   icon: '📝', path: '/teacher/exam-scores' },
+  { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: '/teacher/period-metrics' },
+  { id: 'aiReports',    labelKey: 'nav:aiReports',    icon: '🤖', path: '/teacher/ai-reports' },
   { id: 'find-student', labelKey: 'nav:findStudent',  icon: '🔍', path: '/teacher/find-student' },
 ];
 
