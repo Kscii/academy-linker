@@ -1,26 +1,31 @@
 // ============================================================
-// Teacher StudentDetailScreen — student stats, chart, notes
+// Teacher StudentDetailScreen — student stats, notes
 // ============================================================
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { mockTeacherStudents, mockSubjectDetails, SUBJECT_COLORS } from '@/lib/mock-data';
-import { LineChart } from '@/components/charts/LineChart';
+import { teacher as teacherApi } from '@/lib/api';
+import type { TeacherStudentDashboard } from '@/types/api';
 
 export function StudentDetailScreen() {
   const navigate = useNavigate();
   const { studentUuid } = useParams<{ studentUuid: string }>();
   const [note, setNote] = useState('');
   const [notes, setNotes] = useState<string[]>([]);
+  const [dashboard, setDashboard] = useState<TeacherStudentDashboard | null>(null);
 
-  const studentItem =
-    mockTeacherStudents.find(s => s.student.uuid === studentUuid) ??
-    mockTeacherStudents[0];
+  useEffect(() => {
+    if (!studentUuid) return;
+    teacherApi.getStudentDashboard(studentUuid).then(res => setDashboard(res.data)).catch(() => {});
+  }, [studentUuid]);
 
-  const { student, overall_score, at_risk } = studentItem;
-  const mathDetail = mockSubjectDetails['sub-math'];
+  if (!dashboard) return (
+    <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>Loading…</div>
+  );
 
-  const initials = student.display_name
+  const { student, unread_post_count, summary_cards } = dashboard;
+
+  const initials = student.full_name
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   const addNote = () => {
@@ -48,34 +53,29 @@ export function StudentDetailScreen() {
           className="avatar"
           style={{
             width: 60, height: 60, fontSize: 22, flexShrink: 0,
-            background: at_risk ? 'rgba(192,57,43,0.12)' : 'var(--a1)',
-            color: at_risk ? 'var(--warn)' : '#fff',
+            background: 'var(--a1)', color: '#fff',
           }}
         >
           {initials}
         </div>
         <div>
           <div className="font-serif" style={{ fontSize: 24, color: 'var(--tx)' }}>
-            {student.display_name}
+            {student.full_name}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--tx2)' }}>{student.grade} · {student.class_name}</span>
-            {at_risk && <span className="badge badge-warn" style={{ fontSize: 11 }}>⚠ At Risk</span>}
-          </div>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <div className="badge-score" style={{ background: at_risk ? 'var(--warn)' : 'var(--a2)' }}>
-            {overall_score}%
+            <span style={{ fontSize: 13, color: 'var(--tx2)' }}>
+              {student.grade_level ?? '—'} · {student.class_name ?? '—'}
+            </span>
           </div>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Overall Score',  value: `${overall_score}%`,          color: at_risk ? 'var(--warn)' : 'var(--a1)' },
-          { label: 'Attendance',     value: '94%',                        color: 'var(--a2)' },
-          { label: 'Tasks Complete', value: '87%',                        color: 'var(--a3)' },
-          { label: 'Unread Msgs',    value: studentItem.unread_messages,  color: 'var(--a4)' },
+          { label: 'Performance', value: summary_cards.overall_performance_index != null ? `${Math.round(summary_cards.overall_performance_index)}%` : '—', color: 'var(--a1)' },
+          { label: 'Attendance',  value: summary_cards.attendance_rate != null ? `${Math.round(summary_cards.attendance_rate)}%` : '—', color: 'var(--a2)' },
+          { label: 'Completion',  value: summary_cards.assignment_completion_rate != null ? `${Math.round(summary_cards.assignment_completion_rate)}%` : '—', color: 'var(--a3)' },
+          { label: 'Unread Msgs', value: unread_post_count, color: 'var(--a4)' },
         ].map((s, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{s.label}</div>
@@ -84,44 +84,18 @@ export function StudentDetailScreen() {
         ))}
       </div>
 
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-          Mathematics Score — Term 2
-        </div>
-        <LineChart
-          data={mathDetail.trend_data}
-          avgData={mathDetail.class_avg_data}
-          color={SUBJECT_COLORS.math}
-          avgColor="var(--a2)"
-          showAvg
-          height={180}
-        />
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-            Subject Performance
+            Summary
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {studentItem.subjects.map(sub => {
-              const color = SUBJECT_COLORS[sub.code] ?? sub.color;
-              return (
-                <div key={sub.uuid} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <div style={{ fontSize: 12, color: 'var(--tx)', fontWeight: 600, width: 130 }}>{sub.name}</div>
-                  <div style={{ flex: 1 }}>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${sub.score ?? 0}%`, background: color }} />
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color, width: 36, textAlign: 'right' }}>
-                    {sub.score ?? '—'}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {summary_cards.summary ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--tx2)' }}>
+              <div>{summary_cards.summary.description}</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--tx3)' }}>No summary available.</div>
+          )}
         </div>
 
         <div className="card">

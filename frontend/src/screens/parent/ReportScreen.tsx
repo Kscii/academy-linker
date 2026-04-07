@@ -96,8 +96,6 @@ export function ReportScreen() {
 
   const txTitle       = useTranslatedText('Progress Reports', language);
   const txSectionHdr  = useTranslatedText('Reports', language);
-  const txTerm        = useTranslatedText('Term', language);
-  const txGenerating  = useTranslatedText('Generating full report…', language);
   const txDownload    = useTranslatedText('Download PDF', language);
   const txEmail       = useTranslatedText('Email to me', language);
   const txSent        = useTranslatedText('✓ Sent!', language);
@@ -107,10 +105,6 @@ export function ReportScreen() {
   const [detail, setDetail]               = useState<ReportDetail | null>(null);
   const [readIds, setReadIds]             = useState<Set<string>>(new Set());
   const [emailSent, setEmailSent]         = useState(false);
-
-  // Rich AI content cache: `${reportUuid}:${language}` → markdown
-  const [richContent, setRichContent]     = useState<Record<string, string>>({});
-  const [generating, setGenerating]       = useState(false);
 
   // ── Fetch reports list ──────────────────────────────────────
   useEffect(() => {
@@ -131,24 +125,9 @@ export function ReportScreen() {
       setDetail(res.data);
     }).catch(() => {
       const found = reports.find(r => r.uuid === selectedUuid);
-      if (found) setDetail({ ...found, content_markdown: '', student: { uuid: sid, display_name: '' } });
+      if (found) setDetail({ ...found, display_content_markdown: '', original_content_markdown: '', translated_content_markdown: null, display_language: 'en', original_language: 'en', translated_language: null, translation_status: 'not_required', translated_at: null, student: undefined });
     });
   }, [sid, selectedUuid]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Generate rich AI report ─────────────────────────────────
-  const cacheKey = `${selectedUuid}:${language}`;
-  useEffect(() => {
-    if (!selectedUuid || richContent[cacheKey]) return;
-    setGenerating(true);
-    parentApi.generateReport(selectedUuid, language)
-      .then(res => setRichContent(prev => ({ ...prev, [cacheKey]: res.data.content_markdown })))
-      .catch(() => {
-        if (detail?.content_markdown) {
-          setRichContent(prev => ({ ...prev, [cacheKey]: detail.content_markdown }));
-        }
-      })
-      .finally(() => setGenerating(false));
-  }, [selectedUuid, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Select report: mark as read ─────────────────────────────
   const handleSelect = useCallback((uuid: string) => {
@@ -175,13 +154,13 @@ export function ReportScreen() {
   }, [language, reports]);
 
   const txSubtitle = useTranslatedText(
-    `Weekly updates on ${detail?.student?.display_name ?? ''}'s academic progress`,
+    `Weekly updates on ${detail?.student?.preferred_name ?? detail?.student?.full_name ?? ''}'s academic progress`,
     language,
   );
 
   // ── PDF download ────────────────────────────────────────────
   const handlePDF = () => {
-    const content = richContent[cacheKey] || detail?.content_markdown || '';
+    const content = detail?.display_content_markdown || '';
     const reportTitle = txReports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? '';
     const dateStr = detail ? formatDate(detail.created_at) : '';
     const studentName = detail?.student?.display_name ?? '';
@@ -229,7 +208,8 @@ export function ReportScreen() {
     setTimeout(() => setEmailSent(false), 3000);
   };
 
-  const currentContent = richContent[cacheKey] || '';
+  const currentContent = detail?.display_content_markdown ?? '';
+  const generating = false;
 
   return (
     <div>
@@ -260,7 +240,9 @@ export function ReportScreen() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{report.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>{txTerm} {report.term}</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
+                    {report.period_start ? report.period_start.slice(0, 10) : formatDate(report.created_at)}
+                  </div>
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>{formatDate(report.created_at)}</div>
@@ -301,16 +283,12 @@ export function ReportScreen() {
             </div>
           </div>
 
-          {/* Score pills */}
-          {detail?.subjects && detail.subjects.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-              {detail.subjects.map(sub => (
-                <div key={sub.subject_uuid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: sub.subject_color + '15', border: `1px solid ${sub.subject_color}30` }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: sub.subject_color, flexShrink: 0, display: 'inline-block' }} />
-                  <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{sub.subject_name}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: sub.subject_color }}>{sub.score}%</span>
-                </div>
-              ))}
+          {/* Subject chip */}
+          {detail?.subject && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: 'var(--bg2)', color: 'var(--tx2)', fontWeight: 600 }}>
+                {detail.subject.name}
+              </span>
             </div>
           )}
 
@@ -329,20 +307,7 @@ export function ReportScreen() {
           ) : currentContent ? (
             <MarkdownView text={currentContent} />
           ) : (
-            /* Fallback to subject list while generating */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {detail?.subjects?.map(sub => (
-                <div key={sub.subject_uuid} style={{ borderLeft: `4px solid ${sub.subject_color}`, paddingLeft: 16, paddingTop: 2, paddingBottom: 2 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{sub.subject_name}</div>
-                    {sub.score !== undefined && (
-                      <span className="badge" style={{ background: sub.subject_color + '18', color: sub.subject_color, fontSize: 12, fontWeight: 700 }}>{sub.score}%</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6 }}>{sub.summary}</div>
-                </div>
-              ))}
-            </div>
+            <div style={{ color: 'var(--tx3)', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>No content available.</div>
           )}
         </div>
       </div>

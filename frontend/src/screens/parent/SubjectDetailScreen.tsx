@@ -5,11 +5,10 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { mockSubjectDetails } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch, useTranslatedText, apiFetch } from '@/lib/translate';
-import { parent as parentApi } from '@/lib/api';
+import { translateBatch, useTranslatedText } from '@/lib/translate';
+import { parent as parentApi, ai as aiApi } from '@/lib/api';
 import type { SubjectDetailResponse, ThreadPost } from '@/types/api';
 
 // ── Post board ────────────────────────────────────────────────
@@ -158,85 +157,59 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 export function SubjectDetailScreen() {
   const navigate = useNavigate();
   const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
-  const { language, classPosts, markPostRead } = useApp();
+  const { language } = useApp();
   const txBack = useTranslatedText('← Back', language);
   const [showAvg, setShowAvg] = useState(false);
   const [period, setPeriod] = useState<'term' | 'year'>('term');
 
   const subjectUuid = subjectId ?? 'sub-math';
 
-  // Initialize with mock data (offline fallback); replaced by API data when available
-  const [detail, setDetail] = useState<SubjectDetailResponse>(
-    mockSubjectDetails[subjectUuid] ?? mockSubjectDetails['sub-math']
-  );
-
-  // Mark class posts for this subject as read when entering the page
-  useEffect(() => {
-    classPosts
-      .filter(p => p.subject_name === detail.subject.name || p.target?.includes(subjectUuid))
-      .forEach(p => markPostRead(p.uuid));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subjectUuid]);
-
   // Fetch real subject detail from API
+  const [detail, setDetail] = useState<SubjectDetailResponse | null>(null);
   useEffect(() => {
     if (!sid) return;
     parentApi.getSubjectDetail(sid, subjectUuid)
       .then(res => setDetail(res.data))
-      .catch(() => { /* keep mock fallback */ });
+      .catch(() => {});
   }, [sid, subjectUuid]);
 
-  const subject = detail.subject;
-  const subjectColor = subject.color ?? 'var(--a1)';
-
   // ── Translated content state ──────────────────────────────────
-  const [txPosts, setTxPosts] = useState(detail.posts);
-  const [txSubjectName, setTxSubjectName] = useState(subject.name);
-  const [txTimeline, setTxTimeline] = useState(detail.timeline);
+  const [txPosts, setTxPosts] = useState<SubjectDetailResponse['posts']>([]);
+  const [txSubjectName, setTxSubjectName] = useState('');
+  const [txPathway, setTxPathway] = useState<SubjectDetailResponse['learning_pathway']>([]);
 
   // ── Live AI Insight ───────────────────────────────────────────
-  interface LiveInsight { summary: string; suggestions: string[] }
-  const [liveInsight, setLiveInsight] = useState<LiveInsight | null>(null);
+  const [liveInsight, setLiveInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
   useEffect(() => {
+    if (!detail || !sid) { setInsightLoading(false); return; }
     setLiveInsight(null);
     setInsightLoading(true);
-    apiFetch('/api/ai/insight', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject_name: detail.subject.name,
-        current_score: detail.overview.current_score,
-        term_avg: detail.overview.term_avg,
-        student_uuid: sid,
-        ui_language: language,
-      }),
+    aiApi.createConversation({
+      context_type: 'subject',
+      student_uuid: sid,
+      subject_uuid: subjectUuid,
     })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(data => {
-        const d = data.data;
-        if (d && typeof d.summary === 'string') {
-          setLiveInsight({ summary: d.summary, suggestions: Array.isArray(d.suggestions) ? d.suggestions : [] });
-        }
-      })
+      .then(res => aiApi.sendMessage(res.data.uuid, {
+        content: `Please give a brief insight on this student's performance in ${detail.subject.name}. Current score: ${detail.overview.current_score}%, term average: ${detail.overview.term_avg}%. Include 2-3 actionable suggestions.`,
+      }))
+      .then(res => setLiveInsight(res.data.assistant_message.content_markdown))
       .catch(() => setLiveInsight(null))
       .finally(() => setInsightLoading(false));
-  }, [subjectUuid, language]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [subjectUuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!detail) return;
+    const subject = detail.subject;
     setTxPosts(detail.posts);
     setTxSubjectName(subject.name);
-    setTxTimeline(detail.timeline);
+    setTxPathway(detail.learning_pathway);
 
     if (language === 'en') return;
 
     const postTexts = detail.posts.flatMap(p => [p.title ?? '', p.content_markdown]);
-    const metaTexts = [subject.name, ...detail.timeline.map(n => n.title)];
+    const metaTexts = [subject.name, ...detail.learning_pathway.map(n => n.title)];
 
     translateBatch([...postTexts, ...metaTexts], language).then(results => {
       const postCount = postTexts.length;
@@ -251,26 +224,21 @@ export function SubjectDetailScreen() {
 
       let m = 0;
       setTxSubjectName(metaResults[m++] || subject.name);
-      setTxTimeline(
-        detail.timeline.map((n, i) => ({ ...n, title: metaResults[m + i] || n.title }))
+      setTxPathway(
+        detail.learning_pathway.map((n, i) => ({ ...n, title: metaResults[m + i] || n.title }))
       );
     });
   }, [language, detail]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!detail) return (
+    <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>Loading…</div>
+  );
+
+  const subject = detail.subject;
+  const subjectColor = subject.color ?? 'var(--a1)';
+
   return (
     <div>
-      <button
-        onClick={() => navigate(-1)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 13, color: 'var(--tx2)', fontWeight: 700,
-          fontFamily: 'var(--font-body)',
-        }}
-      >
-        {txBack}
-      </button>
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
@@ -284,7 +252,7 @@ export function SubjectDetailScreen() {
         </div>
         <div>
           <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{txSubjectName}</div>
-          <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teacher?.display_name}</div>
+          <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teachers?.[0]?.display_name}</div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <div className="badge-score" style={{ background: subjectColor, fontSize: 20, padding: '6px 16px' }}>
@@ -367,7 +335,7 @@ export function SubjectDetailScreen() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Learning Pathway</div>
           <div className="timeline">
-            {txTimeline.map(node => (
+            {txPathway.map(node => (
               <div key={node.uuid} className="timeline-node">
                 <div className={`timeline-dot ${node.status}`} />
                 <div>
@@ -395,19 +363,9 @@ export function SubjectDetailScreen() {
             {insightLoading ? (
               <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>Generating insight…</div>
             ) : liveInsight ? (
-              <>
-                <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 10 }}>
-                  {liveInsight.summary}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {liveInsight.suggestions.map((s: string, i: number) => (
-                    <div key={i} style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 6 }}>
-                      <span style={{ color: subjectColor }}>→</span>
-                      {s}
-                    </div>
-                  ))}
-                </div>
-              </>
+              <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                {liveInsight}
+              </div>
             ) : (
               <div style={{ fontSize: 12, color: 'var(--tx3)', opacity: 0.6 }}>Unable to load insight.</div>
             )}

@@ -5,8 +5,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { mockDiscussionTeachers, SUBJECT_COLORS } from '@/lib/mock-data';
-import type { TeacherSummary, SubjectSummary, ThreadPost } from '@/types/api';
+import { SUBJECT_COLORS } from '@/lib/constants';
+import type { ThreadPost } from '@/types/api';
 import { useApp } from '@/contexts/AppContext';
 import { translateText, useTranslatedText } from '@/lib/translate';
 import { parent as parentApi, posts as postsApi } from '@/lib/api';
@@ -71,12 +71,13 @@ export function ConversationScreen() {
   const { sid, threadUuid } = useParams<{ sid: string; threadUuid: string }>();
   const { language, markThreadRead } = useApp();
 
-  // Try mock lookup first (offline); fall back to navigation state passed from MessagesScreen
-  const mockThread = mockDiscussionTeachers.find(t => t.thread_uuid === threadUuid);
-  const navState = location.state as { teacher?: TeacherSummary; subject?: SubjectSummary } | null;
-  const teacher = mockThread?.teacher ?? navState?.teacher;
-  const subject = mockThread?.subject ?? navState?.subject;
-  const subjectColor = subject?.color ?? SUBJECT_COLORS.math;
+  // Use navigation state passed from MessagesScreen
+  const navState = location.state as { teacher?: { uuid: string; display_name: string }; subjectCode?: string; subjectName?: string; subjectUuid?: string } | null;
+  const teacher = navState?.teacher;
+  const subjectCode = navState?.subjectCode;
+  const subjectName = navState?.subjectName ?? '';
+  const subjectUuid = navState?.subjectUuid;
+  const subjectColor = SUBJECT_COLORS[subjectCode ?? ''] ?? 'var(--a1)';
 
   const [messages, setMessages] = useState<DisplayMsg[]>([]);
   const [draft, setDraft] = useState('');
@@ -122,7 +123,7 @@ export function ConversationScreen() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (!teacher || !subject) {
+  if (!teacher) {
     return <div style={{ padding: 32, color: 'var(--tx3)' }}>Conversation not found.</div>;
   }
 
@@ -199,22 +200,21 @@ export function ConversationScreen() {
           {initials(teacher.display_name)}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{teacher.display_name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span
-              className="subject-chip"
-              style={{ background: subjectColor + '18', color: subjectColor, fontSize: 11 }}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{teacher.display_name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <span
+                  className="subject-chip"
+                  style={{ background: subjectColor + '18', color: subjectColor, fontSize: 11 }}
             >
-              {subject.name}
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--tx3)' }}>{teacher.email}</span>
-          </div>
-        </div>
+              {subjectName}
+              </span>
+              </div>
+            </div>
 
         {/* View Grades button */}
         <button
-          onClick={() => navigate(`/parent/students/${sid}/subjects/${subject.uuid}`)}
+          onClick={() => navigate(`/parent/students/${sid}/subjects/${subjectUuid}`)}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '7px 14px', borderRadius: 8, border: `1px solid ${subjectColor}30`,

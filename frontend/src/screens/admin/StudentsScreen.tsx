@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminStudent } from '@/types/api';
 
-const EMPTY_FORM = { full_name: '', preferred_name: '', sid: '', class_name: '', grade_level: '' };
+const EMPTY_FORM = { full_name: '', preferred_name: '', sid: '' };
 
 export function AdminStudentsScreen() {
   const [students, setStudents] = useState<AdminStudent[]>([]);
@@ -37,8 +37,8 @@ export function AdminStudentsScreen() {
   const filtered = students.filter(s =>
     !search.trim() ||
     s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    s.sid.toLowerCase().includes(search.toLowerCase()) ||
-    s.class_name.toLowerCase().includes(search.toLowerCase())
+    (s.sid ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.class_name ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -62,8 +62,6 @@ export function AdminStudentsScreen() {
               { key: 'full_name',      label: 'Full Name *', placeholder: 'James O\'Brien' },
               { key: 'preferred_name', label: 'Preferred Name', placeholder: 'James' },
               { key: 'sid',            label: 'Student ID', placeholder: 'S2024099 (auto if blank)' },
-              { key: 'class_name',     label: 'Class', placeholder: '7A' },
-              { key: 'grade_level',    label: 'Grade Level', placeholder: 'Year 7' },
             ] as const).map(f => (
               <div key={f.key}>
                 <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{f.label}</label>
@@ -106,18 +104,8 @@ export function AdminStudentsScreen() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{s.full_name}</div>
-              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{s.sid} · {s.class_name} · {s.grade_level}</div>
-              {s.parents.length > 0 && (
-                <div style={{ fontSize: 11, color: 'var(--tx2)', marginTop: 2 }}>
-                  Parent: {s.parents.map(p => p.display_name).join(', ')}
-                </div>
-              )}
+              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{s.sid ?? '—'} · {s.class_name ?? '—'} · {s.grade_level ?? '—'}</div>
             </div>
-            {s.parents.length === 0 && (
-              <span className="badge" style={{ background: 'rgba(232,97,78,0.12)', color: 'var(--a1)', fontSize: 10, flexShrink: 0 }}>
-                No parent linked
-              </span>
-            )}
           </div>
         ))}
         {filtered.length === 0 && (
