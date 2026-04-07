@@ -14,10 +14,20 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://kscii.tech:8000',
         changeOrigin: true,
         secure: false,
         cookieDomainRewrite: 'localhost',
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            const sc = proxyRes.headers['set-cookie'];
+            if (sc) {
+              proxyRes.headers['set-cookie'] = sc.map((c) =>
+                c.replace(/;\s*Secure/gi, '')
+              );
+            }
+          });
+        },
       },
     },
   },
