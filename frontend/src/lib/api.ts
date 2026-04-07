@@ -1,56 +1,81 @@
 // ============================================================
 // Academy Linker — API Client
+// Aligned with API Design Document v1
 // All requests use credentials:'include' (HttpOnly JWT cookies)
 // Auto-refreshes access token on 401 access_token_expired
 // ============================================================
 
 import type {
+  ApiResponse,
+  ApiListResponse,
   UserSummary,
+  UserSettings,
+  Session,
   StudentSummary,
-  DashboardResponse,
   SubjectSummary,
+  DashboardResponse,
   SubjectDetailResponse,
   Report,
   ReportDetail,
   Announcement,
   AnnouncementDetail,
   DiscussionTeacherItem,
+  DiscussionParentItem,
+  ParentDiscussionThreadResponse,
+  TeacherDiscussionThreadResponse,
   ThreadPost,
-  ApiResponse,
-  ApiListResponse,
+  TeacherStudentListItem,
+  TeacherStudentDashboard,
+  TeacherClass,
+  TeacherClassStudentItem,
+  ClassGradeStats,
+  TeacherOverview,
+  ExamScore,
+  CreateExamScoreRequest,
+  PeriodMetric,
+  CreatePeriodMetricRequest,
+  CreateReportRequest,
+  CreateAnnouncementRequest,
+  GenerateAiReportRequest,
+  PostTag,
+  AdminOverview,
+  AdminUser,
+  CreateUserRequest,
+  AdminStudent,
+  CreateStudentRequest,
+  AdminClass,
+  CreateClassRequest,
+  ParentStudentBinding,
+  CreateBindingRequest,
+  TeachingAssignment,
+  CreateTeachingAssignmentRequest,
+  SystemTag,
   LoginRequest,
   CreatePostRequest,
   UpdatePostRequest,
-  TeacherDashboardResponse,
-  TeacherStudentItem,
-  AdminOverview,
-  AdminTeacher,
-  AdminClass,
-  AdminStudent,
-  AdminParent,
-  CreateTeacherRequest,
-  CreateClassRequest,
-  CreateStudentRequest,
-  CreateParentRequest,
+  TranslationResolveRequest,
+  TranslationResolveResponse,
+  AiConversation,
+  AiConversationDetail,
+  CreateAiConversationRequest,
+  SendAiMessageRequest,
+  SendAiMessageResponse,
   LeaveRequest,
   CreateLeaveRequest,
+  IncidentReport,
   CreateIncidentReport,
-  ThreadDetailResponse,
-  TeacherDiscussionParentItem,
-  PaginationMeta,
 } from '@/types/api';
 
 // ── Config ───────────────────────────────────────────────────
 
 const API_BASE = '/api';
 
-
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
 // ── Core fetch wrapper ───────────────────────────────────────
 
-async function apiFetch<T>(
+export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
   retry = true
@@ -65,10 +90,11 @@ async function apiFetch<T>(
   });
 
   if (res.ok) {
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
   }
 
-  // Attempt token refresh on 401
+  // Attempt token refresh on 401 access_token_expired
   if (res.status === 401 && retry) {
     let errorBody: { error?: { code?: string } } = {};
     try {
@@ -81,7 +107,6 @@ async function apiFetch<T>(
         isRefreshing = true;
         refreshPromise = apiFetch<void>('/auth/refresh', { method: 'POST' }, false)
           .catch(() => {
-            // Refresh failed — redirect to login
             window.location.replace('/login');
           })
           .finally(() => {
@@ -90,12 +115,10 @@ async function apiFetch<T>(
           });
       }
       await refreshPromise;
-      // Retry original request once
       return apiFetch<T>(path, options, false);
     }
   }
 
-  // Parse error body
   let errorBody;
   try {
     errorBody = await res.json();
@@ -115,20 +138,56 @@ export const auth = {
     }),
 
   refresh: () =>
-    apiFetch<void>('/auth/refresh', { method: 'POST' }),
+    apiFetch<ApiResponse<{ success: boolean }>>('/auth/refresh', { method: 'POST' }),
 
   logout: () =>
-    apiFetch<void>('/auth/logout', { method: 'POST' }),
+    apiFetch<ApiResponse<{ success: boolean }>>('/auth/logout', { method: 'POST' }),
+
+  logoutAll: () =>
+    apiFetch<ApiResponse<{ success: boolean }>>('/auth/logout_all', { method: 'POST' }),
 
   getMe: () =>
     apiFetch<ApiResponse<{ user: UserSummary }>>('/me'),
+
+  updateMe: (body: { display_name?: string | null; phone_number?: string | null; avatar_url?: string | null }) =>
+    apiFetch<ApiResponse<{ user: UserSummary }>>('/me', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    apiFetch<ApiResponse<{ success: boolean }>>('/me/change_password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getSessions: () =>
+    apiFetch<ApiResponse<Session[]>>('/me/sessions'),
+
+  deleteSession: (sessionUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/me/sessions/${sessionUuid}`, {
+      method: 'DELETE',
+    }),
+};
+
+// ── Settings ─────────────────────────────────────────────────
+
+export const settingsApi = {
+  get: () =>
+    apiFetch<ApiResponse<UserSettings>>('/settings'),
+
+  update: (body: Partial<UserSettings>) =>
+    apiFetch<ApiResponse<UserSettings>>('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 };
 
 // ── Parent ───────────────────────────────────────────────────
 
 export const parent = {
-  getStudents: () =>
-    apiFetch<ApiResponse<StudentSummary[]>>('/parents/me/students'),
+  getStudents: (page = 1) =>
+    apiFetch<ApiListResponse<StudentSummary>>(`/parents/me/students?page=${page}`),
 
   getDashboard: (studentUuid: string, range = '30d') =>
     apiFetch<ApiResponse<DashboardResponse>>(
@@ -140,15 +199,20 @@ export const parent = {
       `/parents/me/students/${studentUuid}/subjects`
     ),
 
-  getSubjectDetail: (studentUuid: string, subjectUuid: string) =>
+  getSubjectDetail: (studentUuid: string, subjectUuid: string, range = '30d') =>
     apiFetch<ApiResponse<SubjectDetailResponse>>(
-      `/parents/me/students/${studentUuid}/subjects/${subjectUuid}`
+      `/parents/me/students/${studentUuid}/subjects/${subjectUuid}?range=${range}`
     ),
 
-  getReports: (studentUuid: string, page = 1) =>
-    apiFetch<ApiListResponse<Report>>(
-      `/parents/me/students/${studentUuid}/reports?page=${page}`
-    ),
+  getReports: (studentUuid: string, params: { page?: number; status?: string; read_state?: string; sort?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.status) q.set('status', params.status);
+    if (params.read_state) q.set('read_state', params.read_state);
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiListResponse<Report>>(
+      `/parents/me/students/${studentUuid}/reports?${q.toString()}`
+    );
+  },
 
   getReport: (studentUuid: string, reportUuid: string) =>
     apiFetch<ApiResponse<ReportDetail>>(
@@ -156,18 +220,29 @@ export const parent = {
     ),
 
   markReportRead: (reportUuid: string) =>
-    apiFetch<void>(`/reports/${reportUuid}/read`, { method: 'POST' }),
+    apiFetch<ApiResponse<{ success: boolean }>>(`/reports/${reportUuid}/read`, {
+      method: 'POST',
+    }),
 
-  generateReport: (reportUuid: string, language: string) =>
-    apiFetch<ApiResponse<{ content_markdown: string; cached: boolean }>>(
-      `/reports/${reportUuid}/generate`,
-      { method: 'POST', body: JSON.stringify({ language }) },
-    ),
+  archiveReport: (reportUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/reports/${reportUuid}/archive`, {
+      method: 'POST',
+    }),
 
-  getAnnouncements: (studentUuid: string, page = 1) =>
-    apiFetch<ApiListResponse<Announcement>>(
-      `/parents/me/students/${studentUuid}/announcements?page=${page}`
-    ),
+  unarchiveReport: (reportUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/reports/${reportUuid}/unarchive`, {
+      method: 'POST',
+    }),
+
+  getAnnouncements: (studentUuid: string, params: { page?: number; category?: string; active_only?: boolean; sort?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.category) q.set('category', params.category);
+    if (params.active_only !== undefined) q.set('active_only', String(params.active_only));
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiListResponse<Announcement>>(
+      `/parents/me/students/${studentUuid}/announcements?${q.toString()}`
+    );
+  },
 
   getAnnouncement: (announcementUuid: string) =>
     apiFetch<ApiResponse<AnnouncementDetail>>(
@@ -175,30 +250,59 @@ export const parent = {
     ),
 
   markAnnouncementRead: (announcementUuid: string) =>
-    apiFetch<void>(`/announcements/${announcementUuid}/read`, { method: 'POST' }),
-
-  markThreadRead: (threadUuid: string) =>
-    apiFetch<void>(`/threads/${threadUuid}/read`, { method: 'POST' }),
+    apiFetch<ApiResponse<{ success: boolean }>>(`/announcements/${announcementUuid}/read`, {
+      method: 'POST',
+    }),
 
   getDiscussionTeachers: (studentUuid: string) =>
     apiFetch<ApiResponse<DiscussionTeacherItem[]>>(
       `/parents/me/students/${studentUuid}/discussions/teachers`
     ),
 
-  getDiscussionThread: (studentUuid: string, teacherUuid: string) =>
-    apiFetch<{ data: ThreadDetailResponse; meta: PaginationMeta }>(
-      `/parents/me/students/${studentUuid}/discussions/teachers/${teacherUuid}`
-    ),
+  getDiscussionThread: (studentUuid: string, teacherUuid: string, params: { page?: number; sort?: string; tag?: string; keyword?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.sort) q.set('sort', params.sort);
+    if (params.tag) q.set('tag', params.tag);
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<ParentDiscussionThreadResponse>>(
+      `/parents/me/students/${studentUuid}/discussions/teachers/${teacherUuid}?${q.toString()}`
+    );
+  },
 
-  getLeaveRequests: (studentUuid: string) =>
-    apiFetch<ApiListResponse<LeaveRequest>>(
-      `/parents/me/students/${studentUuid}/leave`
-    ),
+  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiListResponse<ExamScore>>(
+      `/parents/me/students/${studentUuid}/exam-scores?${q.toString()}`
+    );
+  },
+
+  getPeriodMetrics: (studentUuid: string, params: { subject_uuid?: string; term?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.term) q.set('term', params.term);
+    return apiFetch<ApiResponse<PeriodMetric[]>>(
+      `/parents/me/students/${studentUuid}/period-metrics?${q.toString()}`
+    );
+  },
+
+  getLeaveRequests: (studentUuid: string, params: { page?: number; status?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.status) q.set('status', params.status);
+    return apiFetch<ApiListResponse<LeaveRequest>>(
+      `/parents/me/students/${studentUuid}/leave?${q.toString()}`
+    );
+  },
 
   createLeaveRequest: (studentUuid: string, body: CreateLeaveRequest) =>
     apiFetch<ApiResponse<LeaveRequest>>(
       `/parents/me/students/${studentUuid}/leave`,
       { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  getIncidentReports: (studentUuid: string, page = 1) =>
+    apiFetch<ApiListResponse<IncidentReport>>(
+      `/parents/me/students/${studentUuid}/incidents?page=${page}`
     ),
 
   createIncidentReport: (studentUuid: string, body: CreateIncidentReport) =>
@@ -211,95 +315,288 @@ export const parent = {
 // ── Teacher ──────────────────────────────────────────────────
 
 export const teacher = {
-  getStudents: (page = 1, search = '') =>
-    apiFetch<ApiListResponse<TeacherStudentItem>>(
-      `/teachers/me/students?page=${page}&search=${encodeURIComponent(search)}`
-    ),
+  getOverview: () =>
+    apiFetch<ApiResponse<TeacherOverview>>('/teachers/me/overview'),
 
-  getDashboard: (studentUuid: string) =>
-    apiFetch<ApiResponse<TeacherDashboardResponse>>(
-      `/teachers/me/students/${studentUuid}/dashboard`
-    ),
+  getStudents: (params: { page?: number; class_uuid?: string; subject_uuid?: string; keyword?: string; sort?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.class_uuid) q.set('class_uuid', params.class_uuid);
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiListResponse<TeacherStudentListItem>>(
+      `/teachers/me/students?${q.toString()}`
+    );
+  },
 
-  markThreadRead: (threadUuid: string) =>
-    apiFetch<void>(`/threads/${threadUuid}/read`, { method: 'POST' }),
+  getStudentDashboard: (studentUuid: string, range = '30d') =>
+    apiFetch<ApiResponse<TeacherStudentDashboard>>(
+      `/teachers/me/students/${studentUuid}/dashboard?range=${range}`
+    ),
 
   getDiscussionParents: (studentUuid: string) =>
-    apiFetch<ApiResponse<DiscussionTeacherItem[]>>(
+    apiFetch<ApiResponse<DiscussionParentItem[]>>(
       `/teachers/me/students/${studentUuid}/discussions/parents`
     ),
 
-  getDiscussionParentsList: (studentUuid: string) =>
-    apiFetch<ApiResponse<TeacherDiscussionParentItem[]>>(
-      `/teachers/me/students/${studentUuid}/discussions/parents`
+  getDiscussionThread: (studentUuid: string, parentUuid: string, params: { page?: number; sort?: string; tag?: string; keyword?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.sort) q.set('sort', params.sort);
+    if (params.tag) q.set('tag', params.tag);
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<TeacherDiscussionThreadResponse>>(
+      `/teachers/me/students/${studentUuid}/discussions/parents/${parentUuid}?${q.toString()}`
+    );
+  },
+
+  getClasses: () =>
+    apiFetch<ApiResponse<TeacherClass[]>>('/teachers/me/classes'),
+
+  getClassStudents: (classUuid: string, params: { page?: number; subject_uuid?: string; keyword?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiListResponse<TeacherClassStudentItem>>(
+      `/teachers/me/classes/${classUuid}/students?${q.toString()}`
+    );
+  },
+
+  getClassGradeStats: (classUuid: string, params: { subject_uuid?: string; exam_date_from?: string; exam_date_to?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.exam_date_from) q.set('exam_date_from', params.exam_date_from);
+    if (params.exam_date_to) q.set('exam_date_to', params.exam_date_to);
+    return apiFetch<ApiResponse<ClassGradeStats>>(
+      `/teachers/me/classes/${classUuid}/grade-stats?${q.toString()}`
+    );
+  },
+
+  getExamScores: (studentUuid: string, params: { subject_uuid?: string; page?: number } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiListResponse<ExamScore>>(
+      `/teachers/me/students/${studentUuid}/exam-scores?${q.toString()}`
+    );
+  },
+
+  createExamScore: (studentUuid: string, body: CreateExamScoreRequest) =>
+    apiFetch<ApiResponse<ExamScore>>(
+      `/teachers/me/students/${studentUuid}/exam-scores`,
+      { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  getDiscussionThread: (studentUuid: string, parentUuid: string) =>
-    apiFetch<{ data: ThreadDetailResponse; meta: PaginationMeta }>(
-      `/teachers/me/students/${studentUuid}/discussions/parents/${parentUuid}`
+  updateExamScore: (studentUuid: string, scoreUuid: string, body: Partial<Pick<CreateExamScoreRequest, 'exam_name' | 'exam_date' | 'score' | 'full_score' | 'note'>>) =>
+    apiFetch<ApiResponse<ExamScore>>(
+      `/teachers/me/students/${studentUuid}/exam-scores/${scoreUuid}`,
+      { method: 'PATCH', body: JSON.stringify(body) }
+    ),
+
+  deleteExamScore: (studentUuid: string, scoreUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(
+      `/teachers/me/students/${studentUuid}/exam-scores/${scoreUuid}`,
+      { method: 'DELETE' }
+    ),
+
+  getPeriodMetrics: (studentUuid: string, params: { subject_uuid?: string; term?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.term) q.set('term', params.term);
+    return apiFetch<ApiResponse<PeriodMetric[]>>(
+      `/teachers/me/students/${studentUuid}/period-metrics?${q.toString()}`
+    );
+  },
+
+  createPeriodMetric: (studentUuid: string, body: CreatePeriodMetricRequest) =>
+    apiFetch<ApiResponse<PeriodMetric>>(
+      `/teachers/me/students/${studentUuid}/period-metrics`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  getTags: (scope: 'all' | 'system' | 'teacher_private' = 'all') =>
+    apiFetch<ApiResponse<PostTag[]>>(`/teachers/me/tags?scope=${scope}`),
+
+  createTag: (name: string) =>
+    apiFetch<ApiResponse<PostTag>>('/teachers/me/tags', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  updateTag: (tagUuid: string, name: string) =>
+    apiFetch<ApiResponse<PostTag>>(`/teachers/me/tags/${tagUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteTag: (tagUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/teachers/me/tags/${tagUuid}`, {
+      method: 'DELETE',
+    }),
+
+  createReport: (studentUuid: string, body: CreateReportRequest) =>
+    apiFetch<ApiResponse<ReportDetail>>(
+      `/teachers/me/students/${studentUuid}/reports`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  updateReport: (reportUuid: string, body: Partial<CreateReportRequest>) =>
+    apiFetch<ApiResponse<ReportDetail>>(`/reports/${reportUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  createAnnouncement: (studentUuid: string, body: CreateAnnouncementRequest) =>
+    apiFetch<ApiResponse<AnnouncementDetail>>(
+      `/teachers/me/students/${studentUuid}/announcements`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  updateAnnouncement: (announcementUuid: string, body: Partial<CreateAnnouncementRequest>) =>
+    apiFetch<ApiResponse<AnnouncementDetail>>(`/announcements/${announcementUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  generateAiReport: (studentUuid: string, body: GenerateAiReportRequest) =>
+    apiFetch<ApiResponse<ReportDetail>>(
+      `/teachers/me/students/${studentUuid}/ai-reports`,
+      { method: 'POST', body: JSON.stringify(body) }
     ),
 };
 
-// ── Admin ────────────────────────────────────────────────────
+// ── Admin ─────────────────────────────────────────────────────
 
 export const admin = {
   getOverview: () =>
     apiFetch<ApiResponse<AdminOverview>>('/admin/overview'),
 
-  getTeachers: () =>
-    apiFetch<ApiResponse<AdminTeacher[]>>('/admin/teachers'),
+  getUsers: (params: { page?: number; role?: string; keyword?: string; sort?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.role) q.set('role', params.role);
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiListResponse<AdminUser>>(`/admin/users?${q.toString()}`);
+  },
 
-  createTeacher: (body: CreateTeacherRequest) =>
-    apiFetch<ApiResponse<AdminTeacher>>('/admin/teachers', {
-      method: 'POST', body: JSON.stringify(body),
+  createUser: (body: CreateUserRequest) =>
+    apiFetch<ApiResponse<AdminUser>>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 
-  updateTeacher: (uuid: string, body: Partial<CreateTeacherRequest>) =>
-    apiFetch<ApiResponse<AdminTeacher>>(`/admin/teachers/${uuid}`, {
-      method: 'PATCH', body: JSON.stringify(body),
+  updateUser: (userUuid: string, body: { display_name?: string | null; phone_number?: string | null; avatar_url?: string | null; is_active?: boolean | null }) =>
+    apiFetch<ApiResponse<AdminUser>>(`/admin/users/${userUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
     }),
 
-  getClasses: () =>
-    apiFetch<ApiResponse<AdminClass[]>>('/admin/classes'),
-
-  createClass: (body: CreateClassRequest) =>
-    apiFetch<ApiResponse<AdminClass>>('/admin/classes', {
-      method: 'POST', body: JSON.stringify(body),
-    }),
-
-  updateClass: (uuid: string, body: Record<string, unknown>) =>
-    apiFetch<ApiResponse<AdminClass>>(`/admin/classes/${uuid}`, {
-      method: 'PATCH', body: JSON.stringify(body),
-    }),
-
-  getStudents: () =>
-    apiFetch<ApiResponse<AdminStudent[]>>('/admin/students'),
+  getStudents: (params: { page?: number; keyword?: string; class_uuid?: string; is_active?: boolean; sort?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.class_uuid) q.set('class_uuid', params.class_uuid);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    if (params.sort) q.set('sort', params.sort);
+    return apiFetch<ApiListResponse<AdminStudent>>(`/admin/students?${q.toString()}`);
+  },
 
   createStudent: (body: CreateStudentRequest) =>
     apiFetch<ApiResponse<AdminStudent>>('/admin/students', {
-      method: 'POST', body: JSON.stringify(body),
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 
-  getParents: () =>
-    apiFetch<ApiResponse<AdminParent[]>>('/admin/parents'),
-
-  createParent: (body: CreateParentRequest) =>
-    apiFetch<ApiResponse<AdminParent>>('/admin/parents', {
-      method: 'POST', body: JSON.stringify(body),
+  updateStudent: (studentUuid: string, body: Partial<CreateStudentRequest> & { is_active?: boolean | null }) =>
+    apiFetch<ApiResponse<AdminStudent>>(`/admin/students/${studentUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
     }),
 
-  bindStudent: (parent_uuid: string, student_uuid: string) =>
-    apiFetch<ApiResponse<{ parent_uuid: string; student_uuid: string }>>('/admin/bindings', {
-      method: 'POST', body: JSON.stringify({ parent_uuid, student_uuid }),
+  transferClass: (studentUuid: string, newClassUuid: string) =>
+    apiFetch<ApiResponse<{ student_uuid: string; new_class_uuid: string; deactivated_assignment_count: number; created_assignment_count: number }>>(
+      `/admin/students/${studentUuid}/transfer-class`,
+      { method: 'POST', body: JSON.stringify({ new_class_uuid: newClassUuid }) }
+    ),
+
+  getClasses: (params: { page?: number; grade_level?: string; is_active?: boolean } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.grade_level) q.set('grade_level', params.grade_level);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    return apiFetch<ApiListResponse<AdminClass>>(`/admin/classes?${q.toString()}`);
+  },
+
+  createClass: (body: CreateClassRequest) =>
+    apiFetch<ApiResponse<AdminClass>>('/admin/classes', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 
-  unbindStudent: (parent_uuid: string, student_uuid: string) =>
-    apiFetch<ApiResponse<{ removed: boolean }>>('/admin/bindings', {
-      method: 'DELETE', body: JSON.stringify({ parent_uuid, student_uuid }),
+  updateClass: (classUuid: string, body: Partial<CreateClassRequest> & { is_active?: boolean | null }) =>
+    apiFetch<ApiResponse<AdminClass>>(`/admin/classes/${classUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  getBindings: (params: { parent_uuid?: string; student_uuid?: string; is_active?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.parent_uuid) q.set('parent_uuid', params.parent_uuid);
+    if (params.student_uuid) q.set('student_uuid', params.student_uuid);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    return apiFetch<ApiListResponse<ParentStudentBinding>>(
+      `/admin/bindings/parent_student?${q.toString()}`
+    );
+  },
+
+  createBinding: (body: CreateBindingRequest) =>
+    apiFetch<ApiResponse<ParentStudentBinding>>('/admin/bindings/parent_student', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateBinding: (bindingUuid: string, body: { relationship_label?: string | null; is_primary?: boolean | null; is_active?: boolean | null }) =>
+    apiFetch<ApiResponse<ParentStudentBinding>>(`/admin/bindings/parent_student/${bindingUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  getTeachingAssignments: (params: { teacher_uuid?: string; student_uuid?: string; subject_uuid?: string; is_active?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.teacher_uuid) q.set('teacher_uuid', params.teacher_uuid);
+    if (params.student_uuid) q.set('student_uuid', params.student_uuid);
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    return apiFetch<ApiListResponse<TeachingAssignment>>(
+      `/admin/assignments/teaching?${q.toString()}`
+    );
+  },
+
+  createTeachingAssignment: (body: CreateTeachingAssignmentRequest) =>
+    apiFetch<ApiResponse<TeachingAssignment>>('/admin/assignments/teaching', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateTeachingAssignment: (assignmentUuid: string, body: { is_active?: boolean | null }) =>
+    apiFetch<ApiResponse<TeachingAssignment>>(`/admin/assignments/teaching/${assignmentUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  getSystemTags: () =>
+    apiFetch<ApiResponse<SystemTag[]>>('/admin/tags/system'),
+
+  createSystemTag: (body: { name: string; is_selectable_by_parent?: boolean; is_selectable_by_teacher?: boolean; affects_business_logic?: boolean }) =>
+    apiFetch<ApiResponse<SystemTag>>('/admin/tags/system', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateSystemTag: (tagUuid: string, body: { name?: string | null; is_selectable_by_parent?: boolean | null; is_selectable_by_teacher?: boolean | null; affects_business_logic?: boolean | null }) =>
+    apiFetch<ApiResponse<SystemTag>>(`/admin/tags/system/${tagUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
     }),
 };
 
-// ── Posts ────────────────────────────────────────────────────
+// ── Posts ─────────────────────────────────────────────────────
 
 export const posts = {
   create: (threadUuid: string, body: CreatePostRequest) =>
@@ -315,5 +612,60 @@ export const posts = {
     }),
 
   delete: (postUuid: string) =>
-    apiFetch<void>(`/posts/${postUuid}`, { method: 'DELETE' }),
+    apiFetch<ApiResponse<{ success: boolean }>>(`/posts/${postUuid}`, {
+      method: 'DELETE',
+    }),
+};
+
+// ── Translations ──────────────────────────────────────────────
+
+export const translations = {
+  resolve: (body: TranslationResolveRequest) =>
+    apiFetch<ApiResponse<TranslationResolveResponse>>('/translations/resolve', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+};
+
+// ── AI Conversations ──────────────────────────────────────────
+
+export const ai = {
+  listConversations: (params: { page?: number; archived?: boolean; context_type?: string; student_uuid?: string; subject_uuid?: string } = {}) => {
+    const q = new URLSearchParams({ page: String(params.page ?? 1) });
+    if (params.archived !== undefined) q.set('archived', String(params.archived));
+    if (params.context_type) q.set('context_type', params.context_type);
+    if (params.student_uuid) q.set('student_uuid', params.student_uuid);
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiListResponse<AiConversation>>(`/ai/conversations?${q.toString()}`);
+  },
+
+  createConversation: (body: CreateAiConversationRequest) =>
+    apiFetch<ApiResponse<AiConversation>>('/ai/conversations', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getConversation: (conversationUuid: string) =>
+    apiFetch<ApiResponse<AiConversationDetail>>(`/ai/conversations/${conversationUuid}`),
+
+  sendMessage: (conversationUuid: string, body: SendAiMessageRequest) =>
+    apiFetch<ApiResponse<SendAiMessageResponse>>(
+      `/ai/conversations/${conversationUuid}/messages`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  archiveConversation: (conversationUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/ai/conversations/${conversationUuid}/archive`, {
+      method: 'POST',
+    }),
+
+  unarchiveConversation: (conversationUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/ai/conversations/${conversationUuid}/unarchive`, {
+      method: 'POST',
+    }),
+
+  deleteConversation: (conversationUuid: string) =>
+    apiFetch<ApiResponse<{ success: boolean }>>(`/ai/conversations/${conversationUuid}`, {
+      method: 'DELETE',
+    }),
 };
