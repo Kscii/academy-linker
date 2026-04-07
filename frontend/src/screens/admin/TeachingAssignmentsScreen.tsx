@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { AdminStudent, AdminUser, PaginationMeta, TeachingAssignment } from '@/types/api';
 
@@ -26,6 +27,7 @@ const EMPTY_FORM: AssignmentForm = {
 };
 
 export function AdminTeachingAssignmentsScreen() {
+  const { t } = useTranslation('portal');
   const [assignments, setAssignments] = useState<TeachingAssignment[]>([]);
   const [teachers, setTeachers] = useState<AdminUser[]>([]);
   const [students, setStudents] = useState<AdminStudent[]>([]);
@@ -64,7 +66,7 @@ export function AdminTeachingAssignmentsScreen() {
 
   const handleCreate = async () => {
     if (!form.teacher_uuid || !form.student_uuid || !form.subject_uuid.trim()) {
-      setError('Teacher, student and subject UUID are required.');
+      setError(t('teacherStudentSubjectRequired'));
       return;
     }
     setSaving(true);
@@ -79,7 +81,7 @@ export function AdminTeachingAssignmentsScreen() {
       await loadAssignments();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to create teaching assignment.');
+      setError(msg ?? t('failedCreateTeachingAssignment'));
     } finally {
       setSaving(false);
     }
@@ -93,67 +95,67 @@ export function AdminTeachingAssignmentsScreen() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Teaching Assignments</div>
-        <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} assignment{meta.total !== 1 ? 's' : ''}</div>
+        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('teachingAssignmentsTitle')}</div>
+        <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('assignmentsCount', { count: meta.total })}</div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Teacher</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectTeacher')}</label>
             <select className="input-field" value={teacherUuid} onChange={e => setTeacherUuid(e.target.value)}>
-              <option value="">All teachers</option>
+              <option value="">{t('allTeachers')}</option>
               {teachers.map(teacher => <option key={teacher.uuid} value={teacher.uuid}>{teacher.display_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Student</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectStudent')}</label>
             <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">All students</option>
+              <option value="">{t('allStudents')}</option>
               {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Subject UUID</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('subjectUuid')}</label>
             <input className="input-field" value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Status</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('status')}</label>
             <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)}>
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('allTags')}</option>
+              <option value="active">{t('active')}</option>
+              <option value="inactive">{t('inactive')}</option>
             </select>
           </div>
           <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => { setPage(1); void loadAssignments(); }}>
-            Apply
+            {t('apply')}
           </button>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>New Assignment</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('newAssignment')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Teacher</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectTeacher')}</label>
             <select className="input-field" value={form.teacher_uuid} onChange={e => setForm(prev => ({ ...prev, teacher_uuid: e.target.value }))}>
-              <option value="">Select teacher</option>
+              <option value="">{t('selectTeacher')}</option>
               {teachers.map(teacher => <option key={teacher.uuid} value={teacher.uuid}>{teacher.display_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Student</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectStudent')}</label>
             <select className="input-field" value={form.student_uuid} onChange={e => setForm(prev => ({ ...prev, student_uuid: e.target.value }))}>
-              <option value="">Select student</option>
+              <option value="">{t('selectStudent')}</option>
               {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Subject UUID</label>
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('subjectUuid')}</label>
             <input className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))} />
           </div>
           <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleCreate()} disabled={saving}>
-            {saving ? 'Saving…' : 'Create'}
+            {saving ? t('common:loading') : t('create')}
           </button>
         </div>
         {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a1)' }}>{error}</div>}
@@ -169,13 +171,13 @@ export function AdminTeachingAssignmentsScreen() {
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
                   {teacher?.display_name ?? assignment.teacher_uuid} → {student?.full_name ?? assignment.student_uuid}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>Subject UUID: {assignment.subject_uuid}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('subjectUuid')}: {assignment.subject_uuid}</div>
               </div>
               <span className="badge" style={{ background: assignment.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: assignment.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
-                {assignment.is_active ? 'Active' : 'Inactive'}
+                {assignment.is_active ? t('active') : t('inactive')}
               </span>
               <button className="btn-secondary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => void toggleAssignment(assignment)}>
-                {assignment.is_active ? 'Deactivate' : 'Activate'}
+                {assignment.is_active ? t('deactivate') : t('activate')}
               </button>
             </div>
           );
@@ -184,10 +186,10 @@ export function AdminTeachingAssignmentsScreen() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-          Previous
+          {t('previous')}
         </button>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-          Next
+          {t('next')}
         </button>
       </div>
     </div>

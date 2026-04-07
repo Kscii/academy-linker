@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
 import type { SystemTag } from '@/types/api';
 
@@ -22,6 +23,7 @@ const EMPTY_FORM: TagForm = {
 };
 
 export function AdminSystemTagsScreen() {
+  const { t } = useTranslation('portal');
   const [tags, setTags] = useState<SystemTag[]>([]);
   const [form, setForm] = useState<TagForm>(EMPTY_FORM);
   const [editing, setEditing] = useState(false);
@@ -60,7 +62,7 @@ export function AdminSystemTagsScreen() {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      setError('Tag name is required.');
+      setError(t('tagNameRequired'));
       return;
     }
     setSaving(true);
@@ -85,7 +87,7 @@ export function AdminSystemTagsScreen() {
       await loadTags();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to save system tag.');
+      setError(msg ?? t('failedSaveSystemTag'));
     } finally {
       setSaving(false);
     }
@@ -95,42 +97,42 @@ export function AdminSystemTagsScreen() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
-          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>System Tags</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{tags.length} tag{tags.length !== 1 ? 's' : ''}</div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('systemTagsTitle')}</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('tagsCountSimple', { count: tags.length })}</div>
         </div>
         <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={openCreate}>
-          + New Tag
+          + {t('newTag')}
         </button>
       </div>
 
       {showForm && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{editing ? 'Edit Tag' : 'New Tag'}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{editing ? t('editTag') : t('newTag')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>Name</label>
+              <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('name')}</label>
               <input className="input-field" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} />
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--tx)' }}>
               <input type="checkbox" checked={form.is_selectable_by_parent} onChange={e => setForm(prev => ({ ...prev, is_selectable_by_parent: e.target.checked }))} />
-              Selectable by parent
+              {t('selectableByParent')}
             </label>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--tx)' }}>
               <input type="checkbox" checked={form.is_selectable_by_teacher} onChange={e => setForm(prev => ({ ...prev, is_selectable_by_teacher: e.target.checked }))} />
-              Selectable by teacher
+              {t('selectableByTeacher')}
             </label>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--tx)' }}>
               <input type="checkbox" checked={form.affects_business_logic} onChange={e => setForm(prev => ({ ...prev, affects_business_logic: e.target.checked }))} />
-              Affects business logic
+              {t('affectsBusinessLogic')}
             </label>
           </div>
           {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a1)' }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleSave()} disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('common:loading') : t('common:save')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => setShowForm(false)}>
-              Cancel
+              {t('common:cancel')}
             </button>
           </div>
         </div>
@@ -142,11 +144,11 @@ export function AdminSystemTagsScreen() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{tag.name}</div>
               <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                Parent: {tag.is_selectable_by_parent ? 'Yes' : 'No'} · Teacher: {tag.is_selectable_by_teacher ? 'Yes' : 'No'} · Business logic: {tag.affects_business_logic ? 'Yes' : 'No'}
+                {t('parentSelectable')}: {tag.is_selectable_by_parent ? t('yes') : t('no')} · {t('teacherSelectable')}: {tag.is_selectable_by_teacher ? t('yes') : t('no')} · {t('businessLogic')}: {tag.affects_business_logic ? t('yes') : t('no')}
               </div>
             </div>
             <button className="btn-secondary" style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }} onClick={() => openEdit(tag)}>
-              Edit
+              {t('common:edit')}
             </button>
           </div>
         ))}

@@ -3,9 +3,8 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import { useTranslation } from 'react-i18next';
 import { resourcesApi } from '@/lib/api';
-import { useTranslatedText } from '@/lib/translate';
 import type { PaginationMeta, ResourceCategory, ResourceDetail, ResourceListItem } from '@/types/api';
 
 const EMPTY_META: PaginationMeta = {
@@ -16,9 +15,7 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function ResourcesScreen() {
-  const { language } = useApp();
-  const txTitle = useTranslatedText('Resources', language);
-  const txSubtitle = useTranslatedText('Helpful materials and links for parents and students', language);
+  const { t } = useTranslation('portal');
   const [items, setItems] = useState<ResourceListItem[]>([]);
   const [categories, setCategories] = useState<ResourceCategory[]>([]);
   const [detail, setDetail] = useState<ResourceDetail | null>(null);
@@ -63,19 +60,19 @@ export function ResourcesScreen() {
     <div>
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 6 }}>
-          {txTitle}
+          {t('resourcesTitle')}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {txSubtitle}
+          {t('resourcesSubtitle')}
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
-            <input className="input-field" placeholder="Search resources" value={keyword} onChange={e => { setPage(1); setKeyword(e.target.value); }} />
+            <input className="input-field" placeholder={t('searchResources')} value={keyword} onChange={e => { setPage(1); setKeyword(e.target.value); }} />
             <select className="input-field" value={category} onChange={e => { setPage(1); setCategory(e.target.value); }}>
-              <option value="">All categories</option>
+              <option value="">{t('allCategories')}</option>
               {categories.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
             </select>
           </div>
@@ -90,7 +87,7 @@ export function ResourcesScreen() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{item.title}</div>
-                  {item.is_pinned && <span className="badge" style={{ fontSize: 10 }}>Pinned</span>}
+                  {item.is_pinned && <span className="badge" style={{ fontSize: 10 }}>{t('pinned')}</span>}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 6 }}>{item.category_label}</div>
                 {item.summary && <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}>{item.summary}</div>}
@@ -98,17 +95,17 @@ export function ResourcesScreen() {
             ))}
             {items.length === 0 && (
               <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '40px 0' }}>
-                No resources found.
+                {t('noResourcesFound')}
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-              Previous
+              {t('previous')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-              Next
+              {t('next')}
             </button>
           </div>
         </div>
@@ -123,7 +120,7 @@ export function ResourcesScreen() {
                 </div>
                 {detail.external_url && (
                   <a className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', textDecoration: 'none' }} href={detail.external_url} target="_blank" rel="noreferrer">
-                    Open Link
+                    {t('openLink')}
                   </a>
                 )}
               </div>
@@ -134,7 +131,7 @@ export function ResourcesScreen() {
             </>
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '100px 0' }}>
-              Select a resource to view details.
+              {t('selectResource')}
             </div>
           )}
         </div>

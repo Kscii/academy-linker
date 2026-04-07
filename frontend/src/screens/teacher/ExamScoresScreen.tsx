@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
 import type { ExamScore, PaginationMeta, TeacherClassStudentItem, TeacherStudentListItem, UpdateExamScoreRequest } from '@/types/api';
@@ -34,6 +35,7 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function TeacherExamScoresScreen() {
+  const { t } = useTranslation('portal');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
   const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
@@ -112,11 +114,11 @@ export function TeacherExamScoresScreen() {
 
   const handleSave = async () => {
     if (!studentUuid) {
-      setError('Student is required.');
+      setError(t('studentRequired'));
       return;
     }
     if (!form.subject_uuid || !form.exam_date || !form.score) {
-      setError('Subject, exam date, and score are required.');
+      setError(t('subjectDateScoreRequired'));
       return;
     }
     setSaving(true);
@@ -145,7 +147,7 @@ export function TeacherExamScoresScreen() {
       await loadScores();
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? 'Failed to save exam score.');
+      setError(msg ?? t('failedSaveExamScore'));
     } finally {
       setSaving(false);
     }
@@ -162,8 +164,8 @@ export function TeacherExamScoresScreen() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
-          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Exam Scores</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} score record{meta.total !== 1 ? 's' : ''}</div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('nav:examScores')}</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('scoreRecordsCount', { count: meta.total })}</div>
         </div>
       </div>
 
@@ -171,30 +173,30 @@ export function TeacherExamScoresScreen() {
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">Select student</option>
+              <option value="">{t('selectStudent')}</option>
               {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
             </select>
             <select className="input-field" value={filterSubjectUuid} onChange={e => setFilterSubjectUuid(e.target.value)}>
-              <option value="">All subjects</option>
+              <option value="">{t('allSubjects')}</option>
               {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
             </select>
             <input className="input-field" type="date" value={examDateFrom} onChange={e => setExamDateFrom(e.target.value)} />
             <input className="input-field" type="date" value={examDateTo} onChange={e => setExamDateTo(e.target.value)} />
           </div>
           <div className="input-field" style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            Page {meta.page} / {Math.max(meta.total_pages, 1)}
+            {t('pageLabel', { page: meta.page, total: Math.max(meta.total_pages, 1) })}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {scores.map(score => (
               <div key={score.uuid} className="card-sm">
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{score.exam_name ?? 'Untitled Exam'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{score.exam_name ?? t('untitledExam')}</div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }} onClick={() => openEdit(score)}>
-                      Edit
+                      {t('common:edit')}
                     </button>
                     <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12, color: 'var(--warn)' }} onClick={() => void handleDelete(score.uuid)}>
-                      Delete
+                      {t('common:delete')}
                     </button>
                   </div>
                 </div>
@@ -207,35 +209,35 @@ export function TeacherExamScoresScreen() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-              Previous
+              {t('previous')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-              Next
+              {t('next')}
             </button>
           </div>
         </div>
 
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-            {form.uuid ? 'Edit Score' : 'Create Score'}
+            {form.uuid ? t('editScore') : t('createScore')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">Select subject</option>
+              <option value="">{t('selectSubject')}</option>
               {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
             </select>
-            <input className="input-field" placeholder="Exam name" value={form.exam_name} onChange={e => setForm(prev => ({ ...prev, exam_name: e.target.value }))} />
+            <input className="input-field" placeholder={t('examName')} value={form.exam_name} onChange={e => setForm(prev => ({ ...prev, exam_name: e.target.value }))} />
             <input className="input-field" type="date" value={form.exam_date} onChange={e => setForm(prev => ({ ...prev, exam_date: e.target.value }))} />
-            <input className="input-field" placeholder="Score" value={form.score} onChange={e => setForm(prev => ({ ...prev, score: e.target.value }))} />
-            <input className="input-field" placeholder="Full score" value={form.full_score} onChange={e => setForm(prev => ({ ...prev, full_score: e.target.value }))} />
+            <input className="input-field" placeholder={t('score')} value={form.score} onChange={e => setForm(prev => ({ ...prev, score: e.target.value }))} />
+            <input className="input-field" placeholder={t('fullScore')} value={form.full_score} onChange={e => setForm(prev => ({ ...prev, full_score: e.target.value }))} />
           </div>
-          <textarea className="input-field" rows={5} placeholder="Note" value={form.note} onChange={e => setForm(prev => ({ ...prev, note: e.target.value }))} style={{ resize: 'vertical', fontFamily: 'var(--font-body)' }} />
+          <textarea className="input-field" rows={5} placeholder={t('note')} value={form.note} onChange={e => setForm(prev => ({ ...prev, note: e.target.value }))} style={{ resize: 'vertical', fontFamily: 'var(--font-body)' }} />
           {error && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--warn)' }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button className="btn-primary" onClick={() => void handleSave()} disabled={saving}>
-              {saving ? 'Saving…' : form.uuid ? 'Update Score' : 'Create Score'}
+              {saving ? t('common:loading') : form.uuid ? t('updateScore') : t('createScore')}
             </button>
-            {form.uuid && <button className="btn-secondary" onClick={resetForm}>Cancel Edit</button>}
+            {form.uuid && <button className="btn-secondary" onClick={resetForm}>{t('cancelEdit')}</button>}
           </div>
         </div>
       </div>

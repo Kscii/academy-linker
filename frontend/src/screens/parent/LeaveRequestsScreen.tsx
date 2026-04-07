@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { parent as parentApi } from '@/lib/api';
 import type { LeaveRequest, LeaveRequestStatus, LeaveRequestType, PaginationMeta } from '@/types/api';
@@ -15,6 +16,7 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function ParentLeaveRequestsScreen() {
+  const { t } = useTranslation('portal');
   const { sid } = useParams<{ sid: string }>();
   const [items, setItems] = useState<LeaveRequest[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
@@ -60,8 +62,8 @@ export function ParentLeaveRequestsScreen() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
-          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>Leave Requests</div>
-          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{meta.total} request{meta.total !== 1 ? 's' : ''}</div>
+          <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)', marginBottom: 4 }}>{t('leaveRequestsTitle')}</div>
+          <div style={{ fontSize: 14, color: 'var(--tx2)' }}>{t('requestsCount', { count: meta.total })}</div>
         </div>
       </div>
 
@@ -69,10 +71,10 @@ export function ParentLeaveRequestsScreen() {
         <div className="card">
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <select className="input-field" value={status} onChange={e => { setPage(1); setStatus(e.target.value as typeof status); }}>
-              <option value="all">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
+              <option value="all">{t('allStatuses')}</option>
+              <option value="pending">{t('pending')}</option>
+              <option value="approved">{t('approved')}</option>
+              <option value="rejected">{t('rejected')}</option>
             </select>
           </div>
 
@@ -87,39 +89,39 @@ export function ParentLeaveRequestsScreen() {
                   {item.start_date}{item.start_date !== item.end_date ? ` - ${item.end_date}` : ''}
                 </div>
                 {item.reason && <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 6 }}>{item.reason}</div>}
-                {item.school_note && <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 6 }}>School note: {item.school_note}</div>}
+                {item.school_note && <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 6 }}>{t('schoolNote')}: {item.school_note}</div>}
               </div>
             ))}
-            {items.length === 0 && <div style={{ fontSize: 13, color: 'var(--tx3)' }}>No leave requests found.</div>}
+            {items.length === 0 && <div style={{ fontSize: 13, color: 'var(--tx3)' }}>{t('noLeaveRequestsFound')}</div>}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
-              Previous
+              {t('previous')}
             </button>
             <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
-              Next
+              {t('next')}
             </button>
           </div>
         </div>
 
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>Submit Request</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('submitRequest')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <select className="input-field" value={form.type} onChange={e => setForm(prev => ({ ...prev, type: e.target.value as LeaveRequestType }))}>
-              <option value="sick">Sick</option>
-              <option value="personal">Personal</option>
-              <option value="family">Family</option>
-              <option value="other">Other</option>
+              <option value="sick">{t('sick')}</option>
+              <option value="personal">{t('personal')}</option>
+              <option value="family">{t('family')}</option>
+              <option value="other">{t('other')}</option>
             </select>
             <div />
             <input className="input-field" type="date" value={form.start_date} onChange={e => setForm(prev => ({ ...prev, start_date: e.target.value }))} />
             <input className="input-field" type="date" value={form.end_date} onChange={e => setForm(prev => ({ ...prev, end_date: e.target.value }))} />
           </div>
-          <textarea className="input-field" rows={5} placeholder="Reason (optional)" value={form.reason} onChange={e => setForm(prev => ({ ...prev, reason: e.target.value }))} style={{ resize: 'vertical', fontFamily: 'var(--font-body)' }} />
+          <textarea className="input-field" rows={5} placeholder={t('reasonOptional')} value={form.reason} onChange={e => setForm(prev => ({ ...prev, reason: e.target.value }))} style={{ resize: 'vertical', fontFamily: 'var(--font-body)' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button className="btn-primary" onClick={() => void handleCreate()} disabled={saving || !form.start_date || !form.end_date}>
-              {saving ? 'Submitting…' : 'Submit Request'}
+              {saving ? t('submitting') : t('submitRequest')}
             </button>
           </div>
         </div>
