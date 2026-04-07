@@ -18,7 +18,7 @@ from ac_link.common.exceptions import Errors
 from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
 from ac_link.db.orm.communication import Post
-from ac_link.db.orm.content import Announcement, Report
+from ac_link.db.orm.content import Announcement, Report, Resource
 from ac_link.db.orm.enums import TranslationResourceType, TranslationStatus
 from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.auth import ApiResponse
@@ -36,7 +36,7 @@ from datetime import datetime
 
 
 class TranslationResolveRequest(BaseModel):
-    resource_type: str  # "report" | "announcement" | "post"
+    resource_type: str  # "report" | "announcement" | "post" | "resource"
     resource_uuid: str
 
 
@@ -55,7 +55,7 @@ class TranslationResolveData(BaseModel):
 
 # ── POST /api/translations/resolve ────────────────────────────────────────────
 
-_VALID_RESOURCE_TYPES = frozenset({"report", "announcement", "post"})
+_VALID_RESOURCE_TYPES = frozenset({"report", "announcement", "post", "resource"})
 
 
 @router.post("/resolve", response_model=ApiResponse[TranslationResolveData], status_code=200)
@@ -103,13 +103,22 @@ def resolve_translation(
         original_content = ann.original_content_markdown
         original_language = ann.original_language
         resource_id = ann.id
-    else:  # POST
+    elif resource_type_enum == TranslationResourceType.POST:
         post = db.query(Post).filter(Post.uuid == resource_uuid).first()
         if post is None:
+            raise Errors.not_found("帖子不存在")
+        if post.deleted_at is not None:
             raise Errors.not_found("帖子不存在")
         original_content = post.content_markdown
         original_language = post.original_language or "en-AU"
         resource_id = post.id
+    else:  # RESOURCE
+        resource = db.query(Resource).filter(Resource.uuid == resource_uuid).first()
+        if resource is None:
+            raise Errors.not_found("资源不存在")
+        original_content = resource.original_content_markdown
+        original_language = resource.original_language
+        resource_id = resource.id
 
     # 确定目标语言
     user_settings = db.query(UserSettings).filter(

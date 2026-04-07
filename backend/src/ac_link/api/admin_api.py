@@ -36,13 +36,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from ac_link.common.deps import require_admin
 from ac_link.common.exceptions import AppError, Errors
 from ac_link.crud import admin as admin_crud
 from ac_link.crud import resource as resource_crud
+from ac_link.crud import timetable as timetable_crud
 from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
+from ac_link.db.orm.academic import Student, Subject, TeachingAssignment
 from ac_link.db.orm.enums import ResourceAudienceRole, TagScope, TranslationResourceType, UserRole
 from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.admin import (
@@ -81,6 +84,14 @@ from ac_link.dto.resource import (
     TranslationBlock,
     UpdateResourceRequest,
 )
+from ac_link.dto.timetable import (
+    ClassTimetableData,
+    ReplaceClassTimetableRequest,
+    TimetableClassInfo,
+    TimetableEntryItem,
+    TimetableSubjectInfo,
+    TimetableTeacherInfo,
+)
 from ac_link.services import auth_service
 from ac_link.services.translation_helpers import (
     get_target_language,
@@ -89,6 +100,59 @@ from ac_link.services.translation_helpers import (
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _build_admin_timetable_response(
+    *,
+    class_obj: object,
+    selected_date: object,
+    entries: list[object],
+    available_subjects: list[object],
+    available_teachers: list[object],
+) -> ClassTimetableData:
+    first = entries[0] if entries else None
+    return ClassTimetableData(
+        class_info=TimetableClassInfo(
+            uuid=class_obj.uuid,  # type: ignore[attr-defined]
+            name=class_obj.name,  # type: ignore[attr-defined]
+            grade_level=getattr(class_obj, "grade_level", None),
+            academic_year=getattr(class_obj, "academic_year", None),
+        ),
+        selected_date=selected_date,  # type: ignore[arg-type]
+        effective_from=getattr(first, "effective_from", None),
+        effective_to=getattr(first, "effective_to", None),
+        entries=[
+            TimetableEntryItem(
+                uuid=item.uuid,  # type: ignore[attr-defined]
+                weekday=item.weekday,  # type: ignore[attr-defined]
+                period_index=item.period_index,  # type: ignore[attr-defined]
+                room_label=item.room_label,  # type: ignore[attr-defined]
+                start_time=item.start_time,  # type: ignore[attr-defined]
+                end_time=item.end_time,  # type: ignore[attr-defined]
+                effective_from=item.effective_from,  # type: ignore[attr-defined]
+                effective_to=item.effective_to,  # type: ignore[attr-defined]
+                is_active=item.is_active,  # type: ignore[attr-defined]
+                subject=TimetableSubjectInfo(
+                    uuid=item.subject.uuid,  # type: ignore[attr-defined]
+                    name=item.subject.name,  # type: ignore[attr-defined]
+                    code=item.subject.code,  # type: ignore[attr-defined]
+                ),
+                teacher=TimetableTeacherInfo(
+                    uuid=item.teacher_user.uuid,  # type: ignore[attr-defined]
+                    display_name=item.teacher_user.display_name,  # type: ignore[attr-defined]
+                ),
+            )
+            for item in entries
+        ],
+        available_subjects=[
+            TimetableSubjectInfo(uuid=item.uuid, name=item.name, code=item.code)  # type: ignore[attr-defined]
+            for item in available_subjects
+        ],
+        available_teachers=[
+            TimetableTeacherInfo(uuid=item.uuid, display_name=item.display_name)  # type: ignore[attr-defined]
+            for item in available_teachers
+        ],
+    )
 
 
 # ── GET /api/admin/overview ───────────────────────────────────────────────────
@@ -748,6 +812,127 @@ def update_class(
     db.refresh(updated)
     _ = updated.homeroom_teacher
     return ApiResponse(data=ClassDetail.from_class(updated))
+
+
+@router.get("/classes/{class_uuid}/timetable", response_model=ApiResponse[ClassTimetableData])
+def get_class_timetable(
+    class_uuid: UUID,
+    date: str | None = None,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassTimetableData]:
+    """获取班级在某天生效的周课表与可用科目/教师候选项。"""
+    from datetime import date as _date
+
+    cls_obj = admin_crud.get_class_by_uuid(db, class_uuid)
+    if cls_obj is None:
+        raise Errors.not_found("班级不存在")
+
+    try:
+        selected_date = _date.fromisoformat(date) if date else _date.today()
+    except ValueError:
+        raise AppError(422, "validation_error", "date 格式应为 YYYY-MM-DD")
+
+    entries = timetable_crud.list_entries_for_class_on_date(
+        db,
+        class_id=cls_obj.id,
+        on_date=selected_date,
+    )
+    return ApiResponse(data=_build_admin_timetable_response(
+        class_obj=cls_obj,
+        selected_date=selected_date,
+        entries=entries,
+        available_subjects=timetable_crud.get_subject_candidates_for_class(db, class_id=cls_obj.id),
+        available_teachers=timetable_crud.get_teacher_candidates_for_class(db, class_id=cls_obj.id),
+    ))
+
+
+@router.put("/classes/{class_uuid}/timetable", response_model=ApiResponse[ClassTimetableData])
+def replace_class_timetable(
+    class_uuid: UUID,
+    body: ReplaceClassTimetableRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassTimetableData]:
+    """整张覆盖班级课表版本。"""
+    from datetime import date as _date, time as _time
+
+    cls_obj = admin_crud.get_class_by_uuid(db, class_uuid)
+    if cls_obj is None:
+        raise Errors.not_found("班级不存在")
+
+    try:
+        effective_from = _date.fromisoformat(body.effective_from)
+        effective_to = _date.fromisoformat(body.effective_to) if body.effective_to else None
+    except ValueError:
+        raise AppError(422, "validation_error", "effective_from/effective_to 格式应为 YYYY-MM-DD")
+    if effective_to is not None and effective_to < effective_from:
+        raise AppError(422, "validation_error", "effective_to 不能早于 effective_from")
+
+    subject_candidates = timetable_crud.get_subject_candidates_for_class(db, class_id=cls_obj.id)
+    teacher_candidates = timetable_crud.get_teacher_candidates_for_class(db, class_id=cls_obj.id)
+    subject_by_uuid = {item.uuid: item for item in subject_candidates}
+    teacher_by_uuid = {item.uuid: item for item in teacher_candidates}
+
+    payload_entries: list[dict[str, object]] = []
+    for entry in body.entries:
+        subject = subject_by_uuid.get(entry.subject_uuid)
+        if subject is None:
+            raise AppError(400, "bad_request", "所选学科不属于该班当前教学范围")
+        teacher = teacher_by_uuid.get(entry.teacher_uuid)
+        if teacher is None:
+            raise AppError(400, "bad_request", "所选教师不属于该班当前教学范围")
+
+        pair_exists = db.scalar(
+            select(TeachingAssignment.id)
+            .join(Student, Student.id == TeachingAssignment.student_id)
+            .where(
+                Student.class_id == cls_obj.id,
+                Student.is_active == True,  # noqa: E712
+                TeachingAssignment.is_active == True,  # noqa: E712
+                TeachingAssignment.teacher_user_id == teacher.id,
+                TeachingAssignment.subject_id == subject.id,
+            )
+            .limit(1)
+        )
+        if pair_exists is None:
+            raise AppError(400, "bad_request", "教师与学科的组合不在该班当前教学分配中")
+
+        try:
+            start_time = _time.fromisoformat(entry.start_time)
+            end_time = _time.fromisoformat(entry.end_time)
+        except ValueError:
+            raise AppError(422, "validation_error", "start_time/end_time 格式应为 HH:MM[:SS]")
+        if end_time <= start_time:
+            raise AppError(422, "validation_error", "end_time 必须晚于 start_time")
+
+        payload_entries.append(
+            {
+                "weekday": entry.weekday,
+                "period_index": entry.period_index,
+                "subject_id": subject.id,
+                "teacher_user_id": teacher.id,
+                "room_label": entry.room_label,
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+        )
+
+    created = timetable_crud.replace_class_timetable(
+        db,
+        class_obj=cls_obj,
+        effective_from=effective_from,
+        effective_to=effective_to,
+        entries=payload_entries,
+    )
+    db.commit()
+    return ApiResponse(data=_build_admin_timetable_response(
+        class_obj=cls_obj,
+        selected_date=effective_from,
+        entries=created,
+        available_subjects=subject_candidates,
+        available_teachers=teacher_candidates,
+    ))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

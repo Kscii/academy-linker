@@ -850,7 +850,7 @@
         "subject_uuid": "string",
         "subject_name": "Mathematics",
         "score": 88.0,
-        "progress": 0.75,
+        "progress": 75.0,
         "assignment_completion_rate": 0.95
       }
     ],
@@ -866,13 +866,13 @@
         {
           "subject_uuid": "string",
           "subject_name": "Mathematics",
-          "value": 0.95
+          "value": 95.0
         }
       ],
       "learning_progress_chart": [
         {
           "label": "2026-04-01",
-          "value": 0.72
+          "value": 72.0
         }
       ]
     },
@@ -889,6 +889,8 @@
   }
 }
 ```
+
+> 注：`overall_performance_index` 基于该学生当前各学科考试成绩均值聚合；`assignment_completion_rate` / `attendance_rate` 基于当前可用的 `student_period_metrics` 聚合。`subject_statistics.progress` 与各类图表中的 `value` 为便于前端可视化直接渲染的百分比值（0-100）。
 
 ---
 
@@ -1371,6 +1373,13 @@
         }
       ]
     },
+    "available_tags": [
+      {
+        "uuid": "string",
+        "name": "follow-up",
+        "scope": "system | teacher_private"
+      }
+    ],
     "posts": [
       {
         "uuid": "string",
@@ -1411,9 +1420,7 @@
 }
 ```
 
-> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
->
-> **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`available_tags` 返回当前家长在此讨论中可使用的全部 tag：所有可供家长选择的 system tag，以及当前讨论教师的 private tag。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
 
 ---
 
@@ -1771,6 +1778,64 @@
 
 ---
 
+### 9.24 获取学生课表（已完成）
+
+**GET** `/api/parents/me/students/{student_uuid}/timetable`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `date` | string | 否 | ISO 8601 date；默认当天，用于选择当天命中的课表版本 |
+
+#### 规则
+
+- 仅允许家长查看自己绑定学生当前班级的课表。
+- 课表按“班级周课表”建模；学生接口只是读取所属班级的当前生效版本。
+- 返回的是某个 `date` 命中的**整周课表版本**，不是单日切片。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class_info": {
+      "uuid": "string",
+      "name": "Year 5 Alpha",
+      "grade_level": "5",
+      "academic_year": "2025"
+    },
+    "selected_date": "2025-03-18",
+    "effective_from": "2025-01-28",
+    "effective_to": null,
+    "entries": [
+      {
+        "uuid": "string",
+        "weekday": "monday",
+        "period_index": 1,
+        "room_label": "Room A1",
+        "start_time": "09:00:00",
+        "end_time": "09:50:00",
+        "effective_from": "2025-01-28",
+        "effective_to": null,
+        "is_active": true,
+        "subject": {
+          "uuid": "string",
+          "name": "Mathematics",
+          "code": "MATH"
+        },
+        "teacher": {
+          "uuid": "string",
+          "display_name": "Ada Teacher"
+        }
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 10. 老师端接口
 
 ### 10.0 获取教师端首页总览（已完成）
@@ -1974,6 +2039,13 @@
       "display_name": "string",
       "avatar_url": "string | null"
     },
+    "available_tags": [
+      {
+        "uuid": "string",
+        "name": "follow-up",
+        "scope": "system | teacher_private"
+      }
+    ],
     "posts": [
       {
         "uuid": "string",
@@ -2014,7 +2086,7 @@
 }
 ```
 
-> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`available_tags` 返回当前教师在此讨论中可使用的全部 tag：所有可供教师选择的 system tag，以及当前教师自己的 private tag。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
 
 ---
 
@@ -2722,6 +2794,65 @@
 
 ---
 
+### 10.25 获取班级课表（老师视角）（已完成）
+
+**GET** `/api/teachers/me/classes/{class_uuid}/timetable`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `date` | string | 否 | ISO 8601 date；默认当天，用于选择当天命中的课表版本 |
+
+#### 规则
+
+- 仅当当前老师是该班班主任，或存在 active `teaching_assignments` 覆盖该班学生时，允许访问。
+- 返回整周课表版本。
+- 每个条目可额外返回 `is_assigned_to_current_teacher`，用于前端高亮当前老师负责的课时。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class_info": {
+      "uuid": "string",
+      "name": "Year 5 Alpha",
+      "grade_level": "5",
+      "academic_year": "2025"
+    },
+    "selected_date": "2025-03-18",
+    "effective_from": "2025-01-28",
+    "effective_to": null,
+    "entries": [
+      {
+        "uuid": "string",
+        "weekday": "monday",
+        "period_index": 1,
+        "room_label": "Room A1",
+        "start_time": "09:00:00",
+        "end_time": "09:50:00",
+        "effective_from": "2025-01-28",
+        "effective_to": null,
+        "is_active": true,
+        "subject": {
+          "uuid": "string",
+          "name": "Mathematics",
+          "code": "MATH"
+        },
+        "teacher": {
+          "uuid": "string",
+          "display_name": "Ada Teacher"
+        },
+        "is_assigned_to_current_teacher": true
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 11. Admin 接口
 
 > **权限要求：本节所有接口仅允许 `admin` 角色访问。非 admin 角色一律返回 `403 role_not_allowed`。**
@@ -3273,6 +3404,85 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 
 ---
 
+### 11.20 获取班级课表（Admin）（已完成）
+
+**GET** `/api/admin/classes/{class_uuid}/timetable`
+
+#### Query
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `date` | string | 否 | ISO 8601 date；默认当天 |
+
+#### 规则
+
+- 仅 admin 可访问。
+- 返回当前命中版本的整周课表，以及该班当前可选的 `available_subjects` / `available_teachers`，便于后台编辑器直接构建表单。
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "class_info": {
+      "uuid": "string",
+      "name": "Year 5 Alpha",
+      "grade_level": "5",
+      "academic_year": "2025"
+    },
+    "selected_date": "2025-03-18",
+    "effective_from": "2025-01-28",
+    "effective_to": null,
+    "entries": [],
+    "available_subjects": [
+      { "uuid": "string", "name": "Mathematics", "code": "MATH" }
+    ],
+    "available_teachers": [
+      { "uuid": "string", "display_name": "Ada Teacher" }
+    ]
+  }
+}
+```
+
+---
+
+### 11.21 整张覆盖班级课表（Admin）（已完成）
+
+**PUT** `/api/admin/classes/{class_uuid}/timetable`
+
+#### Body
+
+```json
+{
+  "effective_from": "2025-01-28",
+  "effective_to": null,
+  "entries": [
+    {
+      "weekday": "monday",
+      "period_index": 1,
+      "subject_uuid": "string",
+      "teacher_uuid": "string",
+      "room_label": "Room A1",
+      "start_time": "09:00:00",
+      "end_time": "09:50:00"
+    }
+  ]
+}
+```
+
+#### 规则
+
+- 采用**整张覆盖**语义：同班级从 `effective_from` 起生效的旧版本会被关闭或截断。
+- `entries` 不能为空；同一 `(weekday, period_index)` 在一次提交中不可重复。
+- `teacher_uuid + subject_uuid` 组合必须存在于该班当前 active `teaching_assignments` 中，否则返回 `400 bad_request`。
+- `end_time` 必须晚于 `start_time`。
+
+#### Success 200
+
+返回新写入版本的完整课表对象，结构与 §11.20 Success 200 一致。
+
+---
+
 ## 12. AI 相关接口
 
 ### 12.1 老师手动生成 AI 报告
@@ -3296,7 +3506,7 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 - 仅 `teacher` 可调用
 - `title` 由后端自动生成；前端只传递生成意图，不拼接完整 prompt
 - `source_type` 固定为 `ai`，不可由客户端传入
-- `subject_uuid = null` 表示学生整体 AI 报告；非 null 表示该学生该学科 AI 报告
+- `subject_uuid = null` 表示“当前教师对该学生负责的全部学科”的聚合 AI 报告；非 null 表示该学生该学科 AI 报告
 - 若提供 `subject_uuid`，后端验证 `teaching_assignment(teacher, student, subject)` 三元分配存在且 active
 - 同一 `student + subject(含 null) + period_start + period_end + report_type` 只允许存在一条 AI report；若已存在，则覆盖同一条 report，而不是创建新记录
 - 自动定时生成任务与手动接口共用同一套生成逻辑与唯一性规则
@@ -3318,7 +3528,7 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 
 ```json
 {
-  "resource_type": "report | announcement | post",
+  "resource_type": "report | announcement | post | resource",
   "resource_uuid": "string"
 }
 ```
@@ -3326,19 +3536,21 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 #### 规则
 
 - 目标语言优先级：`user_settings.language` > `Accept-Language` > 系统默认值 `en-AU`
-- 仅支持 `report`、`announcement`、`post` 三类资源
+- 仅支持 `report`、`announcement`、`post`、`resource` 四类资源
 - 若当前目标语言译文已存在缓存，则直接读取并返回
 - 若缓存不存在且 `ai_auto_translate_enabled=false`，返回 `403 auto_translation_disabled`
 - 若缓存不存在且允许自动翻译，则执行翻译、写入缓存并返回
 - 若翻译失败，返回 `500 ai_translation_failed`
 - `resource_type=post` 可用于家长/老师 discussion 页面中单条帖子的按需翻译；成功写入缓存后，后续 discussion 详情接口会直接回填该帖子的译文字段
+- `resource_type=resource` 可用于资源中心详情页的按需翻译
+- 若 `resource_type=post` 且该帖子已被软删除，则返回 `404 not_found`，不会继续生成新的译文缓存
 
 #### Success 200
 
 ```json
 {
   "data": {
-    "resource_type": "report | announcement | post",
+    "resource_type": "report | announcement | post | resource",
     "resource_uuid": "string",
     "display_content_markdown": "string",
     "original_content_markdown": "string",

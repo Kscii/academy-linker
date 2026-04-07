@@ -19,6 +19,7 @@
     "loading": "加载中...",
     "pageStatus": "第 {{page}} / {{totalPages}} 页",
     "notAvailable": "—",
+    "untitled": "无标题",
     "noSid": "无学号",
     "noResults": "没有结果",
     "unknown": "未知",
@@ -91,6 +92,7 @@
   },
   "teacherClassDetail": {
     "backToDashboard": "返回仪表盘",
+    "viewTimetable": "查看课表",
     "grade": "{{value}} 年级",
     "homeroom": "班主任班级",
     "students": "学生数",
@@ -280,7 +282,7 @@
     "sessionHint": "本次会话中创建的公告可以在这里重新打开并继续编辑。"
   },
   "teacherMessages": {
-    "title": "消息",
+    "title": "讨论",
     "parentConversations": "家长会话",
     "parentPreview": "家长：{{name}}",
     "noParentLinked": "未关联家长",
@@ -291,7 +293,13 @@
     "noMessagesYet": "暂无消息。",
     "noParentLinkedStudent": "该学生未关联家长。",
     "optionalTitle": "可选标题",
-    "deleteConfirm": "确定删除这条消息吗？",
+    "bodyPlaceholder": "填写帖子正文...",
+    "reply": "回复",
+    "replyingTo": "正在回复：{{title}}",
+    "clearReply": "清除回复",
+    "newPost": "新帖子",
+    "postReply": "发布回复",
+    "deleteConfirm": "确定删除这条帖子吗？",
     "aiDraft": "AI 草稿",
     "replyTo": "回复 {{name}}...",
     "saving": "保存中...",
@@ -326,8 +334,8 @@
     "backToStudentSearch": "返回学生搜索"
   },
   "parentMessages": {
-    "title": "消息",
-    "subtitle": "你与学生老师之间的会话",
+    "title": "讨论",
+    "subtitle": "你与学生老师之间的讨论",
     "sortRecent": "最近活动",
     "sortTeacher": "教师姓名",
     "justNow": "刚刚",
@@ -337,8 +345,8 @@
   },
   "parentConversation": {
     "viewGrades": "查看成绩",
-    "noMessages": "暂时还没有消息。现在就给 {{name}} 发一条吧。",
-    "deleteConfirm": "确定删除这条消息吗？",
+    "noMessages": "暂时还没有帖子。现在就和 {{name}} 开始讨论吧。",
+    "deleteConfirm": "确定删除这条帖子吗？",
     "notFound": "未找到该讨论。",
     "searchPlaceholder": "搜索标题或内容",
     "allTags": "全部标签",
@@ -347,7 +355,14 @@
     "today": "今天",
     "yesterday": "昨天",
     "cancel": "取消",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "optionalTitle": "标题（可选）",
+    "bodyPlaceholder": "填写帖子正文...",
+    "reply": "回复",
+    "replyingTo": "正在回复：{{title}}",
+    "clearReply": "清除回复",
+    "newPost": "新帖子",
+    "postReply": "发布回复"
   },
   "parentAnnouncements": {
     "title": "学校通知",
@@ -533,5 +548,51 @@
     "title": "学业表现",
     "subtitle": "{{name}} 的成绩与进展",
     "noTeacherAssigned": "未分配教师"
+  },
+  "timetable": {
+    "weekdays": {
+      "monday": "周一",
+      "tuesday": "周二",
+      "wednesday": "周三",
+      "thursday": "周四",
+      "friday": "周五"
+    },
+    "periodLabel": "第 {{value}} 节",
+    "assignedToMe": "我负责",
+    "noRoom": "教室待定",
+    "emptySlot": "无课程"
+  },
+  "parentTimetable": {
+    "title": "课表",
+    "subtitle": "{{className}} 的每周课表",
+    "subtitleFallback": "每周班级课表",
+    "effectiveRange": "生效时间：{{from}} 至 {{to}}",
+    "noEffectiveVersion": "该日期暂无生效课表版本。",
+    "empty": "暂无课表数据。"
+  },
+  "teacherTimetable": {
+    "title": "班级课表",
+    "subtitle": "{{className}} 的每周课表",
+    "subtitleFallback": "每周班级课表",
+    "effectiveRange": "生效时间：{{from}} 至 {{to}}",
+    "noEffectiveVersion": "该日期暂无生效课表版本。",
+    "empty": "暂无课表数据。",
+    "backToClass": "返回班级"
+  },
+  "adminTimetable": {
+    "title": "班级课表",
+    "selectClass": "选择班级",
+    "rows": "课表行",
+    "addRow": "新增课时",
+    "selectSubject": "选择学科",
+    "selectTeacher": "选择教师",
+    "roomPlaceholder": "教室",
+    "validationRows": "请至少添加一行课表后再保存。",
+    "saveFailed": "保存课表失败。",
+    "save": "保存课表",
+    "previewTitle": "课表预览",
+    "previewSubtitle": "生效时间：{{from}} 至 {{to}}",
+    "noEffectiveVersion": "尚未加载课表版本。",
+    "empty": "暂无课表数据。"
   }
 }

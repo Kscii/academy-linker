@@ -8,7 +8,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi } from '@/lib/api';
 import type { DiscussionTeacherItem } from '@/types/api';
-import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { getSubjectColor } from '@/lib/constants';
 
 function initials(name: string): string {
@@ -19,10 +18,9 @@ export function MessagesScreen() {
   const { t } = useTranslation('app');
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { markThreadRead, updateThreadUnreadCounts, threadUnreadCounts, language } = useApp();
+  const { markThreadRead, updateThreadUnreadCounts, threadUnreadCounts } = useApp();
 
   const [items, setItems] = useState<DiscussionTeacherItem[]>([]);
-  const [txItems, setTxItems] = useState<DiscussionTeacherItem[]>([]);
   const [sort, setSort] = useState<'last_post_at_desc' | 'display_name_asc'>('last_post_at_desc');
 
   useEffect(() => {
@@ -39,26 +37,8 @@ export function MessagesScreen() {
     }).catch(() => {});
   }, [sid, sort, updateThreadUnreadCounts]);
 
-  useEffect(() => {
-    setTxItems(items);
-    if (language === 'en') return;
-    const texts = items.flatMap(i => [
-      i.subjects[0]?.name ?? '',
-      i.latest_message_preview ?? '',
-    ]);
-    translateBatch(texts, language).then(results => {
-      setTxItems(items.map((item, i) => ({
-        ...item,
-        subjects: item.subjects.length > 0
-          ? [{ ...item.subjects[0], name: results[i * 2] || item.subjects[0].name }, ...item.subjects.slice(1)]
-          : item.subjects,
-        latest_message_preview: results[i * 2 + 1] || item.latest_message_preview,
-      })));
-    });
-  }, [language, items]);
-
-  const txTitle = useTranslatedText(t('parentMessages.title'), language);
-  const txSubtitle = useTranslatedText(t('parentMessages.subtitle'), language);
+  const txTitle = t('parentMessages.title');
+  const txSubtitle = t('parentMessages.subtitle');
   const formatTimeAgo = (dateStr?: string): string => {
     if (!dateStr) return '';
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -101,7 +81,7 @@ export function MessagesScreen() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {txItems.map(item => {
+        {items.map(item => {
           const subjectCode = item.subjects[0]?.code ?? '';
           const subjectName = item.subjects[0]?.name ?? '';
           const subjectColor = getSubjectColor(subjectCode);

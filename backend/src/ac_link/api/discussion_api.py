@@ -147,6 +147,11 @@ def delete_post(
         raise Errors.forbidden("只允许作者删除自己的帖子")
 
     discussion_crud.soft_delete_post(db, post)
+    translation_crud.mark_translations_stale(
+        db,
+        TranslationResourceType.POST,
+        post.id,
+    )
     db.commit()
     return ApiResponse(data=SuccessResponse())
 

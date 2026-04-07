@@ -67,7 +67,7 @@
   "attendancePlaceholder": "出勤率（0.0 - 1.0）",
   "aiReportsTitle": "AI 报告",
   "aiReportsSubtitle": "使用教师 API 生成 AI 报告",
-  "wholeStudent": "整名学生",
+  "wholeStudent": "我负责的全部学科",
   "extraInstruction": "额外指令（可选）",
   "generateAIReport": "生成 AI 报告",
   "generating": "生成中…",

@@ -5,6 +5,8 @@
   "emailPlaceholder": "your@email.com",
   "passwordLabel": "密码",
   "passwordPlaceholder": "请输入密码",
+  "showPassword": "显示",
+  "hidePassword": "隐藏",
   "rememberMe": "记住我",
   "signIn": "登录",
   "signingIn": "登录中…",

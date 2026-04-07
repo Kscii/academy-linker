@@ -23,6 +23,7 @@ interface NavItem {
 const PARENT_NAV: NavItem[] = [
   { id: 'dashboard',  labelKey: 'nav:dashboard',  icon: '🏠', path: (sid) => `/parent/students/${sid}/dashboard` },
   { id: 'grades',     labelKey: 'nav:grades',     icon: '📊', path: (sid) => `/parent/students/${sid}/grades` },
+  { id: 'timetable',  labelKey: 'nav:timetable',  icon: '🗓️', path: (sid) => `/parent/students/${sid}/timetable` },
   { id: 'examScores', labelKey: 'nav:examScores', icon: '📝', path: (sid) => `/parent/students/${sid}/exam-scores` },
   { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: (sid) => `/parent/students/${sid}/period-metrics` },
   { id: 'messages',   labelKey: 'nav:messages',   icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
@@ -54,6 +55,7 @@ const ADMIN_NAV: NavItem[] = [
   { id: 'parents',   labelKey: 'nav:parents',    icon: '👪', path: '/admin/parents' },
   { id: 'assignments', labelKey: 'nav:teachingAssignments', icon: '🧩', path: '/admin/assignments/teaching' },
   { id: 'systemTags', labelKey: 'nav:systemTags', icon: '🏷', path: '/admin/tags/system' },
+  { id: 'timetable', labelKey: 'nav:timetable', icon: '🗓️', path: '/admin/timetable' },
 ];
 
 const SHARED_NAV: NavItem[] = [

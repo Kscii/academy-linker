@@ -4,7 +4,8 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { resourcesApi } from '@/lib/api';
+import { resourcesApi, translations } from '@/lib/api';
+import { useApp } from '@/contexts/AppContext';
 import type { PaginationMeta, ResourceCategory, ResourceDetail, ResourceListItem } from '@/types/api';
 
 const EMPTY_META: PaginationMeta = {
@@ -15,7 +16,8 @@ const EMPTY_META: PaginationMeta = {
 };
 
 export function ResourcesScreen() {
-  const { t } = useTranslation('portal');
+  const { t } = useTranslation(['portal', 'app']);
+  const { language } = useApp();
   const [items, setItems] = useState<ResourceListItem[]>([]);
   const [categories, setCategories] = useState<ResourceCategory[]>([]);
   const [detail, setDetail] = useState<ResourceDetail | null>(null);
@@ -24,6 +26,8 @@ export function ResourcesScreen() {
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
   const [keyword, setKeyword] = useState('');
   const [category, setCategory] = useState('');
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [resolvingTranslation, setResolvingTranslation] = useState(false);
 
   useEffect(() => {
     resourcesApi.getCategories({ audience_role: 'parent' }).then(res => {
@@ -49,12 +53,43 @@ export function ResourcesScreen() {
   useEffect(() => {
     if (!selectedUuid) {
       setDetail(null);
+      setShowOriginal(false);
       return;
     }
     resourcesApi.getDetail(selectedUuid).then(res => {
       setDetail(res.data);
     }).catch(() => {});
   }, [selectedUuid]);
+
+  useEffect(() => {
+    setShowOriginal(false);
+  }, [language, selectedUuid]);
+
+  const toggleTranslation = async () => {
+    if (!detail || detail.original_language === language) return;
+    if (detail.translated_content_markdown || detail.translation_status === 'completed') {
+      setShowOriginal(prev => !prev);
+      return;
+    }
+    setResolvingTranslation(true);
+    try {
+      const res = await translations.resolve({ resource_type: 'resource', resource_uuid: detail.uuid });
+      setDetail(prev => prev ? ({
+        ...prev,
+        display_content_markdown: res.data.display_content_markdown,
+        original_content_markdown: res.data.original_content_markdown,
+        translated_content_markdown: res.data.translated_content_markdown,
+        display_language: res.data.display_language,
+        original_language: res.data.original_language,
+        translated_language: res.data.translated_language,
+        translation_status: res.data.translation_status,
+        translated_at: res.data.translated_at,
+      }) : prev);
+      setShowOriginal(false);
+    } finally {
+      setResolvingTranslation(false);
+    }
+  };
 
   return (
     <div>
@@ -118,15 +153,22 @@ export function ResourcesScreen() {
                   <div className="font-serif" style={{ fontSize: 24, color: 'var(--tx)', marginBottom: 6 }}>{detail.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{detail.category_label} · {detail.published_at.slice(0, 10)}</div>
                 </div>
-                {detail.external_url && (
-                  <a className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', textDecoration: 'none' }} href={detail.external_url} target="_blank" rel="noreferrer">
-                    {t('openLink')}
-                  </a>
-                )}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  {detail.original_language !== language && (
+                    <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => void toggleTranslation()} disabled={resolvingTranslation}>
+                      {resolvingTranslation ? '…' : showOriginal ? t('app:actions.showTranslation') : ((detail.translated_content_markdown || detail.display_language !== detail.original_language) ? t('app:actions.showOriginal') : t('app:actions.translate'))}
+                    </button>
+                  )}
+                  {detail.external_url && (
+                    <a className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', textDecoration: 'none' }} href={detail.external_url} target="_blank" rel="noreferrer">
+                      {t('openLink')}
+                    </a>
+                  )}
+                </div>
               </div>
               {detail.summary && <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7, marginBottom: 16 }}>{detail.summary}</div>}
               <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
-                {detail.display_content_markdown}
+                {showOriginal ? detail.original_content_markdown : detail.display_content_markdown}
               </div>
             </>
           ) : (

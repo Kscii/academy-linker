@@ -12,6 +12,7 @@ from .helpers import (
     get_or_create_student,
     get_or_create_subject,
     get_or_create_user,
+    upsert_timetable_entry,
 )
 from .models import ADMIN_USER, CLASS_SPECS, PARENT_USERS, PRIVATE_TAG_SPECS, STUDENT_SPECS, SUBJECT_SPECS, SYSTEM_TAG_SPECS, TEACHER_USERS
 
@@ -89,6 +90,33 @@ def run(db: Session) -> dict[str, dict[str, object]]:
             subject=subjects[subject_key],  # type: ignore[arg-type]
         )
 
+    timetable_specs = [
+        ("year5_alpha", "mathematics", "teacher_ada", "monday", 1, "Room A1", "09:00:00", "09:50:00"),
+        ("year5_alpha", "english", "teacher_ada", "monday", 2, "Room A1", "10:10:00", "11:00:00"),
+        ("year5_alpha", "science", "teacher_ada", "tuesday", 3, "Lab 1", "11:20:00", "12:10:00"),
+        ("year5_alpha", "mathematics", "teacher_ada", "wednesday", 1, "Room A1", "09:00:00", "09:50:00"),
+        ("year5_alpha", "english", "teacher_ada", "thursday", 2, "Room A1", "10:10:00", "11:00:00"),
+        ("year5_alpha", "science", "teacher_ada", "friday", 4, "Lab 1", "13:10:00", "14:00:00"),
+        ("year6_beta", "science", "teacher_lin", "monday", 1, "Lab 2", "09:00:00", "09:50:00"),
+        ("year6_beta", "history", "teacher_lin", "monday", 3, "Room B2", "11:20:00", "12:10:00"),
+        ("year6_beta", "science", "teacher_lin", "wednesday", 2, "Lab 2", "10:10:00", "11:00:00"),
+        ("year6_beta", "history", "teacher_lin", "thursday", 4, "Room B2", "13:10:00", "14:00:00"),
+        ("year6_beta", "science", "teacher_lin", "friday", 1, "Lab 2", "09:00:00", "09:50:00"),
+    ]
+    for class_key, subject_key, teacher_key, weekday, period_index, room, start_time, end_time in timetable_specs:
+        upsert_timetable_entry(
+            db,
+            class_obj=classes[class_key],  # type: ignore[arg-type]
+            subject=subjects[subject_key],  # type: ignore[arg-type]
+            teacher=users[teacher_key],  # type: ignore[arg-type]
+            weekday=weekday,
+            period_index=period_index,
+            room_label=room,
+            start_time=start_time,
+            end_time=end_time,
+            effective_from_value="2025-01-28",
+        )
+
     tags: dict[str, object] = {}
     for name, parent_ok, teacher_ok, affects_logic in SYSTEM_TAG_SPECS:
         tags[f"system:{name}"] = ensure_tag(
@@ -120,4 +148,3 @@ def run(db: Session) -> dict[str, dict[str, object]]:
         "students": students,
         "tags": tags,
     }
-

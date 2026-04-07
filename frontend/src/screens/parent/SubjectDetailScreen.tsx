@@ -7,8 +7,6 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { LineChart } from '@/components/charts/LineChart';
-import { useApp } from '@/contexts/AppContext';
-import { translateBatch } from '@/lib/translate';
 import { parent as parentApi, ai as aiApi } from '@/lib/api';
 import type { SubjectDetailResponse, ThreadPost } from '@/types/api';
 import { getSubjectIcon } from '@/lib/constants';
@@ -80,7 +78,6 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
 export function SubjectDetailScreen() {
   const { t } = useTranslation('app');
   const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
-  const { language } = useApp();
   const [showAvg, setShowAvg] = useState(false);
   const [period, setPeriod] = useState<'term' | 'year'>('term');
 
@@ -94,11 +91,6 @@ export function SubjectDetailScreen() {
       .then(res => setDetail(res.data))
       .catch(() => {});
   }, [sid, subjectUuid]);
-
-  // ── Translated content state ──────────────────────────────────
-  const [txPosts, setTxPosts] = useState<SubjectDetailResponse['posts']>([]);
-  const [txSubjectName, setTxSubjectName] = useState('');
-  const [txPathway, setTxPathway] = useState<SubjectDetailResponse['learning_pathway']>([]);
 
   // ── Live AI Insight ───────────────────────────────────────────
   const [liveInsight, setLiveInsight] = useState<string | null>(null);
@@ -122,37 +114,6 @@ export function SubjectDetailScreen() {
       .finally(() => setInsightLoading(false));
   }, [detail, sid, subjectUuid]);
 
-  useEffect(() => {
-    if (!detail) return;
-    const subject = detail.subject;
-    setTxPosts(detail.posts);
-    setTxSubjectName(subject.name);
-    setTxPathway(detail.learning_pathway);
-
-    if (language === 'en') return;
-
-    const postTexts = detail.posts.flatMap(p => [p.title ?? '', p.content_markdown]);
-    const metaTexts = [subject.name, ...detail.learning_pathway.map(n => n.title)];
-
-    translateBatch([...postTexts, ...metaTexts], language).then(results => {
-      const postCount = postTexts.length;
-      const postResults = results.slice(0, postCount);
-      const metaResults = results.slice(postCount);
-
-      setTxPosts(detail.posts.map((p, i) => ({
-        ...p,
-        title: postResults[i * 2] || p.title,
-        content_markdown: postResults[i * 2 + 1] || p.content_markdown,
-      })));
-
-      let m = 0;
-      setTxSubjectName(metaResults[m++] || subject.name);
-      setTxPathway(
-        detail.learning_pathway.map((n, i) => ({ ...n, title: metaResults[m + i] || n.title }))
-      );
-    });
-  }, [language, detail]); // eslint-disable-line react-hooks/exhaustive-deps
-
   if (!detail) return (
     <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>{t('common.loading')}</div>
   );
@@ -172,7 +133,7 @@ export function SubjectDetailScreen() {
           {getSubjectIcon(subject.code)}
         </div>
         <div>
-          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{txSubjectName}</div>
+          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{subject.name}</div>
           <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teachers?.[0]?.display_name}</div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -256,7 +217,7 @@ export function SubjectDetailScreen() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('parentSubject.learningPathway')}</div>
           <div className="timeline">
-            {txPathway.map(node => (
+            {detail.learning_pathway.map(node => (
               <div key={node.uuid} className="timeline-node">
                 <div className={`timeline-dot ${node.status}`} />
                 <div>
@@ -294,7 +255,7 @@ export function SubjectDetailScreen() {
         </div>
 
         <div className="card" style={{ overflowY: 'auto', maxHeight: 600 }}>
-          <PostBoard posts={txPosts} subjectColor={subjectColor} />
+          <PostBoard posts={detail.posts} subjectColor={subjectColor} />
         </div>
       </div>
     </div>

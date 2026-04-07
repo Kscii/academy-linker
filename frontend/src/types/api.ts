@@ -376,6 +376,63 @@ export interface ResourceDetail extends Omit<ResourceListItem, 'translation'> {
   translated_at: string | null;
 }
 
+// ── Timetable ────────────────────────────────────────────────
+
+export interface TimetableSubjectInfo {
+  uuid: string;
+  name: string;
+  code: string | null;
+}
+
+export interface TimetableTeacherInfo {
+  uuid: string;
+  display_name: string;
+}
+
+export interface ClassTimetableEntry {
+  uuid: string;
+  weekday: string;
+  period_index: number;
+  room_label: string | null;
+  start_time: string;
+  end_time: string;
+  effective_from: string;
+  effective_to: string | null;
+  is_active: boolean;
+  subject: TimetableSubjectInfo;
+  teacher: TimetableTeacherInfo;
+  is_assigned_to_current_teacher?: boolean | null;
+}
+
+export interface ClassTimetableData {
+  class_info: {
+    uuid: string;
+    name: string;
+    grade_level: string | null;
+    academic_year: string | null;
+  };
+  selected_date: string;
+  effective_from: string | null;
+  effective_to: string | null;
+  entries: ClassTimetableEntry[];
+  available_subjects: TimetableSubjectInfo[];
+  available_teachers: TimetableTeacherInfo[];
+}
+
+export interface ReplaceClassTimetableRequest {
+  effective_from: string;
+  effective_to?: string | null;
+  entries: Array<{
+    weekday: string;
+    period_index: number;
+    subject_uuid: string;
+    teacher_uuid: string;
+    room_label?: string | null;
+    start_time: string;
+    end_time: string;
+  }>;
+}
+
 // ── Discussion (Parent view) ──────────────────────────────────
 
 export interface DiscussionSubjectBrief {
@@ -404,6 +461,7 @@ export interface ParentDiscussionThreadResponse {
     avatar_url: string | null;
     subjects: DiscussionSubjectBrief[];
   };
+  available_tags: PostTag[];
   posts: ThreadPost[];
   meta: PaginationMeta;
 }
@@ -427,6 +485,7 @@ export interface TeacherDiscussionThreadResponse {
     display_name: string;
     avatar_url: string | null;
   };
+  available_tags: PostTag[];
   posts: ThreadPost[];
   meta: PaginationMeta;
 }
@@ -797,7 +856,7 @@ export interface UpdatePostRequest {
 // ── Translation resolve ───────────────────────────────────────
 
 export interface TranslationResolveRequest {
-  resource_type: 'report' | 'announcement' | 'post';
+  resource_type: 'report' | 'announcement' | 'post' | 'resource';
   resource_uuid: string;
 }
 
