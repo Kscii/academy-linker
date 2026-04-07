@@ -42,6 +42,7 @@ export function ConversationScreen() {
 
   const [teacherItem, setTeacherItem] = useState<DiscussionTeacherItem | null>(null);
   const [messages, setMessages] = useState<ThreadPost[]>([]);
+  const [availableTags, setAvailableTags] = useState<ThreadPost['tags']>([]);
   const [threadUuid, setThreadUuid] = useState('');
   const [draft, setDraft] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
@@ -77,6 +78,7 @@ export function ConversationScreen() {
       keyword: keyword.trim() || undefined,
     });
     setMessages(res.data.posts);
+    setAvailableTags(res.data.available_tags);
     setThreadUuid(res.data.thread_uuid);
     markThreadRead(res.data.thread_uuid);
   }, [keyword, markThreadRead, sid, sort, tag, teacherUuid]);
@@ -114,10 +116,6 @@ export function ConversationScreen() {
   const subjectColor = getSubjectColor(subject?.code);
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
-  const availableTags = useMemo(
-    () => Array.from(new Map(messages.flatMap(post => post.tags.map(tagItem => [tagItem.name, tagItem]))).values()),
-    [messages]
-  );
   const replyTarget = useMemo(
     () => messages.find(message => message.uuid === replyToPostUuid) ?? null,
     [messages, replyToPostUuid]

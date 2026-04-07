@@ -850,7 +850,7 @@
         "subject_uuid": "string",
         "subject_name": "Mathematics",
         "score": 88.0,
-        "progress": 0.75,
+        "progress": 75.0,
         "assignment_completion_rate": 0.95
       }
     ],
@@ -866,13 +866,13 @@
         {
           "subject_uuid": "string",
           "subject_name": "Mathematics",
-          "value": 0.95
+          "value": 95.0
         }
       ],
       "learning_progress_chart": [
         {
           "label": "2026-04-01",
-          "value": 0.72
+          "value": 72.0
         }
       ]
     },
@@ -889,6 +889,8 @@
   }
 }
 ```
+
+> 注：`overall_performance_index` 基于该学生当前各学科考试成绩均值聚合；`assignment_completion_rate` / `attendance_rate` 基于当前可用的 `student_period_metrics` 聚合。`subject_statistics.progress` 与各类图表中的 `value` 为便于前端可视化直接渲染的百分比值（0-100）。
 
 ---
 
@@ -1371,6 +1373,13 @@
         }
       ]
     },
+    "available_tags": [
+      {
+        "uuid": "string",
+        "name": "follow-up",
+        "scope": "system | teacher_private"
+      }
+    ],
     "posts": [
       {
         "uuid": "string",
@@ -1411,9 +1420,7 @@
 }
 ```
 
-> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
->
-> **TODO**：`available_tags`（当前用户可用的 tag 列表）计划在后续迭代中作为本接口的补充字段加入，当前前端可通过 `GET /api/teachers/me/tags` 独立获取。
+> 注：`thread_uuid` 为本次访问自动懒创建或已存在的 thread uuid；访问该接口会自动将当前家长的 `unread_post_count` 重置为 0。`available_tags` 返回当前家长在此讨论中可使用的全部 tag：所有可供家长选择的 system tag，以及当前讨论教师的 private tag。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
 
 ---
 
@@ -1974,6 +1981,13 @@
       "display_name": "string",
       "avatar_url": "string | null"
     },
+    "available_tags": [
+      {
+        "uuid": "string",
+        "name": "follow-up",
+        "scope": "system | teacher_private"
+      }
+    ],
     "posts": [
       {
         "uuid": "string",
@@ -2014,7 +2028,7 @@
 }
 ```
 
-> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
+> 注：访问该接口会自动将当前教师的 `unread_post_count` 重置为 0。`available_tags` 返回当前教师在此讨论中可使用的全部 tag：所有可供教师选择的 system tag，以及当前教师自己的 private tag。`is_deleted=true` 的帖子 `content_markdown` 固定返回 `"[该帖子已删除]"`。当当前目标语言存在已缓存译文时，`content_markdown` 返回译文版本，`display_language` 返回目标语言；`original_content_markdown` 始终返回原文版本，便于前端实现“显示原文 / 显示译文”切换。讨论页接口仅读取当前目标语言的已缓存译文，不会触发新的翻译写入；若前端需要生成缺失译文，应显式调用 `POST /api/translations/resolve`。已删除帖子不允许再触发新的翻译写入。
 
 ---
 

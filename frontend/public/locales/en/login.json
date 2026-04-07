@@ -5,6 +5,8 @@
   "emailPlaceholder": "your@email.com",
   "passwordLabel": "Password",
   "passwordPlaceholder": "Enter your password",
+  "showPassword": "Show",
+  "hidePassword": "Hide",
   "rememberMe": "Remember me",
   "signIn": "Sign In",
   "signingIn": "Signing in…",

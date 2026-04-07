@@ -112,6 +112,7 @@ export function TeacherMessagesScreen() {
       keyword: threadKeyword.trim() || undefined,
     });
     setMessages(res.data.posts);
+    setAvailableTags(res.data.available_tags);
     setThreadUuid(res.data.thread_uuid);
     markThreadRead(studentUuid);
   }, [markThreadRead, threadKeyword, threadPage, threadSort, threadTag]);

@@ -281,7 +281,7 @@
     "sessionHint": "本次会话中创建的公告可以在这里重新打开并继续编辑。"
   },
   "teacherMessages": {
-    "title": "消息",
+    "title": "讨论",
     "parentConversations": "家长会话",
     "parentPreview": "家长：{{name}}",
     "noParentLinked": "未关联家长",
@@ -298,7 +298,7 @@
     "clearReply": "清除回复",
     "newPost": "新帖子",
     "postReply": "发布回复",
-    "deleteConfirm": "确定删除这条消息吗？",
+    "deleteConfirm": "确定删除这条帖子吗？",
     "aiDraft": "AI 草稿",
     "replyTo": "回复 {{name}}...",
     "saving": "保存中...",
@@ -333,8 +333,8 @@
     "backToStudentSearch": "返回学生搜索"
   },
   "parentMessages": {
-    "title": "消息",
-    "subtitle": "你与学生老师之间的会话",
+    "title": "讨论",
+    "subtitle": "你与学生老师之间的讨论",
     "sortRecent": "最近活动",
     "sortTeacher": "教师姓名",
     "justNow": "刚刚",
@@ -344,8 +344,8 @@
   },
   "parentConversation": {
     "viewGrades": "查看成绩",
-    "noMessages": "暂时还没有消息。现在就给 {{name}} 发一条吧。",
-    "deleteConfirm": "确定删除这条消息吗？",
+    "noMessages": "暂时还没有帖子。现在就和 {{name}} 开始讨论吧。",
+    "deleteConfirm": "确定删除这条帖子吗？",
     "notFound": "未找到该讨论。",
     "searchPlaceholder": "搜索标题或内容",
     "allTags": "全部标签",

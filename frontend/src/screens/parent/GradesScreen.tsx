@@ -15,6 +15,11 @@ const ACCENT_COLORS: Record<string, string> = {
   a1: 'var(--a1)', a2: 'var(--a2)', a3: 'var(--a3)', a4: 'var(--a4)',
 };
 
+function normalizePercent(value: number | null | undefined): number {
+  if (value == null) return 0;
+  return value <= 1 ? value * 100 : value;
+}
+
 export function GradesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
@@ -57,7 +62,7 @@ export function GradesScreen() {
     return () => clearTimeout(t2);
   }, []);
 
-  const chartData: ChartDataPoint[] = (dashboard?.charts.subject_score_bar_chart ?? []).map(d => ({ label: d.subject_name, value: d.value }));
+  const chartData: ChartDataPoint[] = (dashboard?.charts.subject_score_bar_chart ?? []).map(d => ({ label: d.subject_name, value: d.value ?? 0 }));
   const txTitle = t('app:parentGrades.title');
   const txSubtitle = t('app:parentGrades.subtitle', { name: studentName });
 
@@ -145,7 +150,7 @@ export function GradesScreen() {
                   <div
                     className="progress-fill"
                     style={{
-                      width: barsReady ? `${sub.progress ?? sub.score ?? 0}%` : '0%',
+                      width: barsReady ? `${normalizePercent(sub.progress ?? sub.score ?? 0)}%` : '0%',
                       background: getSubjectColor(sub.code) || sub.color || 'var(--a1)',
                       transitionDelay: `${idx * 80}ms`,
                     }}

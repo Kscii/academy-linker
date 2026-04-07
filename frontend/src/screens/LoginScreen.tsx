@@ -221,6 +221,7 @@ export function LoginScreen() {
 
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
@@ -327,15 +328,38 @@ export function LoginScreen() {
               <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', display: 'block', marginBottom: 6 }}>
                 {t('passwordLabel')}
               </label>
-              <input
-                className="input-field"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder={t('passwordPlaceholder')}
-                autoComplete="current-password"
-                onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="input-field"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder={t('passwordPlaceholder')}
+                  autoComplete="current-password"
+                  onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }}
+                  style={{ paddingRight: 92 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    border: 'none',
+                    background: 'none',
+                    color: 'var(--tx3)',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-body)',
+                    padding: 0,
+                  }}
+                >
+                  {showPassword ? t('hidePassword') : t('showPassword')}
+                </button>
+              </div>
             </div>
 
             {/* Remember me */}
