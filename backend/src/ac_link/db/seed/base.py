@@ -73,6 +73,20 @@ def run(db: Session) -> dict[str, dict[str, object]]:
         relationship_label="father",
         is_primary=True,
     )
+    ensure_parent_binding(
+        db,
+        parent=users["parent_park"],  # type: ignore[arg-type]
+        student=students["student_liam"],  # type: ignore[arg-type]
+        relationship_label="father",
+        is_primary=True,
+    )
+    ensure_parent_binding(
+        db,
+        parent=users["parent_park"],  # type: ignore[arg-type]
+        student=students["student_sofia"],  # type: ignore[arg-type]
+        relationship_label="mother",
+        is_primary=True,
+    )
 
     assignments = [
         ("teacher_ada", "student_emma", "mathematics"),
@@ -81,6 +95,10 @@ def run(db: Session) -> dict[str, dict[str, object]]:
         ("teacher_ada", "student_noah", "science"),
         ("teacher_lin", "student_olivia", "science"),
         ("teacher_lin", "student_olivia", "history"),
+        ("teacher_ada", "student_liam", "mathematics"),
+        ("teacher_ada", "student_liam", "english"),
+        ("teacher_lin", "student_sofia", "science"),
+        ("teacher_lin", "student_sofia", "history"),
     ]
     for teacher_key, student_key, subject_key in assignments:
         ensure_teaching_assignment(

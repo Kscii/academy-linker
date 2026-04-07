@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 
 DEMO_EMAIL_DOMAIN = os.getenv("SEED_DEMO_EMAIL_DOMAIN", "academy-link.dev")
-DEFAULT_PASSWORD = "DemoPass123!"
+DEFAULT_PASSWORD = "114514"
 
 
 @dataclass(frozen=True)
@@ -56,6 +56,13 @@ PARENT_USERS = (
         display_name="Wang Parent",
         phone_number="0400 200 002",
     ),
+    DemoUserSpec(
+        key="parent_park",
+        role="parent",
+        email=f"parent.park@{DEMO_EMAIL_DOMAIN}",
+        display_name="Park Parent",
+        phone_number="0400 200 003",
+    ),
 )
 
 SUBJECT_SPECS = (
@@ -94,6 +101,22 @@ STUDENT_SPECS = (
         "preferred_name": "Olivia",
         "class_key": "year6_beta",
         "date_of_birth": "2013-11-27",
+    },
+    {
+        "key": "student_liam",
+        "sid": "DEMO-STU-004",
+        "full_name": "Liam Student",
+        "preferred_name": "Liam",
+        "class_key": "year5_alpha",
+        "date_of_birth": "2014-03-15",
+    },
+    {
+        "key": "student_sofia",
+        "sid": "DEMO-STU-005",
+        "full_name": "Sofia Student",
+        "preferred_name": "Sofia",
+        "class_key": "year6_beta",
+        "date_of_birth": "2013-07-08",
     },
 )
 
