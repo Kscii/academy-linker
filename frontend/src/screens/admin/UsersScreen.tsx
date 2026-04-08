@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { AdminUser, CreateUserRequest, PaginationMeta, UserRole } from '@/types/api';
 
 type UserRow = AdminUser & { phone_number: string | null };
@@ -133,8 +133,7 @@ export function AdminUsersScreen() {
       setShowForm(false);
       await loadUsers();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('adminUsers.saveFailed'));
+      setError(getApiErrorMessage(e, t('adminUsers.saveFailed')));
     } finally {
       setSaving(false);
     }

@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { teacher as teacherApi } from '@/lib/api';
+import { teacher as teacherApi, getApiErrorMessage } from '@/lib/api';
 import type { PostTag } from '@/types/api';
 
 type ScopeFilter = 'all' | 'system' | 'teacher_private';
@@ -57,8 +57,7 @@ export function TeacherTagsScreen() {
       openCreate();
       await loadTags();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('failedSaveTag'));
+      setError(getApiErrorMessage(e, t('failedSaveTag')));
     } finally {
       setSaving(false);
     }
