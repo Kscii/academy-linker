@@ -75,6 +75,7 @@ from ac_link.dto.admin import (
     UserListItem,
 )
 from ac_link.dto.auth import ApiResponse
+from ac_link.dto.options import OptionItem
 from ac_link.dto.resource import (
     CreateResourceRequest,
     DeleteResourceResult,
@@ -100,6 +101,27 @@ from ac_link.services.translation_helpers import (
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+@router.get("/options/subjects", response_model=ApiResponse[list[OptionItem]])
+def list_subject_options(
+    keyword: str | None = None,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[OptionItem]]:
+    q = db.query(Subject).filter(Subject.is_active == True)  # noqa: E712
+    if keyword:
+        like = f"%{keyword}%"
+        q = q.filter((Subject.name.ilike(like)) | (Subject.code.ilike(like)))
+    rows = q.order_by(Subject.name.asc()).limit(200).all()
+    return ApiResponse(data=[
+        OptionItem(
+            value=str(item.uuid),
+            label=item.name,
+            meta={"code": item.code},
+        )
+        for item in rows
+    ])
 
 
 def _build_admin_timetable_response(

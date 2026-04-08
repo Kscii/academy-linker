@@ -20,6 +20,7 @@ import math
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ac_link.common.deps import require_teacher
@@ -31,6 +32,7 @@ from ac_link.crud import timetable as timetable_crud
 from ac_link.crud import teacher as teacher_crud
 from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
+from ac_link.db.orm.academic import StudentPeriodMetric
 from ac_link.db.orm.enums import AnnouncementCategory, ReportType, TranslationResourceType, UserRole
 from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
@@ -71,10 +73,45 @@ from ac_link.dto.teacher import (
     UpdateExamScoreRequest,
     UpsertPeriodMetricRequest,
 )
+from ac_link.dto.options import OptionItem
 from ac_link.dto.timetable import ClassTimetableData, TimetableClassInfo, TimetableEntryItem, TimetableSubjectInfo, TimetableTeacherInfo
 from ac_link.services.translation_helpers import get_target_language
 
 router = APIRouter(prefix="/api/teachers/me", tags=["teachers"])
+
+
+@router.get("/options/terms", response_model=ApiResponse[list[OptionItem]])
+def list_teacher_term_options(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[OptionItem]]:
+    student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权限访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subject = teacher_crud.get_subject_by_uuid(db, subject_uuid)
+        if subject is None:
+            raise Errors.not_found("学科不存在")
+        if not teacher_crud.verify_teaching_assignment(db, current_user.id, student.id, subject.id):
+            raise Errors.forbidden("无权限访问该学生的此学科")
+        subject_id = subject.id
+
+    q = db.query(StudentPeriodMetric.term).filter(
+        StudentPeriodMetric.student_id == student.id,
+        StudentPeriodMetric.term.isnot(None),
+    )
+    if subject_id is not None:
+        q = q.filter(StudentPeriodMetric.subject_id == subject_id)
+    rows = q.distinct().order_by(func.lower(StudentPeriodMetric.term).asc()).all()
+    return ApiResponse(data=[
+        OptionItem(value=item[0], label=item[0])
+        for item in rows
+        if item[0]
+    ])
 
 
 def _build_teacher_timetable_response(

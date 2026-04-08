@@ -24,6 +24,7 @@ from collections import defaultdict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ac_link.common.deps import require_parent
@@ -87,10 +88,43 @@ from ac_link.dto.parent import (
     TrendDataPoint,
     ReportSummary,
 )
+from ac_link.dto.options import OptionItem
 from ac_link.dto.timetable import ClassTimetableData, TimetableClassInfo, TimetableEntryItem, TimetableSubjectInfo, TimetableTeacherInfo
 from ac_link.services.translation_helpers import get_target_language
 
 router = APIRouter(prefix="/api/parents/me", tags=["parents"])
+
+
+@router.get("/students/{student_uuid}/options/terms", response_model=ApiResponse[list[OptionItem]])
+def list_parent_term_options(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[OptionItem]]:
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权限访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subject_payload = parent_crud.get_subject_for_student(db, student.id, subject_uuid)
+        if subject_payload is None:
+            raise Errors.not_found("学科不存在或未分配给该学生")
+        subject_id = subject_payload[0].id
+
+    q = db.query(StudentPeriodMetric.term).filter(
+        StudentPeriodMetric.student_id == student.id,
+        StudentPeriodMetric.term.isnot(None),
+    )
+    if subject_id is not None:
+        q = q.filter(StudentPeriodMetric.subject_id == subject_id)
+    rows = q.distinct().order_by(func.lower(StudentPeriodMetric.term).asc()).all()
+    return ApiResponse(data=[
+        OptionItem(value=item[0], label=item[0])
+        for item in rows
+        if item[0]
+    ])
 
 
 def _build_timetable_response(*, class_obj: object, selected_date: object, entries: list[object]) -> ClassTimetableData:
