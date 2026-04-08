@@ -9,6 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PostComposerDrawer } from '@/components/PostComposerDrawer';
 import { TtsButton } from '@/components/TtsButton';
 import { getSubjectColor } from '@/lib/constants';
+import { useEscapeKey } from '@/lib/keyboard';
 import type { DiscussionTeacherItem, ThreadPost } from '@/types/api';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, posts as postsApi, translations } from '@/lib/api';
@@ -110,6 +111,14 @@ export function ConversationScreen() {
       return Object.fromEntries(Object.entries(prev).filter(([key]) => validIds.has(key)));
     });
   }, [messages]);
+
+  useEscapeKey({
+    enabled: composerState === null,
+    onEscape: () => {
+      if (!sid) return;
+      navigate(`/parent/students/${sid}/discussions`);
+    },
+  });
 
   const txViewGrades = t('parentConversation.viewGrades');
   const txNoMessages = t('parentConversation.noMessages', { name: teacherItem?.display_name ?? '' });

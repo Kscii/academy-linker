@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Archive, ArchiveRestore, Expand, Minimize2, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Trash2, X } from 'lucide-react';
 
 import { ai } from '@/lib/api';
+import { useEscapeKey } from '@/lib/keyboard';
 import type { AiConversation, AiContextType, AiMessage } from '@/types/api';
 
 interface AIPanelProps {
@@ -270,6 +271,12 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
     if (!open || !messagesEndRef.current) return;
     messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, open, thinking]);
+
+  useEscapeKey({
+    enabled: open,
+    allowInInput: true,
+    onEscape: () => setOpen(false),
+  });
 
   const ensureConversation = useCallback(async () => {
     if (conversationUuid && conversationUuid !== PLACEHOLDER_UUID) return conversationUuid;

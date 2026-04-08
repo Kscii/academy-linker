@@ -5,6 +5,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useEscapeKey } from '@/lib/keyboard';
+
 export const LANGUAGES = [
   { code: 'en', nativeName: 'English',           englishName: 'English' },
   { code: 'zh', nativeName: '中文',               englishName: 'Chinese' },
@@ -57,6 +59,15 @@ export function LanguageCombobox({ value, onChange, compact = false }: Props) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  useEscapeKey({
+    enabled: open,
+    allowInInput: true,
+    onEscape: () => {
+      setOpen(false);
+      setSearch('');
+    },
+  });
 
   const select = (code: string) => {
     onChange(code);
