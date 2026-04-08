@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://kscii.tech:8000',
+        target: process.env.VITE_DEV_API_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
         cookieDomainRewrite: 'localhost',
