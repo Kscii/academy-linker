@@ -19,6 +19,8 @@ interface DisplayMessage {
 let msgIdCounter = 0;
 const genId = () => `msg-${++msgIdCounter}`;
 
+const PLACEHOLDER_UUID = '__new__';
+
 function resolveContextType(studentUuid?: string, subjectUuid?: string): AiContextType {
   if (studentUuid && subjectUuid) return 'subject';
   if (studentUuid) return 'student';
@@ -163,6 +165,23 @@ function MarkdownMessage({ text }: { text: string }) {
   return <div className="ai-markdown">{nodes}</div>;
 }
 
+function HistorySkeleton() {
+  return (
+    <>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="ai-skeleton-item">
+          <div className="ai-skeleton-line long" />
+          <div className="ai-skeleton-line short" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Spinner({ size = 20 }: { size?: number }) {
+  return <div className="ai-spinner" style={{ width: size, height: size }} />;
+}
+
 function formatConversationTime(dateString: string | null, locale: string): string {
   if (!dateString) return '';
   try {
@@ -204,7 +223,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   );
 
   const resetComposer = useCallback(() => {
-    setConversationUuid(null);
+    setConversationUuid(PLACEHOLDER_UUID);
     setCurrentArchived(false);
     setMessages([]);
   }, []);
@@ -238,10 +257,10 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   }, [loadHistory, open]);
 
   useEffect(() => {
-    if (!conversationUuid) return;
+    if (!conversationUuid || conversationUuid === PLACEHOLDER_UUID) return;
     const existsInCurrentFilter = conversations.some((conversation) => conversation.uuid === conversationUuid);
     if (!existsInCurrentFilter && currentArchived === showArchived) {
-      setConversationUuid(null);
+      setConversationUuid(PLACEHOLDER_UUID);
       setCurrentArchived(false);
       setMessages([]);
     }
@@ -253,7 +272,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   }, [messages, open, thinking]);
 
   const ensureConversation = useCallback(async () => {
-    if (conversationUuid) return conversationUuid;
+    if (conversationUuid && conversationUuid !== PLACEHOLDER_UUID) return conversationUuid;
     const res = await ai.createConversation({
       context_type: contextType,
       student_uuid: studentUuid || null,
@@ -289,6 +308,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
 
     try {
       const uuid = await ensureConversation();
+      void loadHistory();
       const res = await ai.sendMessage(uuid, { message: text, preset: 'default' });
       setConversationUuid(res.data.conversation_uuid);
       setMessages(prev => [...prev, toDisplayMessage(res.data.assistant_message)]);
@@ -481,28 +501,35 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
 
                 <div className="ai-history-list">
                   {loadingHistory ? (
-                    <div className="ai-history-empty">{t('common.loading')}</div>
-                  ) : conversations.length === 0 ? (
+                    <HistorySkeleton />
+                  ) : conversations.length === 0 && conversationUuid !== PLACEHOLDER_UUID ? (
                     <div className="ai-history-empty">{t('aiPanel.noHistory')}</div>
                   ) : (
-                    conversations.map((conversation) => {
-                      const selected = conversation.uuid === conversationUuid;
-                      return (
-                        <button
-                          key={conversation.uuid}
-                          type="button"
-                          className={`ai-history-item ${selected ? 'selected' : ''}`}
-                          onClick={() => void openConversation(conversation.uuid)}
-                        >
-                          <div className="ai-history-item-title">
-                            {conversation.title?.trim() || t('common.untitled')}
-                          </div>
-                          <div className="ai-history-item-meta">
-                            {formatConversationTime(conversation.last_message_at || conversation.updated_at, i18n.resolvedLanguage ?? i18n.language)}
-                          </div>
-                        </button>
-                      );
-                    })
+                    <>
+                      {conversationUuid === PLACEHOLDER_UUID && (
+                        <div className="ai-history-item selected">
+                          <div className="ai-history-item-title">{t('aiPanel.newChat')}</div>
+                        </div>
+                      )}
+                      {conversations.map((conversation) => {
+                        const selected = conversation.uuid === conversationUuid;
+                        return (
+                          <button
+                            key={conversation.uuid}
+                            type="button"
+                            className={`ai-history-item ${selected ? 'selected' : ''}`}
+                            onClick={() => void openConversation(conversation.uuid)}
+                          >
+                            <div className="ai-history-item-title">
+                              {conversation.title?.trim() || t('common.untitled')}
+                            </div>
+                            <div className="ai-history-item-meta">
+                              {formatConversationTime(conversation.last_message_at || conversation.updated_at, i18n.resolvedLanguage ?? i18n.language)}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </>
                   )}
                 </div>
               </aside>
@@ -514,14 +541,14 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
                   <div className="ai-chat-title">
                     {activeConversation?.title?.trim() || t('aiPanel.title')}
                   </div>
-                  {conversationUuid && (
+                  {conversationUuid && conversationUuid !== PLACEHOLDER_UUID && (
                     <div className="ai-chat-meta">
                       {currentArchived ? t('aiPanel.archivedChats') : t('aiPanel.activeChats')}
                     </div>
                   )}
                 </div>
                 <div className="ai-chat-actions">
-                  {conversationUuid && (
+                  {conversationUuid && conversationUuid !== PLACEHOLDER_UUID && (
                     <>
                       <button
                         type="button"
@@ -548,8 +575,8 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
 
               <div className="ai-messages">
                 {loadingConversation ? (
-                  <div className="ai-history-empty">{t('common.loading')}</div>
-                ) : !conversationUuid && messages.length === 0 ? (
+                  <div className="ai-loading-center"><Spinner /></div>
+                ) : (!conversationUuid || conversationUuid === PLACEHOLDER_UUID) && messages.length === 0 ? (
                   <div className="ai-empty-state">
                     <div className="ai-empty-badge">✦</div>
                     <p className="ai-empty-greeting">{defaultGreeting}</p>
@@ -577,7 +604,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
                     ))}
                     {thinking && (
                       <div className="ai-msg-bot thinking">
-                        <span style={{ letterSpacing: 2 }}>···</span>
+                        <Spinner size={16} />
                       </div>
                     )}
                     <div ref={messagesEndRef} />
