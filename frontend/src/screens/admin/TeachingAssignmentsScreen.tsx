@@ -91,8 +91,13 @@ export function AdminTeachingAssignmentsScreen() {
   };
 
   const toggleAssignment = async (assignment: TeachingAssignment) => {
-    await adminApi.updateTeachingAssignment(assignment.uuid, { is_active: !assignment.is_active });
-    await loadAssignments();
+    setError('');
+    try {
+      await adminApi.updateTeachingAssignment(assignment.uuid, { is_active: !assignment.is_active });
+      await loadAssignments();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('failedCreateTeachingAssignment')));
+    }
   };
 
   const subjectLabelMap = useMemo(

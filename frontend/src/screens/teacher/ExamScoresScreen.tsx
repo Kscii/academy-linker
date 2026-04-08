@@ -152,9 +152,14 @@ export function TeacherExamScoresScreen() {
 
   const handleDelete = async (scoreUuid: string) => {
     if (!studentUuid) return;
-    await teacherApi.deleteExamScore(studentUuid, scoreUuid);
-    await loadScores();
-    if (form.uuid === scoreUuid) resetForm();
+    setError('');
+    try {
+      await teacherApi.deleteExamScore(studentUuid, scoreUuid);
+      await loadScores();
+      if (form.uuid === scoreUuid) resetForm();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('failedSaveExamScore')));
+    }
   };
 
   return (
