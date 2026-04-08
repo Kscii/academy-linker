@@ -375,6 +375,8 @@
   "parentAnnouncements": {
     "title": "School Notices",
     "subtitle": "Important announcements from the school",
+    "totalCount_one": "{{count}} notice",
+    "totalCount_other": "{{count}} notices",
     "allCategories": "All categories",
     "categoryAnnouncement": "Announcement",
     "categoryTask": "Task",
@@ -434,6 +436,7 @@
     "unreadBadge": "Unread",
     "archivedBadge": "Archived",
     "publishedAt": "Published {{date}}",
+    "periodRange": "Period {{start}} to {{end}}",
     "readAt": "Read {{date}}",
     "archivedAt": "Archived {{date}}",
     "translatedAt": "Translated {{date}}"
@@ -450,6 +453,13 @@
     "termAverage": "Term Average",
     "highest": "Highest",
     "lowest": "Lowest",
+    "classAverage": "Class Average",
+    "assignmentCompletion": "Completion",
+    "attendanceRate": "Attendance",
+    "latestSummary": "Latest Summary",
+    "noSummary": "No summary available for this subject yet.",
+    "summaryTranslatedAt": "Translated {{date}}",
+    "learningHealth": "Learning Health",
     "scoreTrend": "Score Trend",
     "classAvg": "Class avg",
     "studentLine": "Student",
@@ -461,6 +471,9 @@
     "generatingInsight": "Generating insight...",
     "insightError": "Unable to load insight."
   },
+  "resourcesCount_one": "{{count}} resource",
+  "resourcesCount_other": "{{count}} resources",
+  "externalResource": "External link",
   "parentDashboard": {
     "overallLearningTrend": "Overall Learning Trend",
     "upcomingActivities": "Upcoming Activities",

@@ -375,6 +375,8 @@
   "parentAnnouncements": {
     "title": "学校通知",
     "subtitle": "来自学校的重要公告",
+    "totalCount_one": "{{count}} 条通知",
+    "totalCount_other": "{{count}} 条通知",
     "allCategories": "全部分类",
     "categoryAnnouncement": "公告",
     "categoryTask": "任务",
@@ -434,6 +436,7 @@
     "unreadBadge": "未读",
     "archivedBadge": "已归档",
     "publishedAt": "发布于 {{date}}",
+    "periodRange": "时间范围：{{start}} 至 {{end}}",
     "readAt": "已读于 {{date}}",
     "archivedAt": "归档于 {{date}}",
     "translatedAt": "已翻译于 {{date}}"
@@ -450,6 +453,13 @@
     "termAverage": "本学期平均",
     "highest": "最高分",
     "lowest": "最低分",
+    "classAverage": "班级均分",
+    "assignmentCompletion": "完成率",
+    "attendanceRate": "出勤率",
+    "latestSummary": "最近摘要",
+    "noSummary": "该学科暂时还没有可展示的摘要。",
+    "summaryTranslatedAt": "已翻译于 {{date}}",
+    "learningHealth": "学习健康度",
     "scoreTrend": "成绩趋势",
     "classAvg": "班级平均",
     "studentLine": "学生",
@@ -461,6 +471,9 @@
     "generatingInsight": "正在生成洞察...",
     "insightError": "暂时无法加载洞察。"
   },
+  "resourcesCount_one": "{{count}} 条资源",
+  "resourcesCount_other": "{{count}} 条资源",
+  "externalResource": "外部链接",
   "parentDashboard": {
     "overallLearningTrend": "整体学习趋势",
     "upcomingActivities": "即将开始的活动",

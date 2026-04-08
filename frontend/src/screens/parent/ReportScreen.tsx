@@ -403,6 +403,14 @@ export function ReportScreen() {
           {detail && (
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16, fontSize: 12, color: 'var(--tx3)' }}>
               {detail.published_at && <span>{t('parentReports.publishedAt', { date: formatDate(detail.published_at) })}</span>}
+              {(detail.period_start || detail.period_end) && (
+                <span>
+                  {t('parentReports.periodRange', {
+                    start: detail.period_start ? formatDate(detail.period_start) : t('common.notAvailable'),
+                    end: detail.period_end ? formatDate(detail.period_end) : t('common.notAvailable'),
+                  })}
+                </span>
+              )}
               {detail.read_at && <span>{t('parentReports.readAt', { date: formatDate(detail.read_at) })}</span>}
               {detail.archived_at && <span>{t('parentReports.archivedAt', { date: formatDate(detail.archived_at) })}</span>}
               {detail.translated_at && <span>{t('parentReports.translatedAt', { date: formatDate(detail.translated_at) })}</span>}
