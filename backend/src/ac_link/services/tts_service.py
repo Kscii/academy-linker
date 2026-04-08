@@ -25,6 +25,10 @@ _GEMINI_VOICES: tuple[dict[str, str], ...] = (
 )
 
 
+def _voice_map() -> dict[str, str]:
+    return {voice["name"]: voice["language"] for voice in _GEMINI_VOICES}
+
+
 def get_active_tts_provider() -> TtsProvider:
     normalized = settings.tts_provider.strip().lower()
     if normalized in {"gemini", "google-genai"}:
@@ -51,18 +55,24 @@ def ensure_tts_configured() -> None:
         raise Errors.tts_not_configured("未配置 TTS_API_KEY")
     if not settings.tts_model:
         raise Errors.tts_not_configured("未配置 TTS_MODEL")
+    _validate_configured_voice(settings.tts_voice_en, expected_language="en")
+    _validate_configured_voice(settings.tts_voice_zh, expected_language="zh")
 
 
 def resolve_voice_for_language(language: str) -> str:
     normalized = language.lower()
     if normalized.startswith(("zh", "cmn")):
-        return settings.tts_voice_zh
-    return settings.tts_voice_en
+        voice_key = settings.tts_voice_zh
+        _validate_configured_voice(voice_key, expected_language="zh")
+        return voice_key
+    voice_key = settings.tts_voice_en
+    _validate_configured_voice(voice_key, expected_language="en")
+    return voice_key
 
 
-def build_content_hash(*, text: str, language: str, voice_key: str) -> str:
+def build_content_hash(*, text: str, language: str, voice_key: str, scope_key: str = "shared") -> str:
     provider = get_provider_label(get_active_tts_provider())
-    source = f"{provider}\n{settings.tts_model}\n{language}\n{voice_key}\n{text}".encode("utf-8")
+    source = f"{provider}\n{settings.tts_model}\n{language}\n{voice_key}\n{scope_key}\n{text}".encode("utf-8")
     return hashlib.sha256(source).hexdigest()
 
 
@@ -87,6 +97,16 @@ def _language_matches(prefix: str, voice_language: str) -> bool:
     normalized_prefix = prefix.lower()
     normalized_voice = voice_language.lower()
     return normalized_voice.startswith(normalized_prefix) or normalized_prefix.startswith(normalized_voice.split("-")[0])
+
+
+def _validate_configured_voice(voice_key: str, *, expected_language: str) -> None:
+    voice_language = _voice_map().get(voice_key)
+    if voice_language is None:
+        raise Errors.tts_not_configured(f"不支持的 TTS voice: {voice_key}")
+    if not _language_matches(expected_language, voice_language):
+        raise Errors.tts_not_configured(
+            f"TTS voice {voice_key} 与目标语言 {expected_language} 不匹配"
+        )
 
 
 def list_available_voices(language: str | None = None) -> list[dict[str, object]]:

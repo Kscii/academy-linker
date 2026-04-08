@@ -22,9 +22,15 @@ logger = logging.getLogger(__name__)
 _client: OpenAI | None = None
 
 
+def is_llm_configured() -> bool:
+    return bool(settings.llm_api_key and settings.llm_model)
+
+
 def _get_client() -> OpenAI:
     global _client
     if _client is None:
+        if not is_llm_configured():
+            raise RuntimeError("LLM service is not configured")
         _client = OpenAI(
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url or None,  # 空字符串等同于 None，使用默认地址
