@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { PaginationMeta, SelectOption, TeachingAssignment } from '@/types/api';
 
 type AssignmentForm = {
@@ -84,16 +84,20 @@ export function AdminTeachingAssignmentsScreen() {
       setForm(EMPTY_FORM);
       await loadAssignments();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('failedCreateTeachingAssignment'));
+      setError(getApiErrorMessage(e, t('failedCreateTeachingAssignment')));
     } finally {
       setSaving(false);
     }
   };
 
   const toggleAssignment = async (assignment: TeachingAssignment) => {
-    await adminApi.updateTeachingAssignment(assignment.uuid, { is_active: !assignment.is_active });
-    await loadAssignments();
+    setError('');
+    try {
+      await adminApi.updateTeachingAssignment(assignment.uuid, { is_active: !assignment.is_active });
+      await loadAssignments();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('failedCreateTeachingAssignment')));
+    }
   };
 
   const subjectLabelMap = useMemo(

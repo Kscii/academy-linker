@@ -8,6 +8,7 @@
 import type {
   ApiResponse,
   ApiListResponse,
+  ApiError,
   UserSummary,
   UserSettings,
   Session,
@@ -97,6 +98,35 @@ let refreshPromise: Promise<void> | null = null;
 let _onSessionExpired: (() => void) | null = null;
 export function setSessionExpiredHandler(handler: () => void) {
   _onSessionExpired = handler;
+}
+
+type ApiValidationErrorItem = {
+  msg?: string;
+};
+
+function extractValidationMessages(details: unknown): string[] {
+  const errors = (details as { errors?: ApiValidationErrorItem[] } | undefined)?.errors;
+  if (!Array.isArray(errors)) return [];
+  return [...new Set(
+    errors
+      .map(item => (typeof item?.msg === 'string' ? item.msg.trim() : ''))
+      .filter(Boolean)
+  )];
+}
+
+export function getApiErrorMessage(error: unknown, fallback = '请求失败'): string {
+  if (typeof error === 'string' && error.trim()) return error;
+
+  const apiError = error as ApiError | undefined;
+  const validationMessages = extractValidationMessages(apiError?.error?.details);
+  if (validationMessages.length > 0) return validationMessages.join('；');
+
+  const message = apiError?.error?.message;
+  if (typeof message === 'string' && message.trim()) return message;
+
+  if (error instanceof Error && error.message.trim()) return error.message;
+
+  return fallback;
 }
 
 // ── Core fetch wrapper ───────────────────────────────────────

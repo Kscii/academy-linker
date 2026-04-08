@@ -964,6 +964,39 @@ p { margin: 0; }
   padding: 8px 16px;
 }
 
+.ai-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.ai-empty-badge {
+  font-size: 28px;
+  opacity: 0.25;
+  line-height: 1;
+}
+
+.ai-empty-greeting {
+  font-size: 13px;
+  color: var(--tx2);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 240px;
+}
+
+.ai-empty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 .ai-readonly-banner {
   margin: 0 14px 12px;
   padding: 10px 12px;

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { ClassTimetableData, ClassTimetableEntry, ReplaceClassTimetableRequest, SelectOption } from '@/types/api';
 import { WeeklyTimetable } from '@/components/timetable/WeeklyTimetable';
 
@@ -104,8 +104,7 @@ export function AdminTimetableScreen() {
       await adminApi.replaceClassTimetable(classUuid, body);
       adminApi.getClassTimetable(classUuid, { date }).then(res => setData(res.data)).catch(() => {});
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('adminTimetable.saveFailed'));
+      setError(getApiErrorMessage(e, t('adminTimetable.saveFailed')));
     } finally {
       setSaving(false);
     }

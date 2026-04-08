@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { AdminClass, AdminStudent, CreateStudentRequest, PaginationMeta, UpdateStudentRequest } from '@/types/api';
 
 type StudentForm = {
@@ -128,8 +128,7 @@ export function AdminStudentsScreen() {
       setShowForm(false);
       await loadStudents();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('adminStudents.saveFailed'));
+      setError(getApiErrorMessage(e, t('adminStudents.saveFailed')));
     } finally {
       setSaving(false);
     }
