@@ -5,3 +5,5 @@
 .vscode/
 .pytest_cache/
 .tts-cache/
+*.wav
+

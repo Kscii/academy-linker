@@ -134,7 +134,7 @@ uv run python -m ac_link.db.seed --help
 默认所有 demo 账号共用密码：
 
 ```text
-DemoPass123!
+114514
 ```
 
 账号包括：
