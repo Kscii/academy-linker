@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { useEscapeKey } from '@/lib/keyboard';
 import type { SelectOption } from '@/types/api';
 
 type Props = {
@@ -55,6 +57,15 @@ export function SearchableSelect({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  useEscapeKey({
+    enabled: open,
+    allowInInput: true,
+    onEscape: () => {
+      setOpen(false);
+      setSearch('');
+    },
+  });
 
   const select = (nextValue: string) => {
     onChange(nextValue);

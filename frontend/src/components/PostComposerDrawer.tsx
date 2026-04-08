@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useEscapeKey } from '@/lib/keyboard';
 import type { PostTag, ThreadPost } from '@/types/api';
 
 type ComposerMode = 'create' | 'reply' | 'edit';
@@ -78,6 +79,12 @@ export function PostComposerDrawer({
     setSelectedTagUuids(initialTagUuids);
     setShowAiChips(false);
   }, [open, resetKey]);
+
+  useEscapeKey({
+    enabled: open,
+    allowInInput: true,
+    onEscape: onClose,
+  });
 
   const charLeft = useMemo(
     () => (typeof maxChars === 'number' ? maxChars - content.length : null),
