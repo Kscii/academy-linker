@@ -91,7 +91,8 @@ class OriginCheckMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: object) -> Response:
         if request.method in _WRITE_METHODS and request.url.path not in _ORIGIN_CHECK_BYPASS:
             origin = request.headers.get("origin")
-            if origin and origin not in settings.allowed_origins:
+            normalized_origin = origin.rstrip("/") if origin else None
+            if normalized_origin and normalized_origin not in settings.allowed_origins:
                 return JSONResponse(
                     status_code=403,
                     content={
