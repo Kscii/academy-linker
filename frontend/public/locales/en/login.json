@@ -10,6 +10,7 @@
   "rememberMe": "Remember me",
   "signIn": "Sign In",
   "signingIn": "Signing in…",
+  "sessionExpired": "Your session has expired. Please sign in again.",
   "invalidCredentials": "Invalid email or password",
   "selectRole": "Select your role",
   "parentRole": "Parent",

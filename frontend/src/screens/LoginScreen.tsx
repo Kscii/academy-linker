@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
 import { getApiErrorMessage } from '@/lib/api';
@@ -219,6 +219,7 @@ export function LoginScreen() {
   const { login, toggleTheme, theme, language, setLanguage } = useApp();
   const { t } = useTranslation('login');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -227,6 +228,15 @@ export function LoginScreen() {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
 
+  const redirectTarget = searchParams.get('redirect');
+  const reason = searchParams.get('reason');
+  const sessionExpired = reason === 'session_expired';
+
+  const resolvePostLoginPath = (fallbackPath: string) => {
+    if (!redirectTarget) return fallbackPath;
+    return redirectTarget.startsWith('/') ? redirectTarget : fallbackPath;
+  };
+
   const handleLogin = async () => {
     if (!email || !password) { setError(t('invalidCredentials')); return; }
     setError('');
@@ -234,11 +244,11 @@ export function LoginScreen() {
     try {
       const result = await login(email, password, rememberMe);
       if (result.role === 'parent') {
-        navigate(`/parent/students/${result.firstStudentUuid}/dashboard`, { replace: true });
+        navigate(resolvePostLoginPath(`/parent/students/${result.firstStudentUuid}/dashboard`), { replace: true });
       } else if (result.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
+        navigate(resolvePostLoginPath('/admin/dashboard'), { replace: true });
       } else {
-        navigate('/teacher/dashboard', { replace: true });
+        navigate(resolvePostLoginPath('/teacher/dashboard'), { replace: true });
       }
     } catch (e: unknown) {
       setError(getApiErrorMessage(e, t('invalidCredentials')));
@@ -377,6 +387,16 @@ export function LoginScreen() {
             </div>
 
             {/* Error */}
+            {sessionExpired && !error && (
+              <div style={{
+                background: 'rgba(232,97,78,0.08)', border: '1px solid rgba(232,97,78,0.2)',
+                borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+                fontSize: 13, color: 'var(--tx2)',
+              }}>
+                {t('sessionExpired')}
+              </div>
+            )}
+
             {error && (
               <div style={{
                 background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.3)',
