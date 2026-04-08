@@ -114,15 +114,34 @@ class TestParentSubjects:
         assert isinstance(data["posts"], list)
         assert isinstance(data["trend_data"], list)
         assert isinstance(data["class_avg_data"], list)
-        # 验证 §9.4 新增字段：学习路径、近期帖子、成绩趋势、班级均值
-        assert "learning_pathway" in data
-        assert "posts" in data
-        assert "trend_data" in data
-        assert "class_avg_data" in data
-        assert isinstance(data["learning_pathway"], list)
-        assert isinstance(data["posts"], list)
-        assert isinstance(data["trend_data"], list)
-        assert isinstance(data["class_avg_data"], list)
+
+
+class TestParentOptions:
+    def test_list_subject_options(self, parent_client, td):
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/options/subjects"
+        )
+        assert r.status_code == 200
+        assert any(item["value"] == td["subject_uuid"] for item in r.json()["data"])
+
+    def test_list_term_options(self, parent_client, teacher_client, td):
+        teacher_client.post(
+            f"/api/teachers/me/students/{td['student_uuid']}/period-metrics",
+            json={
+                "subject_uuid": td["subject_uuid"],
+                "term": "2026-T2",
+                "snapshot_date": str(date.today()),
+                "progress": 0.77,
+                "assignment_completion_rate": 0.84,
+                "attendance_rate": 0.95,
+            },
+        )
+        r = parent_client.get(
+            f"/api/parents/me/students/{td['student_uuid']}/options/terms",
+            params={"subject_uuid": td["subject_uuid"]},
+        )
+        assert r.status_code == 200
+        assert any(item["value"] == "2026-T2" for item in r.json()["data"])
 
 
 # ── 报告接口 ──────────────────────────────────────────────────────────────────

@@ -3,13 +3,14 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from ac_link.db.orm import ResourceAudienceRole
+from ac_link.db.orm.enums import TtsResourceType
 
-from .helpers import create_resource, reset_demo_resources
+from .helpers import create_resource, create_tts_audio_cache, reset_demo_resources
 
 
 def run(db: Session) -> dict[str, object]:
     reset_demo_resources(db)
-    create_resource(
+    reading_support = create_resource(
         db,
         title="[DEMO] Reading support at home",
         category_key="academic-support",
@@ -20,7 +21,7 @@ def run(db: Session) -> dict[str, object]:
         published_days_ago=4,
         is_pinned=True,
     )
-    create_resource(
+    wellbeing = create_resource(
         db,
         title="[DEMO] Wellbeing conversation starters",
         category_key="wellbeing",
@@ -30,7 +31,7 @@ def run(db: Session) -> dict[str, object]:
         content="Try asking what felt easy, what felt hard, and who helped today before moving into problem solving.",
         published_days_ago=8,
     )
-    create_resource(
+    attendance = create_resource(
         db,
         title="[DEMO] School attendance policy overview",
         category_key="school-policies",
@@ -41,7 +42,7 @@ def run(db: Session) -> dict[str, object]:
         published_days_ago=12,
         external_url="https://example.com/demo-attendance-policy",
     )
-    create_resource(
+    toolkit = create_resource(
         db,
         title="[DEMO] Science inquiry toolkit",
         category_key="teaching-resources",
@@ -51,4 +52,18 @@ def run(db: Session) -> dict[str, object]:
         content="Use prediction, observation, evidence, and reflection prompts to structure student thinking.",
         published_days_ago=2,
     )
+    for item, stub in (
+        (reading_support, "demo-resource-reading-support"),
+        (wellbeing, "demo-resource-wellbeing"),
+        (attendance, "demo-resource-attendance"),
+        (toolkit, "demo-resource-toolkit"),
+    ):
+        create_tts_audio_cache(
+            db,
+            resource_type=TtsResourceType.RESOURCE,
+            resource_id=item.id,
+            source_text=item.original_content_markdown,
+            source_language=item.original_language,
+            file_stub=stub,
+        )
     return {}

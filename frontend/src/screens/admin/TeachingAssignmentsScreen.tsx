@@ -4,8 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { admin as adminApi } from '@/lib/api';
-import type { AdminStudent, AdminUser, PaginationMeta, TeachingAssignment } from '@/types/api';
+import type { PaginationMeta, SelectOption, TeachingAssignment } from '@/types/api';
 
 type AssignmentForm = {
   teacher_uuid: string;
@@ -29,8 +30,9 @@ const EMPTY_FORM: AssignmentForm = {
 export function AdminTeachingAssignmentsScreen() {
   const { t } = useTranslation('portal');
   const [assignments, setAssignments] = useState<TeachingAssignment[]>([]);
-  const [teachers, setTeachers] = useState<AdminUser[]>([]);
-  const [students, setStudents] = useState<AdminStudent[]>([]);
+  const [teachers, setTeachers] = useState<SelectOption[]>([]);
+  const [students, setStudents] = useState<SelectOption[]>([]);
+  const [subjects, setSubjects] = useState<SelectOption[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
   const [teacherUuid, setTeacherUuid] = useState('');
   const [studentUuid, setStudentUuid] = useState('');
@@ -42,21 +44,23 @@ export function AdminTeachingAssignmentsScreen() {
   const [error, setError] = useState('');
 
   const loadAssignments = async () => {
-    const [assignmentsRes, teachersRes, studentsRes] = await Promise.all([
+    const [assignmentsRes, teachersRes, studentsRes, subjectsRes] = await Promise.all([
       adminApi.getTeachingAssignments({
         page,
         page_size: 20,
         teacher_uuid: teacherUuid || undefined,
         student_uuid: studentUuid || undefined,
-        subject_uuid: subjectUuid.trim() || undefined,
+        subject_uuid: subjectUuid || undefined,
         is_active: status === 'all' ? undefined : status === 'active',
       }),
-      adminApi.getUsers({ page: 1, page_size: 200, role: 'teacher', sort: 'display_name_asc' }),
-      adminApi.getStudents({ page: 1, page_size: 200 }),
+      adminApi.getTeacherOptions(),
+      adminApi.getStudentOptions(),
+      adminApi.getSubjectOptions(),
     ]);
     setAssignments(assignmentsRes.data);
     setTeachers(teachersRes.data);
     setStudents(studentsRes.data);
+    setSubjects(subjectsRes.data);
     setMeta(assignmentsRes.meta);
   };
 
@@ -65,7 +69,7 @@ export function AdminTeachingAssignmentsScreen() {
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async () => {
-    if (!form.teacher_uuid || !form.student_uuid || !form.subject_uuid.trim()) {
+    if (!form.teacher_uuid || !form.student_uuid || !form.subject_uuid) {
       setError(t('teacherStudentSubjectRequired'));
       return;
     }
@@ -75,7 +79,7 @@ export function AdminTeachingAssignmentsScreen() {
       await adminApi.createTeachingAssignment({
         teacher_uuid: form.teacher_uuid,
         student_uuid: form.student_uuid,
-        subject_uuid: form.subject_uuid.trim(),
+        subject_uuid: form.subject_uuid,
       });
       setForm(EMPTY_FORM);
       await loadAssignments();
@@ -103,21 +107,15 @@ export function AdminTeachingAssignmentsScreen() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectTeacher')}</label>
-            <select className="input-field" value={teacherUuid} onChange={e => setTeacherUuid(e.target.value)}>
-              <option value="">{t('allTeachers')}</option>
-              {teachers.map(teacher => <option key={teacher.uuid} value={teacher.uuid}>{teacher.display_name}</option>)}
-            </select>
+            <SearchableSelect value={teacherUuid} onChange={setTeacherUuid} options={teachers} placeholder={t('allTeachers')} allowClear />
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectStudent')}</label>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('allStudents')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={students} placeholder={t('allStudents')} allowClear />
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('subjectUuid')}</label>
-            <input className="input-field" value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)} />
+            <SearchableSelect value={subjectUuid} onChange={setSubjectUuid} options={subjects} placeholder={t('subjectUuid')} allowClear />
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('status')}</label>
@@ -138,21 +136,15 @@ export function AdminTeachingAssignmentsScreen() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) auto', gap: 10, alignItems: 'end' }}>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectTeacher')}</label>
-            <select className="input-field" value={form.teacher_uuid} onChange={e => setForm(prev => ({ ...prev, teacher_uuid: e.target.value }))}>
-              <option value="">{t('selectTeacher')}</option>
-              {teachers.map(teacher => <option key={teacher.uuid} value={teacher.uuid}>{teacher.display_name}</option>)}
-            </select>
+            <SearchableSelect value={form.teacher_uuid} onChange={(value) => setForm(prev => ({ ...prev, teacher_uuid: value }))} options={teachers} placeholder={t('selectTeacher')} />
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectStudent')}</label>
-            <select className="input-field" value={form.student_uuid} onChange={e => setForm(prev => ({ ...prev, student_uuid: e.target.value }))}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
+            <SearchableSelect value={form.student_uuid} onChange={(value) => setForm(prev => ({ ...prev, student_uuid: value }))} options={students} placeholder={t('selectStudent')} />
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('subjectUuid')}</label>
-            <input className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))} />
+            <SearchableSelect value={form.subject_uuid} onChange={(value) => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjects} placeholder={t('subjectUuid')} />
           </div>
           <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleCreate()} disabled={saving}>
             {saving ? t('common:loading') : t('create')}
@@ -163,15 +155,16 @@ export function AdminTeachingAssignmentsScreen() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {assignments.map(assignment => {
-          const teacher = teachers.find(item => item.uuid === assignment.teacher_uuid);
-          const student = students.find(item => item.uuid === assignment.student_uuid);
+          const teacher = teachers.find(item => item.value === assignment.teacher_uuid);
+          const student = students.find(item => item.value === assignment.student_uuid);
+          const subject = subjects.find(item => item.value === assignment.subject_uuid);
           return (
             <div key={assignment.uuid} className="card-sm" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
-                  {teacher?.display_name ?? assignment.teacher_uuid} → {student?.full_name ?? assignment.student_uuid}
+                  {teacher?.label ?? assignment.teacher_uuid} → {student?.label ?? assignment.student_uuid}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('subjectUuid')}: {assignment.subject_uuid}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('subjectUuid')}: {subject?.label ?? assignment.subject_uuid}</div>
               </div>
               <span className="badge" style={{ background: assignment.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: assignment.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
                 {assignment.is_active ? t('active') : t('inactive')}

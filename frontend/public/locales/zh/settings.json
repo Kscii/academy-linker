@@ -26,7 +26,9 @@
   "notifAnnouncementsDesc": "接收新学校公告的通知",
   "notifMessages": "消息",
   "notifMessagesDesc": "新消息邮件提醒",
+  "savingSettings": "正在保存设置...",
   "saved": "设置已保存",
   "saveError": "设置保存失败",
+  "saveFailed": "设置保存失败",
   "saveSettings": "保存设置"
 }

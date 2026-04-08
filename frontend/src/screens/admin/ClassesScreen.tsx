@@ -4,8 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { admin as adminApi } from '@/lib/api';
-import type { AdminClass, AdminStudent, AdminUser, CreateClassRequest, PaginationMeta, UpdateClassRequest } from '@/types/api';
+import type { AdminClass, AdminStudent, CreateClassRequest, PaginationMeta, SelectOption, UpdateClassRequest } from '@/types/api';
 
 type ClassForm = {
   uuid?: string;
@@ -34,8 +35,10 @@ const EMPTY_FORM: ClassForm = {
 export function AdminClassesScreen() {
   const { t } = useTranslation('app');
   const [classes, setClasses] = useState<AdminClass[]>([]);
-  const [teachers, setTeachers] = useState<AdminUser[]>([]);
+  const [teachers, setTeachers] = useState<SelectOption[]>([]);
   const [allStudents, setAllStudents] = useState<AdminStudent[]>([]);
+  const [gradeLevels, setGradeLevels] = useState<SelectOption[]>([]);
+  const [academicYears, setAcademicYears] = useState<SelectOption[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
   const [selected, setSelected] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -51,7 +54,7 @@ export function AdminClassesScreen() {
   const [adding, setAdding] = useState(false);
 
   const loadData = async () => {
-    const [classesRes, teachersRes, studentsRes] = await Promise.all([
+    const [classesRes, teachersRes, studentsRes, gradeLevelsRes, academicYearsRes] = await Promise.all([
       adminApi.getClasses({
         page,
         page_size: 20,
@@ -59,12 +62,16 @@ export function AdminClassesScreen() {
         academic_year: academicYear || undefined,
         is_active: status === 'all' ? undefined : status === 'active',
       }),
-      adminApi.getUsers({ page: 1, page_size: 200, role: 'teacher', sort: 'display_name_asc' }),
+      adminApi.getTeacherOptions(),
       adminApi.getStudents({ page: 1, page_size: 200 }),
+      adminApi.getGradeLevelOptions(),
+      adminApi.getAcademicYearOptions(),
     ]);
     setClasses(classesRes.data);
     setTeachers(teachersRes.data);
     setAllStudents(studentsRes.data);
+    setGradeLevels(gradeLevelsRes.data);
+    setAcademicYears(academicYearsRes.data);
     setMeta(classesRes.meta);
   };
 
@@ -162,8 +169,12 @@ export function AdminClassesScreen() {
 
         <div className="card" style={{ marginBottom: 12, padding: 14 }}>
           <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>{t('adminClasses.total', { count: meta.total })}</div>
-          <input className="input-field" placeholder={t('adminClasses.gradeLevelPlaceholder')} value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} style={{ marginBottom: 8 }} />
-          <input className="input-field" placeholder={t('adminClasses.academicYearPlaceholder')} value={academicYear} onChange={e => setAcademicYear(e.target.value)} style={{ marginBottom: 8 }} />
+          <div style={{ marginBottom: 8 }}>
+            <SearchableSelect value={gradeLevel} onChange={setGradeLevel} options={gradeLevels} placeholder={t('adminClasses.gradeLevelPlaceholder')} allowClear />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <SearchableSelect value={academicYear} onChange={setAcademicYear} options={academicYears} placeholder={t('adminClasses.academicYearPlaceholder')} allowClear />
+          </div>
           <select className="input-field" value={status} onChange={e => setStatus(e.target.value as typeof status)} style={{ marginBottom: 8 }}>
             <option value="all">{t('adminClasses.allStatuses')}</option>
             <option value="active">{t('adminClasses.activeOnly')}</option>
@@ -182,18 +193,15 @@ export function AdminClassesScreen() {
             </div>
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.gradeLevel')}</label>
-              <input className="input-field" value={form.grade_level} onChange={e => setForm(prev => ({ ...prev, grade_level: e.target.value }))} />
+              <SearchableSelect value={form.grade_level} onChange={(value) => setForm(prev => ({ ...prev, grade_level: value }))} options={gradeLevels} placeholder={t('adminClasses.gradeLevelPlaceholder')} allowClear />
             </div>
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.academicYear')}</label>
-              <input className="input-field" value={form.academic_year} onChange={e => setForm(prev => ({ ...prev, academic_year: e.target.value }))} />
+              <SearchableSelect value={form.academic_year} onChange={(value) => setForm(prev => ({ ...prev, academic_year: value }))} options={academicYears} placeholder={t('adminClasses.academicYearPlaceholder')} allowClear />
             </div>
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 11, color: 'var(--tx3)', display: 'block', marginBottom: 3 }}>{t('adminClasses.homeroomTeacher')}</label>
-              <select className="input-field" value={form.homeroom_teacher_uuid} onChange={e => setForm(prev => ({ ...prev, homeroom_teacher_uuid: e.target.value }))}>
-                <option value="">{t('adminClasses.none')}</option>
-                {teachers.map(teacher => <option key={teacher.uuid} value={teacher.uuid}>{teacher.display_name}</option>)}
-              </select>
+              <SearchableSelect value={form.homeroom_teacher_uuid} onChange={(value) => setForm(prev => ({ ...prev, homeroom_teacher_uuid: value }))} options={teachers} placeholder={t('adminClasses.none')} allowClear />
             </div>
             {editing && (
               <div style={{ marginBottom: 8 }}>

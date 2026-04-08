@@ -5,23 +5,32 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { parent as parentApi } from '@/lib/api';
-import type { PeriodMetric, SubjectSummary } from '@/types/api';
+import type { PeriodMetric, SelectOption } from '@/types/api';
 
 export function ParentPeriodMetricsScreen() {
   const { t } = useTranslation('app');
   const { sid } = useParams<{ sid: string }>();
-  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
+  const [subjects, setSubjects] = useState<SelectOption[]>([]);
+  const [terms, setTerms] = useState<SelectOption[]>([]);
   const [metrics, setMetrics] = useState<PeriodMetric[]>([]);
   const [subjectUuid, setSubjectUuid] = useState('');
   const [term, setTerm] = useState('');
 
   useEffect(() => {
     if (!sid) return;
-    parentApi.getSubjects(sid).then(res => {
+    parentApi.getSubjectOptions(sid).then(res => {
       setSubjects(res.data);
     }).catch(() => {});
   }, [sid]);
+
+  useEffect(() => {
+    if (!sid) return;
+    parentApi.getTermOptions(sid, { subject_uuid: subjectUuid || undefined }).then(res => {
+      setTerms(res.data);
+    }).catch(() => setTerms([]));
+  }, [sid, subjectUuid]);
 
   useEffect(() => {
     if (!sid) return;
@@ -42,11 +51,8 @@ export function ParentPeriodMetricsScreen() {
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <select className="input-field" value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)}>
-            <option value="">{t('parentPeriodMetrics.allSubjects')}</option>
-            {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-          </select>
-          <input className="input-field" placeholder={t('parentPeriodMetrics.termFilter')} value={term} onChange={e => setTerm(e.target.value)} />
+          <SearchableSelect value={subjectUuid} onChange={setSubjectUuid} options={subjects} placeholder={t('parentPeriodMetrics.allSubjects')} allowClear />
+          <SearchableSelect value={term} onChange={setTerm} options={terms} placeholder={t('parentPeriodMetrics.termFilter')} allowClear />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
 import type { Announcement, AnnouncementDetail } from '@/types/api';
@@ -183,6 +184,7 @@ export function AnnouncementsScreen() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <TtsButton resourceType="announcement" resourceUuid={detail.uuid} />
                   {detail.original_language !== language && (
                     <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} onClick={() => void toggleTranslation()} disabled={resolvingTranslation}>
                       {resolvingTranslation ? '…' : showOriginal ? t('actions.showTranslation') : (detail.translated_content_markdown ? t('actions.showOriginal') : t('actions.translate'))}

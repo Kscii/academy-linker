@@ -336,6 +336,51 @@ class TestAdminAssignments:
         assert r.status_code == 409
 
 
+# ── Options 接口 ──────────────────────────────────────────────────────────────
+
+class TestAdminOptions:
+    def test_list_class_options(self, admin_client, td):
+        r = admin_client.get("/api/admin/options/classes")
+        assert r.status_code == 200
+        items = r.json()["data"]
+        assert any(item["value"] == td["class_uuid"] for item in items)
+
+    def test_list_student_options_filter_by_class(self, admin_client, td):
+        r = admin_client.get(
+            "/api/admin/options/students",
+            params={"class_uuid": td["class_uuid"]},
+        )
+        assert r.status_code == 200
+        items = r.json()["data"]
+        assert any(item["value"] == td["student_uuid"] for item in items)
+
+    def test_list_teacher_options(self, admin_client, td):
+        r = admin_client.get("/api/admin/options/teachers", params={"keyword": "Test Teacher"})
+        assert r.status_code == 200
+        items = r.json()["data"]
+        assert any(item["value"] == td["teacher_uuid"] for item in items)
+
+    def test_list_subject_options(self, admin_client, td):
+        r = admin_client.get("/api/admin/options/subjects", params={"keyword": "TMATH"})
+        assert r.status_code == 200
+        items = r.json()["data"]
+        assert any(item["value"] == td["subject_uuid"] for item in items)
+
+    def test_list_grade_level_options(self, admin_client):
+        r = admin_client.get("/api/admin/options/grade-levels")
+        assert r.status_code == 200
+        assert any(item["value"] == "Grade 1" for item in r.json()["data"])
+
+    def test_list_academic_year_options(self, admin_client):
+        r = admin_client.get("/api/admin/options/academic-years")
+        assert r.status_code == 200
+        assert any(item["value"] == "2026" for item in r.json()["data"])
+
+    def test_parent_cannot_access_admin_options(self, parent_client):
+        r = parent_client.get("/api/admin/options/classes")
+        assert r.status_code == 403
+
+
 # ── 系统 Tag ──────────────────────────────────────────────────────────────────
 
 class TestAdminSystemTags:

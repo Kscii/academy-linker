@@ -5,8 +5,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { teacher as teacherApi } from '@/lib/api';
-import type { PeriodMetric, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
+import type { PeriodMetric, SelectOption } from '@/types/api';
 
 type MetricForm = {
   subject_uuid: string;
@@ -30,9 +31,10 @@ export function TeacherPeriodMetricsScreen() {
   const { t } = useTranslation('portal');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
-  const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
+  const [students, setStudents] = useState<SelectOption[]>([]);
   const [studentUuid, setStudentUuid] = useState(requestedStudentUuid);
-  const [subjects, setSubjects] = useState<TeacherClassStudentItem['subjects']>([]);
+  const [subjects, setSubjects] = useState<SelectOption[]>([]);
+  const [terms, setTerms] = useState<SelectOption[]>([]);
   const [metrics, setMetrics] = useState<PeriodMetric[]>([]);
   const [subjectFilter, setSubjectFilter] = useState('');
   const [termFilter, setTermFilter] = useState('');
@@ -40,12 +42,10 @@ export function TeacherPeriodMetricsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const activeStudent = students.find(student => student.uuid === studentUuid) ?? null;
-
   useEffect(() => {
-    teacherApi.getStudents({ page: 1, page_size: 100, sort: 'full_name_asc' }).then(res => {
+    teacherApi.getStudentOptions().then(res => {
       setStudents(res.data);
-      setStudentUuid(prev => prev || requestedStudentUuid || res.data[0]?.uuid || '');
+      setStudentUuid(prev => prev || requestedStudentUuid || res.data[0]?.value || '');
     }).catch(() => {});
   }, [requestedStudentUuid]);
 
@@ -56,15 +56,25 @@ export function TeacherPeriodMetricsScreen() {
   }, [setSearchParams, studentUuid]);
 
   useEffect(() => {
-    if (!studentUuid || !activeStudent?.class_uuid) {
+    if (!studentUuid) {
       setSubjects([]);
+      setTerms([]);
       return;
     }
-    teacherApi.getClassStudents(activeStudent.class_uuid, { page: 1, page_size: 100 }).then(res => {
-      const student = res.data.find(item => item.uuid === studentUuid);
-      setSubjects(student?.subjects ?? []);
+    teacherApi.getSubjectOptions({ student_uuid: studentUuid }).then(res => {
+      setSubjects(res.data);
     }).catch(() => setSubjects([]));
-  }, [activeStudent?.class_uuid, studentUuid]);
+  }, [studentUuid]);
+
+  useEffect(() => {
+    if (!studentUuid) {
+      setTerms([]);
+      return;
+    }
+    teacherApi.getTermOptions({ student_uuid: studentUuid, subject_uuid: subjectFilter || undefined }).then(res => {
+      setTerms(res.data);
+    }).catch(() => setTerms([]));
+  }, [studentUuid, subjectFilter]);
 
   const loadMetrics = async () => {
     if (!studentUuid) return;
@@ -117,15 +127,9 @@ export function TeacherPeriodMetricsScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
-            <select className="input-field" value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)}>
-              <option value="">{t('allSubjects')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
-            <input className="input-field" placeholder={t('termFilter')} value={termFilter} onChange={e => setTermFilter(e.target.value)} />
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={students} placeholder={t('selectStudent')} />
+            <SearchableSelect value={subjectFilter} onChange={setSubjectFilter} options={subjects} placeholder={t('allSubjects')} allowClear />
+            <SearchableSelect value={termFilter} onChange={setTermFilter} options={terms} placeholder={t('termFilter')} allowClear />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {metrics.map(metric => (
@@ -148,11 +152,8 @@ export function TeacherPeriodMetricsScreen() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('createOrUpdateMetric')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">{t('selectSubject')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
-            <input className="input-field" placeholder={t('termOptional')} value={form.term} onChange={e => setForm(prev => ({ ...prev, term: e.target.value }))} />
+            <SearchableSelect value={form.subject_uuid} onChange={(value) => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjects} placeholder={t('selectSubject')} />
+            <SearchableSelect value={form.term} onChange={(value) => setForm(prev => ({ ...prev, term: value }))} options={terms} placeholder={t('termOptional')} allowClear />
             <input className="input-field" type="date" value={form.snapshot_date} onChange={e => setForm(prev => ({ ...prev, snapshot_date: e.target.value }))} />
             <input className="input-field" placeholder={t('progressPlaceholder')} value={form.progress} onChange={e => setForm(prev => ({ ...prev, progress: e.target.value }))} />
             <input className="input-field" placeholder={t('completionPlaceholder')} value={form.assignment_completion_rate} onChange={e => setForm(prev => ({ ...prev, assignment_completion_rate: e.target.value }))} />

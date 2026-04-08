@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -46,6 +48,17 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o"
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
+
+    # ── TTS（Gemini Text-to-Speech）──────────────────────────────
+    tts_provider: str = "gemini"
+    tts_api_key: str = ""
+    tts_api_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    tts_model: str = "gemini-2.5-flash-preview-tts"
+    tts_voice_en: str = "Kore"
+    tts_voice_zh: str = "Kore"
+    tts_audio_encoding: str = "WAV"
+    tts_audio_sample_rate_hertz: int = 24000
+    tts_storage_dir: str = ".tts-cache"
     @property
     def database_url(self) -> str:
         return PostgresDsn.build(
@@ -56,6 +69,10 @@ class Settings(BaseSettings):
             port=self.postgres_port,
             path=f"{self.postgres_db}",
         ).unicode_string()
+
+    @property
+    def tts_storage_path(self) -> Path:
+        return Path(self.tts_storage_dir).expanduser()
 
 
 settings = Settings()  # pyright: ignore[reportCallIssue]

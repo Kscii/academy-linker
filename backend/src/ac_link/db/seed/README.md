@@ -90,6 +90,7 @@ uv run python -m ac_link.db.seed --help
 - period metrics
 - learning pathway items
 - ai conversations
+- TTS 演示缓存（报告 / 公告 / discussion 帖子）
 
 ### `parent`
 
@@ -102,6 +103,8 @@ uv run python -m ac_link.db.seed --help
 
 创建资源中心文章。
 
+同时会为 demo 资源写入对应的 TTS 缓存文件，方便前端直接联调 Gemini 朗读按钮。
+
 ### `full-demo`
 
 组合执行：
@@ -109,13 +112,14 @@ uv run python -m ac_link.db.seed --help
 - `parent`
 - `resources`
 
-也就是最完整的联调数据集。
+也就是最完整的联调数据集，同时会生成一批可直接回放的 demo Gemini TTS 缓存文件。
 
 ## 重置规则
 
 `--reset` 只清理 seed 工具自己创建的 demo 数据，识别方式如下：
 
-- 用户邮箱使用 `@academy-link.test`
+- 用户邮箱使用 `@academy-link.dev`
+- TTS 缓存文件写入 `TTS_STORAGE_DIR`（默认 `.tts-cache/`）
 - 学生 SID 使用 `DEMO-STU-*`
 - 资源标题使用 `[DEMO]` 前缀
 - 班级名、科目 code、系统标签名使用固定 seed 常量

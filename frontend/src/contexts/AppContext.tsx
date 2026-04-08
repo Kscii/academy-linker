@@ -19,6 +19,7 @@ import { auth, parent as parentApi, settingsApi } from '@/lib/api';
 
 // ── Local session persistence ─────────────────────────────────
 const SESSION_KEY = 'academy_session';
+const PREFERRED_LANGUAGE_KEY = 'al_pending_language';
 
 interface StoredSession {
   user: UserSummary;
@@ -38,6 +39,18 @@ function loadSession(): StoredSession | null {
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+}
+
+function loadPendingLanguage(): string | null {
+  try {
+    return localStorage.getItem(PREFERRED_LANGUAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function savePendingLanguage(lang: string) {
+  localStorage.setItem(PREFERRED_LANGUAGE_KEY, lang);
 }
 
 // ── Context shape ─────────────────────────────────────────────
@@ -115,7 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserSummary | null>(null);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [firstStudentUuid, setFirstStudentUuid] = useState('');
-  const [language, setLanguageState] = useState(i18n.language?.slice(0, 2) || 'en');
+  const [language, setLanguageState] = useState(loadPendingLanguage() || i18n.language?.slice(0, 2) || 'en');
 
   // Thread unread counts — persisted so read state survives refresh
   const [threadUnreadCounts, setThreadUnreadCounts] = useState<Record<string, number>>(() =>
@@ -190,6 +203,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uuid, firstStudentUuid]);
 
+  const applyLanguage = useCallback((lang: string) => {
+    setLanguageState(lang);
+    savePendingLanguage(lang);
+    i18n.changeLanguage(lang);
+  }, []);
+
   // Restore session on page load
   useEffect(() => {
     const stored = loadSession();
@@ -211,8 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const settingsRes = await settingsApi.get();
         const preferredLanguage = settingsRes.data.language?.slice(0, 2);
         if (preferredLanguage) {
-          setLanguageState(preferredLanguage);
-          i18n.changeLanguage(preferredLanguage);
+          applyLanguage(preferredLanguage);
         }
       } catch { /* ignore settings fetch failures */ }
       let sid = stored?.firstStudentUuid ?? '';
@@ -227,7 +245,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => {
       if (!stored) setInitialCheckDone(true);
     });
-  }, []);
+  }, [applyLanguage]);
 
   // Apply theme class to <html> and persist
   useEffect(() => {
@@ -249,9 +267,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setLanguage = useCallback((lang: string) => {
-    setLanguageState(lang);
-    i18n.changeLanguage(lang);
-  }, []);
+    applyLanguage(lang);
+    if (user) {
+      void settingsApi.update({ language: lang }).catch(() => {});
+    }
+  }, [applyLanguage, user]);
 
   const login = useCallback(async (
     email: string,
@@ -263,12 +283,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(userFromApi);
     const apiRole = userFromApi.role as 'parent' | 'teacher' | 'admin';
     setRoleState(apiRole);
+    const pendingLanguage = loadPendingLanguage() || language;
+    if (pendingLanguage) {
+      try {
+        await settingsApi.update({ language: pendingLanguage });
+      } catch { /* ignore settings sync failures */ }
+    }
     try {
       const settingsRes = await settingsApi.get();
       const preferredLanguage = settingsRes.data.language?.slice(0, 2);
       if (preferredLanguage) {
-        setLanguageState(preferredLanguage);
-        i18n.changeLanguage(preferredLanguage);
+        applyLanguage(preferredLanguage);
       }
     } catch { /* ignore settings fetch failures */ }
     let sid = '';
@@ -279,7 +304,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFirstStudentUuid(sid);
     saveSession(userFromApi, sid);
     return { role: apiRole, firstStudentUuid: sid };
-  }, []);
+  }, [applyLanguage, language]);
 
   const logout = useCallback(() => {
     clearSession();

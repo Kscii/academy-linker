@@ -25,6 +25,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
 
 from ac_link.common.deps import require_parent
 from ac_link.common.exceptions import AppError, Errors
@@ -87,6 +88,7 @@ from ac_link.dto.parent import (
     TrendDataPoint,
     ReportSummary,
 )
+from ac_link.dto.options import SelectOption
 from ac_link.dto.timetable import ClassTimetableData, TimetableClassInfo, TimetableEntryItem, TimetableSubjectInfo, TimetableTeacherInfo
 from ac_link.services.translation_helpers import get_target_language
 
@@ -155,6 +157,57 @@ def list_my_students(
         ),
     )
 
+
+@router.get(
+    "/students/{student_uuid}/options/subjects",
+    response_model=ApiResponse[list[SelectOption]],
+)
+def list_student_subject_options(
+    student_uuid: UUID,
+    keyword: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+    pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(subject.uuid),
+            label=subject.name,
+            meta={"code": subject.code},
+        )
+        for subject, _ in pairs
+        if not keyword or keyword.lower() in subject.name.lower()
+    ])
+
+
+@router.get(
+    "/students/{student_uuid}/options/terms",
+    response_model=ApiResponse[list[SelectOption]],
+)
+def list_student_term_options(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+    query = db.query(StudentPeriodMetric.term).filter(
+        StudentPeriodMetric.student_id == student.id,
+        StudentPeriodMetric.term.isnot(None),
+    )
+    if subject_uuid is not None:
+        result = parent_crud.get_subject_for_student(db, student.id, subject_uuid)
+        if result is None:
+            raise Errors.not_found("学科不存在或该学生未分配此学科")
+        subject, _ = result
+        query = query.filter(StudentPeriodMetric.subject_id == subject.id)
+    rows = query.distinct().order_by(StudentPeriodMetric.term.desc()).all()
+    return ApiResponse(data=[SelectOption(value=value, label=value) for (value,) in rows if value])
 
 @router.get(
     "/students/{student_uuid}/timetable",
