@@ -89,7 +89,7 @@ def _resolve_resource_text(
     if not auto_translate_enabled:
         return resource_id, original_text, original_language
 
-    translated = translate_content(original_text, original_language, target_language)
+    translated = translate_content(original_text, target_language)
     translation_crud.upsert_translation(
         db,
         translation_type,
