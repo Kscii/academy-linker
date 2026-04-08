@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { admin as adminApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import type { AdminClass, ClassTimetableData, ClassTimetableEntry, ReplaceClassTimetableRequest } from '@/types/api';
 import { WeeklyTimetable } from '@/components/timetable/WeeklyTimetable';
 
@@ -75,6 +76,10 @@ export function AdminTimetableScreen() {
     () => classes.find(item => item.uuid === classUuid)?.name ?? '',
     [classes, classUuid]
   );
+  const classOptions = useMemo(
+    () => classes.map(item => ({ value: item.uuid, label: item.name, meta: { description: `${item.grade_level ?? '—'} · ${item.academic_year ?? '—'}` } })),
+    [classes]
+  );
 
   const addRow = () => setRows(prev => [...prev, { ...EMPTY_ROW, period_index: prev.length + 1 }]);
 
@@ -145,10 +150,7 @@ export function AdminTimetableScreen() {
         <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)', marginBottom: 16 }}>{t('adminTimetable.title')}</div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <select className="input-field" value={classUuid} onChange={e => setClassUuid(e.target.value)}>
-            <option value="">{t('adminTimetable.selectClass')}</option>
-            {classes.map(item => <option key={item.uuid} value={item.uuid}>{item.name}</option>)}
-          </select>
+          <SearchableSelect value={classUuid} onChange={setClassUuid} options={classOptions} placeholder={t('adminTimetable.selectClass')} />
           <input className="input-field" type="date" value={date} onChange={e => setDate(e.target.value)} />
           <input className="input-field" type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
           <input className="input-field" type="date" value={effectiveTo} onChange={e => setEffectiveTo(e.target.value)} />
@@ -173,14 +175,18 @@ export function AdminTimetableScreen() {
                 <input className="input-field" type="number" min={1} value={row.period_index} onChange={e => updateRow(index, { period_index: Number(e.target.value) || 1 })} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 }}>
-                <select className="input-field" value={row.subject_uuid} onChange={e => updateRow(index, { subject_uuid: e.target.value })}>
-                  <option value="">{t('adminTimetable.selectSubject')}</option>
-                  {data?.available_subjects.map(item => <option key={item.uuid} value={item.uuid}>{item.name}</option>)}
-                </select>
-                <select className="input-field" value={row.teacher_uuid} onChange={e => updateRow(index, { teacher_uuid: e.target.value })}>
-                  <option value="">{t('adminTimetable.selectTeacher')}</option>
-                  {data?.available_teachers.map(item => <option key={item.uuid} value={item.uuid}>{item.display_name}</option>)}
-                </select>
+                <SearchableSelect
+                  value={row.subject_uuid}
+                  onChange={value => updateRow(index, { subject_uuid: value })}
+                  options={(data?.available_subjects ?? []).map(item => ({ value: item.uuid, label: item.name, meta: { description: item.code ?? '' } }))}
+                  placeholder={t('adminTimetable.selectSubject')}
+                />
+                <SearchableSelect
+                  value={row.teacher_uuid}
+                  onChange={value => updateRow(index, { teacher_uuid: value })}
+                  options={(data?.available_teachers ?? []).map(item => ({ value: item.uuid, label: item.display_name }))}
+                  placeholder={t('adminTimetable.selectTeacher')}
+                />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                 <input className="input-field" type="time" step={60} value={row.start_time.slice(0, 5)} onChange={e => updateRow(index, { start_time: `${e.target.value}:00` })} />

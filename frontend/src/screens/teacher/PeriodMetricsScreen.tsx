@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import type { PeriodMetric, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
 
 type MetricForm = {
@@ -27,12 +28,13 @@ const EMPTY_FORM: MetricForm = {
 };
 
 export function TeacherPeriodMetricsScreen() {
-  const { t } = useTranslation('portal');
+  const { t } = useTranslation(['portal', 'common']);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
   const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
   const [studentUuid, setStudentUuid] = useState(requestedStudentUuid);
   const [subjects, setSubjects] = useState<TeacherClassStudentItem['subjects']>([]);
+  const [termOptions, setTermOptions] = useState<{ value: string; label: string }[]>([]);
   const [metrics, setMetrics] = useState<PeriodMetric[]>([]);
   const [subjectFilter, setSubjectFilter] = useState('');
   const [termFilter, setTermFilter] = useState('');
@@ -41,6 +43,8 @@ export function TeacherPeriodMetricsScreen() {
   const [error, setError] = useState('');
 
   const activeStudent = students.find(student => student.uuid === studentUuid) ?? null;
+  const studentOptions = students.map(student => ({ value: student.uuid, label: student.full_name, meta: { description: student.sid ?? student.class_name ?? '' } }));
+  const subjectOptions = subjects.map(subject => ({ value: subject.uuid, label: subject.name }));
 
   useEffect(() => {
     teacherApi.getStudents({ page: 1, page_size: 100, sort: 'full_name_asc' }).then(res => {
@@ -65,6 +69,16 @@ export function TeacherPeriodMetricsScreen() {
       setSubjects(student?.subjects ?? []);
     }).catch(() => setSubjects([]));
   }, [activeStudent?.class_uuid, studentUuid]);
+
+  useEffect(() => {
+    if (!studentUuid) {
+      setTermOptions([]);
+      return;
+    }
+    teacherApi.getTermOptions(studentUuid, { subject_uuid: subjectFilter || undefined }).then(res => {
+      setTermOptions(res.data);
+    }).catch(() => setTermOptions([]));
+  }, [studentUuid, subjectFilter]);
 
   const loadMetrics = async () => {
     if (!studentUuid) return;
@@ -117,15 +131,9 @@ export function TeacherPeriodMetricsScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
-            <select className="input-field" value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)}>
-              <option value="">{t('allSubjects')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
-            <input className="input-field" placeholder={t('termFilter')} value={termFilter} onChange={e => setTermFilter(e.target.value)} />
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={studentOptions} placeholder={t('selectStudent')} />
+            <SearchableSelect value={subjectFilter} onChange={setSubjectFilter} options={subjectOptions} placeholder={t('selectSubject')} clearLabel={t('allSubjects')} />
+            <SearchableSelect value={termFilter} onChange={setTermFilter} options={termOptions} placeholder={t('termFilter')} clearLabel={t('common:all')} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {metrics.map(metric => (
@@ -148,10 +156,7 @@ export function TeacherPeriodMetricsScreen() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>{t('createOrUpdateMetric')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">{t('selectSubject')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
+            <SearchableSelect value={form.subject_uuid} onChange={value => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjectOptions} placeholder={t('selectSubject')} />
             <input className="input-field" placeholder={t('termOptional')} value={form.term} onChange={e => setForm(prev => ({ ...prev, term: e.target.value }))} />
             <input className="input-field" type="date" value={form.snapshot_date} onChange={e => setForm(prev => ({ ...prev, snapshot_date: e.target.value }))} />
             <input className="input-field" placeholder={t('progressPlaceholder')} value={form.progress} onChange={e => setForm(prev => ({ ...prev, progress: e.target.value }))} />

@@ -6,15 +6,18 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { parent as parentApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import type { PeriodMetric, SubjectSummary } from '@/types/api';
 
 export function ParentPeriodMetricsScreen() {
-  const { t } = useTranslation('app');
+  const { t } = useTranslation(['app', 'common']);
   const { sid } = useParams<{ sid: string }>();
   const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
   const [metrics, setMetrics] = useState<PeriodMetric[]>([]);
   const [subjectUuid, setSubjectUuid] = useState('');
   const [term, setTerm] = useState('');
+  const [termOptions, setTermOptions] = useState<{ value: string; label: string }[]>([]);
+  const subjectOptions = subjects.map(subject => ({ value: subject.uuid, label: subject.name, meta: { description: subject.code ?? '' } }));
 
   useEffect(() => {
     if (!sid) return;
@@ -33,6 +36,16 @@ export function ParentPeriodMetricsScreen() {
     }).catch(() => {});
   }, [sid, subjectUuid, term]);
 
+  useEffect(() => {
+    if (!sid) {
+      setTermOptions([]);
+      return;
+    }
+    parentApi.getTermOptions(sid, { subject_uuid: subjectUuid || undefined }).then(res => {
+      setTermOptions(res.data);
+    }).catch(() => setTermOptions([]));
+  }, [sid, subjectUuid]);
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -42,11 +55,8 @@ export function ParentPeriodMetricsScreen() {
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <select className="input-field" value={subjectUuid} onChange={e => setSubjectUuid(e.target.value)}>
-            <option value="">{t('parentPeriodMetrics.allSubjects')}</option>
-            {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-          </select>
-          <input className="input-field" placeholder={t('parentPeriodMetrics.termFilter')} value={term} onChange={e => setTerm(e.target.value)} />
+          <SearchableSelect value={subjectUuid} onChange={setSubjectUuid} options={subjectOptions} placeholder={t('parentPeriodMetrics.allSubjects')} clearLabel={t('common:all')} />
+          <SearchableSelect value={term} onChange={setTerm} options={termOptions} placeholder={t('parentPeriodMetrics.termFilter')} clearLabel={t('common:all')} />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

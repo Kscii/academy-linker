@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import type { TeacherReportDetail, ReportType, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
 
 const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
@@ -39,6 +40,8 @@ export function TeacherAIReportsScreen() {
   const [error, setError] = useState('');
 
   const activeStudent = students.find(student => student.uuid === studentUuid) ?? null;
+  const studentOptions = students.map(student => ({ value: student.uuid, label: student.full_name, meta: { description: student.sid ?? student.class_name ?? '' } }));
+  const subjectOptions = subjects.map(subject => ({ value: subject.uuid, label: subject.name }));
 
   useEffect(() => {
     teacherApi.getStudents({ page: 1, page_size: 100, sort: 'full_name_asc' }).then(res => {
@@ -100,17 +103,11 @@ export function TeacherAIReportsScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={studentOptions} placeholder={t('selectStudent')} />
             <select className="input-field" value={form.report_type} onChange={e => setForm(prev => ({ ...prev, report_type: e.target.value as ReportType }))}>
               {REPORT_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
             </select>
-            <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">{t('wholeStudent')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
+            <SearchableSelect value={form.subject_uuid} onChange={value => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjectOptions} placeholder={t('selectSubject')} clearLabel={t('wholeStudent')} />
             <input className="input-field" type="date" value={form.period_start} onChange={e => setForm(prev => ({ ...prev, period_start: e.target.value }))} />
             <input className="input-field" type="date" value={form.period_end} onChange={e => setForm(prev => ({ ...prev, period_end: e.target.value }))} />
           </div>

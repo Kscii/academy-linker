@@ -21,6 +21,12 @@ export interface ApiListResponse<T> {
   meta: PaginationMeta;
 }
 
+export interface SelectOption {
+  value: string;
+  label: string;
+  meta?: Record<string, unknown> | null;
+}
+
 // ── Error ────────────────────────────────────────────────────
 
 export interface ApiError {

@@ -81,6 +81,7 @@ import type {
   CreateIncidentReport,
   ClassTimetableData,
   ReplaceClassTimetableRequest,
+  SelectOption,
 } from '@/types/api';
 import i18n from '@/i18n';
 
@@ -347,6 +348,14 @@ export const parent = {
     );
   },
 
+  getTermOptions: (studentUuid: string, params: { subject_uuid?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/parents/me/students/${studentUuid}/options/terms${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
   getLeaveRequests: (studentUuid: string, params: { page?: number; page_size?: number; status?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
     if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
@@ -486,6 +495,12 @@ export const teacher = {
     return apiFetch<ApiResponse<PeriodMetric[]>>(
       `/teachers/me/students/${studentUuid}/period-metrics?${q.toString()}`
     );
+  },
+
+  getTermOptions: (studentUuid: string, params: { subject_uuid?: string } = {}) => {
+    const q = new URLSearchParams({ student_uuid: studentUuid });
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiResponse<SelectOption[]>>(`/teachers/me/options/terms?${q.toString()}`);
   },
 
   createPeriodMetric: (studentUuid: string, body: CreatePeriodMetricRequest) =>
@@ -671,6 +686,12 @@ export const admin = {
     return apiFetch<ApiListResponse<TeachingAssignment>>(
       `/admin/assignments/teaching?${q.toString()}`
     );
+  },
+
+  getSubjectOptions: (params: { keyword?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<SelectOption[]>>(`/admin/options/subjects${q.toString() ? `?${q.toString()}` : ''}`);
   },
 
   createTeachingAssignment: (body: CreateTeachingAssignmentRequest) =>
