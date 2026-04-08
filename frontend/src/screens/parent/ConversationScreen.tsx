@@ -120,6 +120,11 @@ export function ConversationScreen() {
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   const replyTarget = composerState?.mode === 'reply' ? composerState.post ?? null : null;
+  const composerResetKey = composerState
+    ? composerState.mode === 'create'
+      ? 'create'
+      : `${composerState.mode}:${composerState.post?.uuid ?? ''}`
+    : 'closed';
 
   const groupedMessages = useMemo(() => {
     const groups: { label: string; msgs: ThreadPost[] }[] = [];
@@ -386,6 +391,7 @@ export function ConversationScreen() {
     </div>
     <PostComposerDrawer
       open={composerState !== null}
+      resetKey={composerResetKey}
       mode={composerState?.mode ?? 'create'}
       role="parent"
       availableTags={availableTags}
