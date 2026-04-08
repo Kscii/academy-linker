@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { teacher as teacherApi } from '@/lib/api';
-import type { ReportDetail, ReportType, SelectOption } from '@/types/api';
+import type { TeacherReportDetail, ReportType, SelectOption } from '@/types/api';
 
 const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
 
@@ -38,7 +38,7 @@ export function TeacherReportsScreen() {
   const [students, setStudents] = useState<SelectOption[]>([]);
   const [studentUuid, setStudentUuid] = useState(requestedStudentUuid);
   const [subjects, setSubjects] = useState<SelectOption[]>([]);
-  const [reports, setReports] = useState<ReportDetail[]>([]);
+  const [reports, setReports] = useState<TeacherReportDetail[]>([]);
   const [editingUuid, setEditingUuid] = useState('');
   const [form, setForm] = useState<ReportForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -73,7 +73,7 @@ export function TeacherReportsScreen() {
     setError('');
   };
 
-  const openEdit = (report: ReportDetail) => {
+  const openEdit = (report: TeacherReportDetail) => {
     setEditingUuid(report.uuid);
     setForm({
       title: report.title,

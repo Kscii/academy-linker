@@ -45,6 +45,8 @@ export function ConversationScreen() {
   const [messages, setMessages] = useState<ThreadPost[]>([]);
   const [availableTags, setAvailableTags] = useState<ThreadPost['tags']>([]);
   const [threadUuid, setThreadUuid] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [draft, setDraft] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
   const [sending, setSending] = useState(false);
@@ -72,7 +74,7 @@ export function ConversationScreen() {
   const loadThread = useCallback(async () => {
     if (!sid || !teacherUuid) return;
     const res = await parentApi.getDiscussionThread(sid, teacherUuid, {
-      page: 1,
+      page,
       page_size: 20,
       sort,
       tag: tag || undefined,
@@ -81,8 +83,9 @@ export function ConversationScreen() {
     setMessages(res.data.posts);
     setAvailableTags(res.data.available_tags);
     setThreadUuid(res.data.thread_uuid);
+    setTotalPages(Math.max(res.data.meta.total_pages, 1));
     markThreadRead(res.data.thread_uuid);
-  }, [keyword, markThreadRead, sid, sort, tag, teacherUuid]);
+  }, [keyword, markThreadRead, page, sid, sort, tag, teacherUuid]);
 
   useEffect(() => {
     void loadTeacher();
@@ -97,6 +100,10 @@ export function ConversationScreen() {
   useEffect(() => {
     setMsgTranslations({});
   }, [language]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [keyword, sort, tag, teacherUuid]);
 
   useEffect(() => {
     setMsgTranslations(prev => {
@@ -325,6 +332,12 @@ export function ConversationScreen() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{titleText}</div>
                       <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{msg.author.display_name} · {formatTime(msg.created_at)}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                        <span className="badge" style={{ fontSize: 10 }}>{msg.display_language}</span>
+                        {msg.translated_language && <span className="badge" style={{ fontSize: 10 }}>{msg.translated_language}</span>}
+                        {msg.updated_at && <span className="badge" style={{ fontSize: 10 }}>{t('parentConversation.edited')}</span>}
+                        {msg.translated_at && <span className="badge" style={{ fontSize: 10 }}>{t('parentConversation.translated')}</span>}
+                      </div>
                     </div>
                     {!msg.is_deleted && (
                       <button className="chip" style={{ fontSize: 11 }} onClick={() => setReplyToPostUuid(msg.uuid)}>
@@ -429,6 +442,17 @@ export function ConversationScreen() {
       </div>
 
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--bd)', background: 'var(--card)', borderRadius: '0 0 12px 12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
+            {t('actions.previous')}
+          </button>
+          <div style={{ fontSize: 11, color: 'var(--tx3)', alignSelf: 'center' }}>
+            {t('parentConversation.pageStatus', { page, totalPages })}
+          </div>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={page >= totalPages} onClick={() => setPage(prev => prev + 1)}>
+            {t('actions.next')}
+          </button>
+        </div>
         {replyTarget && (
           <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--bg2)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <div>

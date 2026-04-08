@@ -28,7 +28,7 @@ const EMPTY_FORM: MetricForm = {
 };
 
 export function TeacherPeriodMetricsScreen() {
-  const { t } = useTranslation('portal');
+  const { t } = useTranslation(['portal', 'common']);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
   const [students, setStudents] = useState<SelectOption[]>([]);

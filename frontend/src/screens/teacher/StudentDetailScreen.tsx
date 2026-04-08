@@ -105,7 +105,7 @@ export function StudentDetailScreen() {
             {t('teacherStudentDetail.quickActions')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/messages?student=${student.uuid}`)}>
+            <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/discussions?student=${student.uuid}`)}>
               {t('teacherStudentDetail.openParentDiscussion')}
             </button>
             <button className="btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/teacher/reports?student=${student.uuid}`)}>

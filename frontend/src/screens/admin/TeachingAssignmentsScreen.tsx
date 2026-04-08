@@ -2,7 +2,7 @@
 // Admin TeachingAssignmentsScreen — manage teaching assignments
 // ============================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { admin as adminApi } from '@/lib/api';
@@ -28,7 +28,7 @@ const EMPTY_FORM: AssignmentForm = {
 };
 
 export function AdminTeachingAssignmentsScreen() {
-  const { t } = useTranslation('portal');
+  const { t } = useTranslation(['portal', 'common']);
   const [assignments, setAssignments] = useState<TeachingAssignment[]>([]);
   const [teachers, setTeachers] = useState<SelectOption[]>([]);
   const [students, setStudents] = useState<SelectOption[]>([]);
@@ -96,6 +96,11 @@ export function AdminTeachingAssignmentsScreen() {
     await loadAssignments();
   };
 
+  const subjectLabelMap = useMemo(
+    () => new Map(subjects.map(option => [option.value, option.label + (option.meta?.code ? ` · ${String(option.meta.code)}` : '')])),
+    [subjects]
+  );
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -114,8 +119,8 @@ export function AdminTeachingAssignmentsScreen() {
             <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={students} placeholder={t('allStudents')} allowClear />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('subjectUuid')}</label>
-            <SearchableSelect value={subjectUuid} onChange={setSubjectUuid} options={subjects} placeholder={t('subjectUuid')} allowClear />
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectSubject')}</label>
+            <SearchableSelect value={subjectUuid} onChange={setSubjectUuid} options={subjects} placeholder={t('allSubjects')} allowClear />
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('status')}</label>
@@ -143,8 +148,8 @@ export function AdminTeachingAssignmentsScreen() {
             <SearchableSelect value={form.student_uuid} onChange={(value) => setForm(prev => ({ ...prev, student_uuid: value }))} options={students} placeholder={t('selectStudent')} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('subjectUuid')}</label>
-            <SearchableSelect value={form.subject_uuid} onChange={(value) => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjects} placeholder={t('subjectUuid')} />
+            <label style={{ fontSize: 12, color: 'var(--tx3)', display: 'block', marginBottom: 4 }}>{t('selectSubject')}</label>
+            <SearchableSelect value={form.subject_uuid} onChange={(value) => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjects} placeholder={t('selectSubject')} />
           </div>
           <button className="btn-primary" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => void handleCreate()} disabled={saving}>
             {saving ? t('common:loading') : t('create')}
@@ -157,14 +162,13 @@ export function AdminTeachingAssignmentsScreen() {
         {assignments.map(assignment => {
           const teacher = teachers.find(item => item.value === assignment.teacher_uuid);
           const student = students.find(item => item.value === assignment.student_uuid);
-          const subject = subjects.find(item => item.value === assignment.subject_uuid);
           return (
             <div key={assignment.uuid} className="card-sm" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
                   {teacher?.label ?? assignment.teacher_uuid} → {student?.label ?? assignment.student_uuid}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('subjectUuid')}: {subject?.label ?? assignment.subject_uuid}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('selectSubject')}: {subjectLabelMap.get(assignment.subject_uuid) ?? assignment.subject_uuid}</div>
               </div>
               <span className="badge" style={{ background: assignment.is_active ? 'var(--a3)18' : 'var(--tx3)18', color: assignment.is_active ? 'var(--a3)' : 'var(--tx3)', fontSize: 10 }}>
                 {assignment.is_active ? t('active') : t('inactive')}

@@ -26,7 +26,7 @@ const PARENT_NAV: NavItem[] = [
   { id: 'timetable',  labelKey: 'nav:timetable',  icon: '🗓️', path: (sid) => `/parent/students/${sid}/timetable` },
   { id: 'examScores', labelKey: 'nav:examScores', icon: '📝', path: (sid) => `/parent/students/${sid}/exam-scores` },
   { id: 'periodMetrics', labelKey: 'nav:periodMetrics', icon: '📈', path: (sid) => `/parent/students/${sid}/period-metrics` },
-  { id: 'messages',   labelKey: 'nav:messages',   icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
+  { id: 'discussions', labelKey: 'nav:messages',  icon: '💬', path: (sid) => `/parent/students/${sid}/discussions` },
   { id: 'reports',    labelKey: 'nav:reports',    icon: '📋', path: (sid) => `/parent/students/${sid}/reports` },
   { id: 'announcements', labelKey: 'nav:announcements', icon: '📢', path: (sid) => `/parent/students/${sid}/announcements` },
   { id: 'leave',      labelKey: 'nav:leave',      icon: '🗒', path: (sid) => `/parent/students/${sid}/leave` },
@@ -36,7 +36,7 @@ const PARENT_NAV: NavItem[] = [
 
 const TEACHER_NAV: NavItem[] = [
   { id: 'dashboard',    labelKey: 'nav:dashboard',    icon: '🏠', path: '/teacher/dashboard' },
-  { id: 'messages',     labelKey: 'nav:messages',     icon: '💬', path: '/teacher/messages' },
+  { id: 'discussions',  labelKey: 'nav:messages',     icon: '💬', path: '/teacher/discussions' },
   { id: 'announcements', labelKey: 'nav:announcements', icon: '📢', path: '/teacher/posts' },
   { id: 'reports',      labelKey: 'nav:reports',      icon: '📋', path: '/teacher/reports' },
   { id: 'tags',         labelKey: 'nav:tags',         icon: '🏷', path: '/teacher/tags' },
@@ -195,7 +195,7 @@ export function AppShell() {
             >
               <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
               {t(item.labelKey)}
-              {item.id === 'messages' && unreadMessageCount > 0 && (
+              {item.id === 'discussions' && unreadMessageCount > 0 && (
                 <span style={{
                   marginLeft: 'auto',
                   width: 8, height: 8, borderRadius: '50%',
