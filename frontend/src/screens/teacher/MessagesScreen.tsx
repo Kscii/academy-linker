@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { PostComposerDrawer } from '@/components/PostComposerDrawer';
 import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
 import { teacher as teacherApi, posts as postsApi, translations } from '@/lib/api';
@@ -36,23 +37,17 @@ export function TeacherMessagesScreen() {
   const [messages, setMessages] = useState<ThreadPost[]>([]);
   const [threadUuid, setThreadUuid] = useState('');
   const [threadTotalPages, setThreadTotalPages] = useState(1);
-  const [draftTitle, setDraftTitle] = useState('');
-  const [reply, setReply] = useState('');
-  const [replyToPostUuid, setReplyToPostUuid] = useState('');
-  const [editingPostUuid, setEditingPostUuid] = useState('');
-  const [editingTitle, setEditingTitle] = useState('');
-  const [editingContent, setEditingContent] = useState('');
-  const [editingTagUuids, setEditingTagUuids] = useState<string[]>([]);
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [showAiChips, setShowAiChips] = useState(false);
+  const [composerBusy, setComposerBusy] = useState(false);
   const [availableTags, setAvailableTags] = useState<PostTag[]>([]);
-  const [selectedTagUuids, setSelectedTagUuids] = useState<string[]>([]);
   const [threadSort, setThreadSort] = useState<'created_at_desc' | 'created_at_asc'>('created_at_desc');
   const [threadKeyword, setThreadKeyword] = useState('');
   const [threadTag, setThreadTag] = useState('');
   const [threadPage, setThreadPage] = useState(1);
   const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string | null; loading: boolean; showOriginal: boolean }>>({});
+  const [composerState, setComposerState] = useState<{
+    mode: 'create' | 'reply' | 'edit';
+    post?: ThreadPost;
+  } | null>(null);
 
   const txTranslate = t('actions.translate');
   const aiDrafts = [
@@ -74,10 +69,7 @@ export function TeacherMessagesScreen() {
   const activeStudent = students.find(student => student.uuid === activeStudentUuid) ?? null;
   const parentsForActiveStudent = parentLists[activeStudentUuid] ?? [];
   const activeParent = parentsForActiveStudent.find(parent => parent.uuid === activeParentUuid) ?? parentsForActiveStudent[0] ?? null;
-  const replyTarget = useMemo(
-    () => messages.find(message => message.uuid === replyToPostUuid) ?? null,
-    [messages, replyToPostUuid]
-  );
+  const replyTarget = composerState?.mode === 'reply' ? composerState.post ?? null : null;
 
   const studentSummaries = useMemo<Record<string, StudentConvoSummary>>(() => {
     const summaries: Record<string, StudentConvoSummary> = {};
@@ -95,7 +87,7 @@ export function TeacherMessagesScreen() {
       };
     });
     return summaries;
-  }, [parentLists]);
+  }, [parentLists, t]);
 
   const loadParents = useCallback(async (studentUuid: string) => {
     if (!studentUuid) return [];
@@ -123,6 +115,10 @@ export function TeacherMessagesScreen() {
   useEffect(() => {
     setMsgTranslations({});
   }, [language, activeStudentUuid, activeParentUuid]);
+
+  useEffect(() => {
+    setComposerState(null);
+  }, [activeParentUuid, activeStudentUuid]);
 
   useEffect(() => {
     setThreadPage(1);
@@ -209,78 +205,45 @@ export function TeacherMessagesScreen() {
     }
   }, [activeParentUuid, activeStudentUuid, loadThread, msgTranslations]);
 
-  const sendReply = async (text: string) => {
-    if (!text.trim() || !threadUuid || sending) return;
-    setSending(true);
+  const submitComposer = async (payload: { title: string | null; content: string; tagUuids: string[] }) => {
+    if (!threadUuid || !composerState || composerBusy) return;
+    setComposerBusy(true);
     try {
-      await postsApi.create(threadUuid, {
-        title: draftTitle.trim() || null,
-        content_markdown: text.trim(),
-        original_language: language,
-        tag_uuids: selectedTagUuids.length > 0 ? selectedTagUuids : undefined,
-        reply_to_post_uuid: replyToPostUuid || null,
-      });
-      setDraftTitle('');
-      setReply('');
-      setSelectedTagUuids([]);
-      setReplyToPostUuid('');
-      setShowAiChips(false);
+      if (composerState.mode === 'edit' && composerState.post) {
+        await postsApi.update(composerState.post.uuid, {
+          title: payload.title,
+          content_markdown: payload.content,
+          original_language: language,
+          tag_uuids: payload.tagUuids,
+        });
+      } else {
+        await postsApi.create(threadUuid, {
+          title: payload.title,
+          content_markdown: payload.content,
+          original_language: language,
+          tag_uuids: payload.tagUuids.length > 0 ? payload.tagUuids : undefined,
+          reply_to_post_uuid: composerState.mode === 'reply' ? composerState.post?.uuid ?? null : null,
+        });
+      }
+      setComposerState(null);
       if (activeStudentUuid && activeParentUuid) {
         await loadThread(activeStudentUuid, activeParentUuid);
         await loadParents(activeStudentUuid);
       }
     } finally {
-      setSending(false);
-    }
-  };
-
-  const startEditing = (post: ThreadPost) => {
-    setEditingPostUuid(post.uuid);
-    setEditingTitle(post.title ?? '');
-    setEditingContent(post.original_content_markdown);
-    setEditingTagUuids(post.tags.map(tag => tag.uuid));
-  };
-
-  const cancelEditing = () => {
-    setEditingPostUuid('');
-    setEditingTitle('');
-    setEditingContent('');
-    setEditingTagUuids([]);
-  };
-
-  const saveEdit = async () => {
-    if (!editingPostUuid || !editingContent.trim() || savingEdit) return;
-    setSavingEdit(true);
-    try {
-      await postsApi.update(editingPostUuid, {
-        title: editingTitle.trim() || null,
-        content_markdown: editingContent.trim(),
-        original_language: language,
-        tag_uuids: editingTagUuids,
-      });
-      cancelEditing();
-      if (activeStudentUuid && activeParentUuid) {
-        await loadThread(activeStudentUuid, activeParentUuid);
-      }
-    } finally {
-      setSavingEdit(false);
+      setComposerBusy(false);
     }
   };
 
   const deletePost = async (postUuid: string) => {
     if (!window.confirm(t('teacherMessages.deleteConfirm'))) return;
     await postsApi.delete(postUuid);
-    if (editingPostUuid === postUuid) {
-      cancelEditing();
-    }
+    if (composerState?.post?.uuid === postUuid) setComposerState(null);
     setMsgTranslations(prev => {
       const next = { ...prev };
       delete next[postUuid];
       return next;
     });
-    if (replyToPostUuid === postUuid) {
-      setReplyToPostUuid('');
-    }
     if (activeStudentUuid && activeParentUuid) {
       await loadThread(activeStudentUuid, activeParentUuid);
       await loadParents(activeStudentUuid);
@@ -385,7 +348,6 @@ export function TeacherMessagesScreen() {
             {messages.map(post => {
               const isTeacher = post.author.role === 'teacher';
               const tx = msgTranslations[post.uuid];
-              const isEditing = editingPostUuid === post.uuid;
               const canTranslate = !post.is_deleted && post.original_language !== language;
               const isShowingOriginal = tx?.showOriginal ?? false;
               const bubbleText = isShowingOriginal
@@ -411,7 +373,7 @@ export function TeacherMessagesScreen() {
                     </div>
                   </div>
                   {!post.is_deleted && (
-                    <button className="chip" style={{ fontSize: 11, alignSelf: 'center' }} onClick={() => setReplyToPostUuid(post.uuid)}>
+                    <button className="chip" style={{ fontSize: 11, alignSelf: 'center' }} onClick={() => setComposerState({ mode: 'reply', post })}>
                       {t('teacherMessages.reply')}
                     </button>
                   )}
@@ -427,55 +389,12 @@ export function TeacherMessagesScreen() {
                         </div>
                       </div>
                     )}
-                    {isEditing ? (
-                      <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <input
-                          className="input-field"
-                          placeholder={t('teacherMessages.optionalTitle')}
-                          value={editingTitle}
-                          onChange={e => setEditingTitle(e.target.value)}
-                        />
-                        <textarea
-                          className="input-field"
-                          style={{ resize: 'vertical', minHeight: 96, fontFamily: 'var(--font-body)', fontSize: 13 }}
-                          value={editingContent}
-                          onChange={e => setEditingContent(e.target.value)}
-                        />
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {availableTags.map(tag => {
-                            const selected = editingTagUuids.includes(tag.uuid);
-                            return (
-                              <button
-                                key={tag.uuid}
-                                className="chip"
-                                style={{ fontSize: 11, background: selected ? 'var(--a1)' : undefined, color: selected ? '#fff' : undefined }}
-                                onClick={() => setEditingTagUuids(prev => selected ? prev.filter(id => id !== tag.uuid) : [...prev, tag.uuid])}
-                              >
-                                {tag.name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                          <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={cancelEditing}>
-                            {t('actions.cancel')}
-                          </button>
-                          <button className="btn-primary" style={{ width: 'auto', padding: '8px 16px' }} disabled={!editingContent.trim() || savingEdit} onClick={() => void saveEdit()}>
-                            {savingEdit ? t('teacherMessages.saving') : t('actions.save')}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ color: 'var(--tx)', fontSize: 13, lineHeight: 1.6 }}>
-                        {bubbleText}
-                      </div>
-                    )}
-                    {(isEditing ? editingTagUuids.length > 0 : post.tags.length > 0) && (
+                    <div style={{ color: 'var(--tx)', fontSize: 13, lineHeight: 1.6 }}>
+                      {bubbleText}
+                    </div>
+                    {post.tags.length > 0 && (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, justifyContent: isTeacher ? 'flex-end' : 'flex-start' }}>
-                        {(isEditing
-                          ? availableTags.filter(tag => editingTagUuids.includes(tag.uuid))
-                          : post.tags
-                        ).map(tag => (
+                        {post.tags.map(tag => (
                           <span key={tag.uuid} className="badge" style={{ fontSize: 10 }}>
                             {tag.name}
                           </span>
@@ -494,10 +413,10 @@ export function TeacherMessagesScreen() {
                           </button>
                         )}
                         {!post.is_deleted && <TtsButton resourceType="post" resourceUuid={post.uuid} />}
-                        {isTeacher && !isEditing && (
+                        {isTeacher && (
                           <>
                             <button
-                              onClick={() => startEditing(post)}
+                              onClick={() => setComposerState({ mode: 'edit', post })}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a2)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}
                             >
                               {t('actions.edit')}
@@ -519,7 +438,16 @@ export function TeacherMessagesScreen() {
           </div>
 
           <div className="thread-input-area">
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                className="btn-primary"
+                style={{ width: 'auto', padding: '10px 18px', fontSize: 13 }}
+                disabled={!activeParent || !threadUuid}
+                onClick={() => setComposerState({ mode: 'create' })}
+              >
+                {t('teacherMessages.newPost')}
+              </button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={threadPage <= 1} onClick={() => setThreadPage(prev => prev - 1)}>
                 {t('actions.previous')}
               </button>
@@ -529,88 +457,25 @@ export function TeacherMessagesScreen() {
               <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={threadPage >= threadTotalPages} onClick={() => setThreadPage(prev => prev + 1)}>
                 {t('actions.next')}
               </button>
-            </div>
-            {replyTarget && (
-              <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--bg2)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)' }}>
-                    {t('teacherMessages.replyingTo', { title: replyTarget.title?.trim() || t('common.untitled') })}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
-                    {replyTarget.original_content_markdown.slice(0, 120)}
-                  </div>
-                </div>
-                <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} onClick={() => setReplyToPostUuid('')}>
-                  {t('teacherMessages.clearReply')}
-                </button>
               </div>
-            )}
-            {showAiChips && (
-              <div style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {aiDrafts.map(draft => (
-                  <button key={draft} className="chip" style={{ fontSize: 11 }} onClick={() => { setReply(draft); setShowAiChips(false); }}>
-                    {draft.slice(0, 40)}…
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-              {availableTags.map(tag => {
-                const selected = selectedTagUuids.includes(tag.uuid);
-                return (
-                  <button
-                    key={tag.uuid}
-                    className="chip"
-                    style={{ fontSize: 11, background: selected ? 'var(--a1)' : undefined, color: selected ? '#fff' : undefined }}
-                    onClick={() => setSelectedTagUuids(prev => selected ? prev.filter(id => id !== tag.uuid) : [...prev, tag.uuid])}
-                  >
-                    {tag.name}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-              <button
-                className="chip"
-                style={{ flexShrink: 0, fontSize: 12, background: showAiChips ? 'var(--a4)' : undefined, color: showAiChips ? '#fff' : undefined }}
-                onClick={() => setShowAiChips(prev => !prev)}
-              >
-                ✦ {t('teacherMessages.aiDraft')}
-              </button>
-              <div style={{ flex: 1 }}>
-                <input
-                  className="input-field"
-                  style={{ marginBottom: 8 }}
-                  placeholder={t('teacherMessages.optionalTitle')}
-                  value={draftTitle}
-                  disabled={!activeParent}
-                  onChange={e => setDraftTitle(e.target.value)}
-                />
-                <textarea
-                  className="input-field"
-                  style={{ width: '100%', resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 72 }}
-                  placeholder={activeParent ? t('teacherMessages.bodyPlaceholder') : t('teacherMessages.noParentLinked')}
-                  value={reply}
-                  rows={3}
-                  disabled={!activeParent}
-                  onChange={e => setReply(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      void sendReply(reply);
-                    }
-                  }}
-                />
-              </div>
-              <button className="btn-primary" style={{ width: 'auto', padding: '8px 18px', flexShrink: 0, alignSelf: 'flex-end' }} onClick={() => void sendReply(reply)} disabled={!reply.trim() || sending || !activeParent}>
-                {replyToPostUuid ? t('teacherMessages.postReply') : t('teacherMessages.newPost')}
-              </button>
             </div>
           </div>
         </div>
       </div>
+      <PostComposerDrawer
+        open={composerState !== null}
+        mode={composerState?.mode ?? 'create'}
+        role="teacher"
+        availableTags={availableTags}
+        replyTarget={replyTarget}
+        initialTitle={composerState?.mode === 'edit' ? (composerState.post?.title ?? '') : ''}
+        initialContent={composerState?.mode === 'edit' ? (composerState.post?.original_content_markdown ?? '') : ''}
+        initialTagUuids={composerState?.mode === 'edit' ? (composerState.post?.tags.map(tag => tag.uuid) ?? []) : []}
+        busy={composerBusy}
+        aiDrafts={aiDrafts}
+        onClose={() => setComposerState(null)}
+        onSubmit={submitComposer}
+      />
     </div>
   );
 }
