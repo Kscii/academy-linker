@@ -601,6 +601,14 @@
   "parentGrades": {
     "title": "学业表现",
     "subtitle": "{{name}} 的成绩与进展",
+    "overallPerformance": "整体表现",
+    "assignmentCompletion": "作业完成率",
+    "attendance": "出勤率",
+    "subjects": "学科数",
+    "subjectScores": "各科成绩",
+    "classAvg": "班级平均",
+    "overallTrend": "总体趋势",
+    "allSubjects": "所有学科",
     "noTeacherAssigned": "未分配教师"
   },
   "timetable": {
