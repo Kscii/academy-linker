@@ -180,6 +180,7 @@ export interface DashboardSummaryItem {
 export interface SubjectStatistic {
   subject_uuid: string;
   subject_name: string;
+  subject_code: string | null;
   score: number;
   progress: number;
   assignment_completion_rate: number;

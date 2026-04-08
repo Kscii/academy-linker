@@ -26,6 +26,7 @@ export function ParentExamScoresScreen() {
   const [subjectUuid, setSubjectUuid] = useState('');
   const [examDateFrom, setExamDateFrom] = useState('');
   const [examDateTo, setExamDateTo] = useState('');
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!sid) return;
@@ -45,8 +46,38 @@ export function ParentExamScoresScreen() {
     }).then(res => {
       setScores(res.data);
       setMeta(res.meta);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setInitialized(true));
   }, [examDateFrom, examDateTo, page, sid, subjectUuid]);
+
+  if (!initialized) {
+    return (
+      <div>
+        <div style={{ marginBottom: 24 }}>
+          <div className="skel" style={{ height: 28, width: '52%', marginBottom: 8 }} />
+          <div className="skel" style={{ height: 13, width: '28%' }} />
+        </div>
+        <div className="card">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <div className="skel" style={{ height: 36 }} />
+            <div className="skel" style={{ height: 36 }} />
+            <div className="skel" style={{ height: 36 }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="card-sm">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div className="skel" style={{ height: 14, width: '50%' }} />
+                  <div className="skel" style={{ height: 12, width: '16%' }} />
+                </div>
+                <div className="skel" style={{ height: 11, width: '38%', marginBottom: 8 }} />
+                <div className="skel" style={{ height: 13, width: '32%' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
