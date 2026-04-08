@@ -21,7 +21,15 @@ from ac_link.dto.auth import ApiResponse
 from ac_link.dto.tts import TtsAudioData, TtsResolveRequest, TtsVoiceItem
 from ac_link.services.openai_service import translate_content
 from ac_link.services.translation_helpers import get_target_language
-from ac_link.services.tts_service import build_content_hash, resolve_voice_for_language, synthesize_text
+from ac_link.services.tts_service import (
+    build_content_hash,
+    get_active_tts_provider,
+    get_audio_output_spec,
+    get_provider_label,
+    list_available_voices,
+    resolve_voice_for_language,
+    synthesize_text,
+)
 
 router = APIRouter(prefix="/api/tts", tags=["tts"])
 
@@ -99,13 +107,17 @@ def list_tts_voices(
     language: str | None = None,
     _current_user: User = Depends(get_current_user),
 ) -> ApiResponse[list[TtsVoiceItem]]:
-    voices = [
-        TtsVoiceItem(key=settings.tts_voice_en, language="en-AU", provider=TtsProvider.AZURE.value),
-        TtsVoiceItem(key=settings.tts_voice_zh, language="zh-CN", provider=TtsProvider.AZURE.value),
-    ]
-    if language:
-        voices = [voice for voice in voices if voice.language.lower().startswith(language.lower()[:2])]
-    return ApiResponse(data=voices)
+    provider = get_active_tts_provider()
+    voices = list_available_voices(language=language)
+    return ApiResponse(data=[
+        TtsVoiceItem(
+            key=item["name"],
+            language=(item.get("languageCodes") or ["und"])[0],
+            provider=get_provider_label(provider),
+        )
+        for item in voices
+        if item.get("name")
+    ])
 
 
 @router.post("/resolve", response_model=ApiResponse[TtsAudioData])
@@ -149,12 +161,13 @@ def resolve_tts_audio(
 
     voice_key = resolve_voice_for_language(source_language)
     content_hash = build_content_hash(text=source_text, language=source_language, voice_key=voice_key)
+    provider = get_active_tts_provider()
     cached = (
         db.query(TtsAudioCache)
         .filter(
             TtsAudioCache.content_hash == content_hash,
             TtsAudioCache.voice_key == voice_key,
-            TtsAudioCache.provider == TtsProvider.AZURE,
+            TtsAudioCache.provider == provider,
         )
         .first()
     )
@@ -165,12 +178,13 @@ def resolve_tts_audio(
             mime_type=cached.audio_mime_type,
             source_language=cached.source_language,
             voice_key=cached.voice_key,
-            provider=cached.provider.value,
+            provider=get_provider_label(cached.provider),
             cached=True,
         ))
 
     audio_bytes = synthesize_text(text=source_text, language=source_language, voice_key=voice_key)
     settings.tts_storage_path.mkdir(parents=True, exist_ok=True)
+    _, mime_type, extension = get_audio_output_spec()
 
     cache = cached or TtsAudioCache(
         resource_type=resource_type,
@@ -179,15 +193,15 @@ def resolve_tts_audio(
         source_text=source_text,
         source_language=source_language,
         voice_key=voice_key,
-        provider=TtsProvider.AZURE,
-        audio_mime_type="audio/mpeg",
+        provider=provider,
+        audio_mime_type=mime_type,
         storage_path="",
     )
     if cached is None:
         db.add(cache)
         db.flush()
 
-    file_path = settings.tts_storage_path / f"{cache.uuid}.mp3"
+    file_path = settings.tts_storage_path / f"{cache.uuid}.{extension}"
     file_path.write_bytes(audio_bytes)
     cache.storage_path = str(file_path)
     db.commit()
@@ -199,7 +213,7 @@ def resolve_tts_audio(
         mime_type=cache.audio_mime_type,
         source_language=cache.source_language,
         voice_key=cache.voice_key,
-        provider=cache.provider.value,
+        provider=get_provider_label(cache.provider),
         cached=False,
     ))
 

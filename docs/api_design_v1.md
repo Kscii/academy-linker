@@ -4082,11 +4082,16 @@ Query:
 ```json
 {
   "data": [
-    { "key": "en-AU-NatashaNeural", "language": "en-AU", "provider": "azure" },
-    { "key": "zh-CN-XiaoxiaoNeural", "language": "zh-CN", "provider": "azure" }
+    { "key": "Kore", "language": "en-US", "provider": "gemini" },
+    { "key": "Aoede", "language": "zh-CN", "provider": "gemini" }
   ]
 }
 ```
+
+规则：
+
+- 服务端返回系统允许使用的 Gemini TTS 预置 voice 列表。
+- `language` 参数会按语言前缀过滤，如 `en` / `zh-CN`。
 
 ### 12C.2 解析或生成朗读音频（已完成）
 
@@ -4121,10 +4126,10 @@ Query:
   "data": {
     "audio_uuid": "uuid",
     "audio_url": "/api/tts/audio/uuid",
-    "mime_type": "audio/mpeg",
+    "mime_type": "audio/wav",
     "source_language": "zh",
-    "voice_key": "zh-CN-XiaoxiaoNeural",
-    "provider": "azure",
+    "voice_key": "Kore",
+    "provider": "gemini",
     "cached": true
   }
 }
@@ -4136,7 +4141,10 @@ Query:
 - 若目标语言无缓存译文：
   - `ai_auto_translate_enabled=true` 时，服务端可先自动补译文，再生成音频。
   - `false` 时，回退朗读原文。
-- 当前 provider 为 Azure Speech。
+- 当前 provider 为 Gemini TTS。
+- 服务端通过 `TTS_API_KEY` 调用 Gemini `generateContent` 音频能力。
+- 默认模型推荐使用 `gemini-2.5-flash-preview-tts`；若后续模型升级，通过 `TTS_MODEL` 配置切换。
+- 当前实现输出 WAV 音频，便于直接被浏览器 `<audio>` 播放。
 
 ### 12C.3 获取音频流（已完成）
 

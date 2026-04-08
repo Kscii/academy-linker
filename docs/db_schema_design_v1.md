@@ -1045,3 +1045,8 @@ tts_audio_cache(id PK, uuid UNIQUE, resource_type, resource_id NULL,
                 created_at, updated_at,
                 UNIQUE(content_hash, voice_key, provider))
 ```
+
+说明：
+
+- `tts_audio_cache.provider` 当前默认写入 `gemini`，用于标识 Gemini TTS 生成的缓存音频。
+- 保留 provider 字段是为了兼容未来多 TTS provider 或历史缓存迁移。

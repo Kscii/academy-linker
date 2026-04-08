@@ -155,6 +155,48 @@ class TestTeacherClasses:
         assert "summary" in data
 
 
+class TestTeacherOptions:
+    def test_list_class_options(self, teacher_client, td):
+        r = teacher_client.get("/api/teachers/me/options/classes")
+        assert r.status_code == 200
+        assert any(item["value"] == td["class_uuid"] for item in r.json()["data"])
+
+    def test_list_student_options_filter_by_class(self, teacher_client, td):
+        r = teacher_client.get(
+            "/api/teachers/me/options/students",
+            params={"class_uuid": td["class_uuid"]},
+        )
+        assert r.status_code == 200
+        assert any(item["value"] == td["student_uuid"] for item in r.json()["data"])
+
+    def test_list_subject_options_for_student(self, teacher_client, td):
+        r = teacher_client.get(
+            "/api/teachers/me/options/subjects",
+            params={"student_uuid": td["student_uuid"]},
+        )
+        assert r.status_code == 200
+        assert any(item["value"] == td["subject_uuid"] for item in r.json()["data"])
+
+    def test_list_term_options(self, teacher_client, td):
+        teacher_client.post(
+            f"/api/teachers/me/students/{td['student_uuid']}/period-metrics",
+            json={
+                "subject_uuid": td["subject_uuid"],
+                "term": "2026-T2",
+                "snapshot_date": str(date.today()),
+                "progress": 0.81,
+                "assignment_completion_rate": 0.9,
+                "attendance_rate": 0.96,
+            },
+        )
+        r = teacher_client.get(
+            "/api/teachers/me/options/terms",
+            params={"student_uuid": td["student_uuid"], "subject_uuid": td["subject_uuid"]},
+        )
+        assert r.status_code == 200
+        assert any(item["value"] == "2026-T2" for item in r.json()["data"])
+
+
 # ── 私有 Tag CRUD ─────────────────────────────────────────────────────────────
 
 class TestTeacherTags:

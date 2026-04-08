@@ -74,6 +74,8 @@ class TtsResourceType(StrEnum):
 
 class TtsProvider(StrEnum):
     AZURE = 'azure'
+    GOOGLE = 'gcp'
+    GEMINI = 'gemini'
 
 
 class AiConversationContextType(StrEnum):
@@ -118,5 +120,3 @@ class LearningPathwayItemStatus(StrEnum):
     COMPLETED = 'completed'
     IN_PROGRESS = 'in_progress'
     UPCOMING = 'upcoming'
-
-

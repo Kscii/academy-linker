@@ -49,13 +49,15 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
 
-    # ── TTS（Azure Speech）──────────────────────────────────────
-    tts_provider: str = "azure"
+    # ── TTS（Gemini Text-to-Speech）──────────────────────────────
+    tts_provider: str = "gemini"
     tts_api_key: str = ""
-    tts_region: str = ""
-    tts_voice_en: str = "en-AU-NatashaNeural"
-    tts_voice_zh: str = "zh-CN-XiaoxiaoNeural"
-    tts_audio_format: str = "audio-24khz-48kbitrate-mono-mp3"
+    tts_api_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    tts_model: str = "gemini-2.5-flash-preview-tts"
+    tts_voice_en: str = "Kore"
+    tts_voice_zh: str = "Kore"
+    tts_audio_encoding: str = "WAV"
+    tts_audio_sample_rate_hertz: int = 24000
     tts_storage_dir: str = ".tts-cache"
     @property
     def database_url(self) -> str:
