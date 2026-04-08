@@ -98,7 +98,7 @@ export function ResourcesScreen() {
           {t('resourcesTitle')}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {t('resourcesSubtitle')}
+          {t('resourcesSubtitle')} · {t('resourcesCount', { count: meta.total })}
         </div>
       </div>
 
@@ -157,6 +157,7 @@ export function ResourcesScreen() {
                     <span className="badge" style={{ fontSize: 10 }}>{detail.display_language}</span>
                     {detail.translated_language && <span className="badge" style={{ fontSize: 10 }}>{detail.translated_language}</span>}
                     <span className="badge" style={{ fontSize: 10 }}>{detail.translation_status}</span>
+                    {detail.external_url && <span className="badge" style={{ fontSize: 10 }}>{t('externalResource')}</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>

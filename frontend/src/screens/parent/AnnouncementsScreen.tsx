@@ -109,7 +109,7 @@ export function AnnouncementsScreen() {
           {txTitle}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {txSubtitle}
+          {txSubtitle} · {t('parentAnnouncements.totalCount', { count: meta.total })}
         </div>
       </div>
 
@@ -213,6 +213,7 @@ export function AnnouncementsScreen() {
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                     <span className="badge" style={{ fontSize: 10 }}>{detail.display_language}</span>
                     {detail.translated_language && <span className="badge" style={{ fontSize: 10 }}>{detail.translated_language}</span>}
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.translation_status}</span>
                     <span className="badge" style={{ fontSize: 10 }}>{detail.is_read ? t('parentAnnouncements.readBadge') : t('parentAnnouncements.unreadBadge')}</span>
                     {detail.subject && <span className="badge" style={{ fontSize: 10 }}>{detail.subject.name}{detail.subject.code ? ` · ${detail.subject.code}` : ''}</span>}
                   </div>
