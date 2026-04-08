@@ -62,6 +62,11 @@ function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor:
                 {post.title}
               </div>
             )}
+            {!post.title && (
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6 }}>
+                {t('common.untitled')}
+              </div>
+            )}
 
             <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 12 }}>
               {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1')}
@@ -134,7 +139,10 @@ export function SubjectDetailScreen() {
         </div>
         <div>
           <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{subject.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teachers?.[0]?.display_name}</div>
+          <div style={{ fontSize: 13, color: 'var(--tx2)' }}>
+            {subject.teachers?.[0]?.display_name}
+            {subject.code ? ` · ${subject.code}` : ''}
+          </div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <div className="badge-score" style={{ background: subjectColor, fontSize: 20, padding: '6px 16px' }}>
@@ -143,18 +151,65 @@ export function SubjectDetailScreen() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
           { label: t('parentSubject.currentScore'), value: detail.overview.current_score, color: subjectColor },
           { label: t('parentSubject.termAverage'),  value: detail.overview.term_avg,      color: 'var(--a2)' },
           { label: t('parentSubject.highest'),      value: detail.overview.highest,        color: 'var(--a3)' },
           { label: t('parentSubject.lowest'),       value: detail.overview.lowest,         color: 'var(--tx2)' },
+          { label: t('parentSubject.classAverage'), value: detail.overview.class_avg,      color: 'var(--a4)' },
+          { label: t('parentSubject.assignmentCompletion'), value: detail.overview.assignment_completion_rate, color: 'var(--a1)' },
         ].map((s, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{s.label}</div>
             <div className="stat-value" style={{ color: s.color }}>{s.value}%</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16, marginBottom: 24 }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{t('parentSubject.latestSummary')}</div>
+            {detail.summary && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span className="badge" style={{ fontSize: 10 }}>{detail.summary.display_language}</span>
+                {detail.summary.translated_language && <span className="badge" style={{ fontSize: 10 }}>{detail.summary.translated_language}</span>}
+              </div>
+            )}
+          </div>
+          {detail.summary ? (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', marginBottom: 6 }}>
+                {detail.summary.report_title}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7 }}>
+                {detail.summary.display_text}
+              </div>
+              {detail.summary.translated_at && (
+                <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 10 }}>
+                  {t('parentSubject.summaryTranslatedAt', { date: new Date(detail.summary.translated_at).toLocaleDateString('en-AU') })}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--tx3)' }}>{t('parentSubject.noSummary')}</div>
+          )}
+        </div>
+
+        <div className="card">
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 12 }}>{t('parentSubject.learningHealth')}</div>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 4 }}>{t('parentSubject.assignmentCompletion')}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--a1)' }}>{detail.overview.assignment_completion_rate}%</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 4 }}>{t('parentSubject.attendanceRate')}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--a2)' }}>{detail.overview.attendance_rate}%</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>

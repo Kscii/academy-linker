@@ -10,6 +10,8 @@
     "next": "下一页",
     "send": "发送",
     "delete": "删除",
+    "archive": "归档",
+    "unarchive": "取消归档",
     "translate": "翻译",
     "showOriginal": "显示原文",
     "showTranslation": "显示译文",
@@ -286,6 +288,7 @@
   "teacherMessages": {
     "title": "讨论",
     "parentConversations": "家长会话",
+    "pageStatus": "第 {{page}} / {{totalPages}} 页",
     "parentPreview": "家长：{{name}}",
     "noParentLinked": "未关联家长",
     "searchPlaceholder": "搜索标题或内容",
@@ -305,6 +308,8 @@
     "aiDraft": "AI 草稿",
     "replyTo": "回复 {{name}}...",
     "saving": "保存中...",
+    "edited": "已编辑",
+    "translated": "已翻译",
     "justNow": "刚刚",
     "hoursAgo": "{{count}} 小时前",
     "daysAgo": "{{count}} 天前",
@@ -347,6 +352,7 @@
   },
   "parentConversation": {
     "viewGrades": "查看成绩",
+    "pageStatus": "第 {{page}} / {{totalPages}} 页",
     "noMessages": "暂时还没有帖子。现在就和 {{name}} 开始讨论吧。",
     "deleteConfirm": "确定删除这条帖子吗？",
     "notFound": "未找到该讨论。",
@@ -358,6 +364,8 @@
     "yesterday": "昨天",
     "cancel": "取消",
     "saving": "保存中...",
+    "edited": "已编辑",
+    "translated": "已翻译",
     "optionalTitle": "标题（可选）",
     "bodyPlaceholder": "填写帖子正文...",
     "reply": "回复",
@@ -369,12 +377,25 @@
   "parentAnnouncements": {
     "title": "学校通知",
     "subtitle": "来自学校的重要公告",
+    "totalCount_one": "{{count}} 条通知",
+    "totalCount_other": "{{count}} 条通知",
+    "allCategories": "全部分类",
+    "categoryAnnouncement": "公告",
+    "categoryTask": "任务",
+    "allStatuses": "全部状态",
+    "activeOnly": "仅显示有效",
+    "sortNewest": "最新优先",
+    "sortOldest": "最早优先",
     "unreadNotices": "条未读通知",
     "new": "新",
     "empty": "暂无公告。",
     "selectPrompt": "请选择一条公告查看详情。",
     "due": "截止 {{date}}",
-    "important": "重要"
+    "important": "重要",
+    "readBadge": "已读",
+    "unreadBadge": "未读",
+    "readAt": "已读于 {{date}}",
+    "translatedAt": "已翻译于 {{date}}"
   },
   "parentExamScores": {
     "title": "考试成绩",
@@ -412,7 +433,18 @@
     "readUnread": "未读",
     "sortNewest": "最新优先",
     "sortOldest": "最早优先",
-    "noContent": "暂无内容。"
+    "noContent": "暂无内容。",
+    "readBadge": "已读",
+    "unreadBadge": "未读",
+    "archivedBadge": "已归档",
+    "publishedAt": "发布于 {{date}}",
+    "periodRange": "时间范围：{{start}} 至 {{end}}",
+    "readAt": "已读于 {{date}}",
+    "archivedAt": "归档于 {{date}}",
+    "translatedAt": "已翻译于 {{date}}"
+  },
+  "resourceDetail": {
+    "translatedAt": "已翻译于 {{date}}"
   },
   "parentSubject": {
     "teacherPosts": "教师帖子（{{count}}）",
@@ -423,6 +455,13 @@
     "termAverage": "本学期平均",
     "highest": "最高分",
     "lowest": "最低分",
+    "classAverage": "班级均分",
+    "assignmentCompletion": "完成率",
+    "attendanceRate": "出勤率",
+    "latestSummary": "最近摘要",
+    "noSummary": "该学科暂时还没有可展示的摘要。",
+    "summaryTranslatedAt": "已翻译于 {{date}}",
+    "learningHealth": "学习健康度",
     "scoreTrend": "成绩趋势",
     "classAvg": "班级平均",
     "studentLine": "学生",
@@ -434,6 +473,9 @@
     "generatingInsight": "正在生成洞察...",
     "insightError": "暂时无法加载洞察。"
   },
+  "resourcesCount_one": "{{count}} 条资源",
+  "resourcesCount_other": "{{count}} 条资源",
+  "externalResource": "外部链接",
   "parentDashboard": {
     "overallLearningTrend": "整体学习趋势",
     "upcomingActivities": "即将开始的活动",

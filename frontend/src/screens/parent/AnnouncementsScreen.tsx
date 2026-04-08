@@ -8,7 +8,7 @@ import { useParams } from 'react-router-dom';
 import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
-import type { Announcement, AnnouncementDetail } from '@/types/api';
+import type { Announcement, AnnouncementDetail, PaginationMeta } from '@/types/api';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-AU', {
@@ -33,6 +33,11 @@ export function AnnouncementsScreen() {
   const readSet = readAnnouncementIds;
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, page_size: 20, total: 0, total_pages: 1 });
+  const [page, setPage] = useState(1);
+  const [category, setCategory] = useState<'' | 'announcement' | 'task'>('');
+  const [activeOnly, setActiveOnly] = useState<'all' | 'active'>('all');
+  const [sort, setSort] = useState<'published_at_desc' | 'published_at_asc'>('published_at_desc');
   const [detail, setDetail] = useState<AnnouncementDetail | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [resolvingTranslation, setResolvingTranslation] = useState(false);
@@ -40,13 +45,19 @@ export function AnnouncementsScreen() {
   // Fetch announcements from API
   useEffect(() => {
     if (!studentUuid) return;
-    parentApi.getAnnouncements(studentUuid).then(res => {
+    parentApi.getAnnouncements(studentUuid, {
+      page,
+      category: category || undefined,
+      active_only: activeOnly === 'active' ? true : undefined,
+      sort,
+    }).then(res => {
       setAnnouncements(res.data);
+      setMeta(res.meta);
       setAnnouncementUuids(res.data.map(a => a.uuid));
       res.data.filter(a => a.is_read).forEach(a => markAnnouncementRead(a.uuid));
       setSelectedUuid(prev => prev || res.data[0]?.uuid || '');
     }).catch(() => {});
-  }, [studentUuid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeOnly, category, page, sort, studentUuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedUuid) {
@@ -99,7 +110,25 @@ export function AnnouncementsScreen() {
           {txTitle}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {txSubtitle}
+          {txSubtitle} · {t('parentAnnouncements.totalCount', { count: meta.total })}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+          <select className="input-field" value={category} onChange={e => { setPage(1); setCategory(e.target.value as typeof category); }}>
+            <option value="">{t('parentAnnouncements.allCategories')}</option>
+            <option value="announcement">{t('parentAnnouncements.categoryAnnouncement')}</option>
+            <option value="task">{t('parentAnnouncements.categoryTask')}</option>
+          </select>
+          <select className="input-field" value={activeOnly} onChange={e => { setPage(1); setActiveOnly(e.target.value as typeof activeOnly); }}>
+            <option value="all">{t('parentAnnouncements.allStatuses')}</option>
+            <option value="active">{t('parentAnnouncements.activeOnly')}</option>
+          </select>
+          <select className="input-field" value={sort} onChange={e => { setPage(1); setSort(e.target.value as typeof sort); }}>
+            <option value="published_at_desc">{t('parentAnnouncements.sortNewest')}</option>
+            <option value="published_at_asc">{t('parentAnnouncements.sortOldest')}</option>
+          </select>
         </div>
       </div>
 
@@ -182,6 +211,13 @@ export function AnnouncementsScreen() {
                     {detail.author.display_name} · {formatDate(detail.published_at)}
                     {detail.due_at ? ` · ${t('parentAnnouncements.due', { date: formatDate(detail.due_at) })}` : ''}
                   </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.display_language}</span>
+                    {detail.translated_language && <span className="badge" style={{ fontSize: 10 }}>{detail.translated_language}</span>}
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.translation_status}</span>
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.is_read ? t('parentAnnouncements.readBadge') : t('parentAnnouncements.unreadBadge')}</span>
+                    {detail.subject && <span className="badge" style={{ fontSize: 10 }}>{detail.subject.name}{detail.subject.code ? ` · ${detail.subject.code}` : ''}</span>}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   <TtsButton resourceType="announcement" resourceUuid={detail.uuid} />
@@ -207,6 +243,11 @@ export function AnnouncementsScreen() {
                 </div>
               )}
 
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16, fontSize: 12, color: 'var(--tx3)' }}>
+                {detail.read_at && <span>{t('parentAnnouncements.readAt', { date: formatDate(detail.read_at) })}</span>}
+                {detail.translated_at && <span>{t('parentAnnouncements.translatedAt', { date: formatDate(detail.translated_at) })}</span>}
+              </div>
+
               <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
                 {showOriginal ? detail.original_content_markdown : detail.display_content_markdown}
               </div>
@@ -217,6 +258,18 @@ export function AnnouncementsScreen() {
             </div>
           )}
         </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} disabled={page <= 1} onClick={() => setPage(prev => prev - 1)}>
+          {t('actions.previous')}
+        </button>
+        <div style={{ fontSize: 12, color: 'var(--tx3)', alignSelf: 'center' }}>
+          {t('common.pageStatus', { page: meta.page, totalPages: Math.max(meta.total_pages, 1) })}
+        </div>
+        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 12px' }} disabled={page >= meta.total_pages} onClick={() => setPage(prev => prev + 1)}>
+          {t('actions.next')}
+        </button>
       </div>
     </div>
   );

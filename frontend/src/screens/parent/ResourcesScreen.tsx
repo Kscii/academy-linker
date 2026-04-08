@@ -99,7 +99,7 @@ export function ResourcesScreen() {
           {t('resourcesTitle')}
         </div>
         <div style={{ fontSize: 14, color: 'var(--tx2)' }}>
-          {t('resourcesSubtitle')}
+          {t('resourcesSubtitle')} · {t('resourcesCount', { count: meta.total })}
         </div>
       </div>
 
@@ -153,6 +153,13 @@ export function ResourcesScreen() {
                 <div>
                   <div className="font-serif" style={{ fontSize: 24, color: 'var(--tx)', marginBottom: 6 }}>{detail.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{detail.category_label} · {detail.published_at.slice(0, 10)}</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.audience_role}</span>
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.display_language}</span>
+                    {detail.translated_language && <span className="badge" style={{ fontSize: 10 }}>{detail.translated_language}</span>}
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.translation_status}</span>
+                    {detail.external_url && <span className="badge" style={{ fontSize: 10 }}>{t('externalResource')}</span>}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   <TtsButton resourceType="resource" resourceUuid={detail.uuid} />
@@ -168,6 +175,20 @@ export function ResourcesScreen() {
                   )}
                 </div>
               </div>
+              {detail.translated_at && (
+                <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 12 }}>
+                  {t('app:resourceDetail.translatedAt', { date: detail.translated_at.slice(0, 10) })}
+                </div>
+              )}
+              {detail.cover_image_url && (
+                <div style={{ marginBottom: 16 }}>
+                  <img
+                    src={detail.cover_image_url}
+                    alt={detail.title}
+                    style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 12, border: '1px solid var(--bd)' }}
+                  />
+                </div>
+              )}
               {detail.summary && <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7, marginBottom: 16 }}>{detail.summary}</div>}
               <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
                 {showOriginal ? detail.original_content_markdown : detail.display_content_markdown}

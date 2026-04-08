@@ -10,6 +10,8 @@
     "next": "Next",
     "send": "Send",
     "delete": "Delete",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
     "translate": "Translate",
     "showOriginal": "Show original",
     "showTranslation": "Show translation",
@@ -286,6 +288,7 @@
   "teacherMessages": {
     "title": "Discussions",
     "parentConversations": "Parent conversations",
+    "pageStatus": "Page {{page}} / {{totalPages}}",
     "parentPreview": "Parent: {{name}}",
     "noParentLinked": "No parent linked",
     "searchPlaceholder": "Search title or content",
@@ -305,6 +308,8 @@
     "aiDraft": "AI Draft",
     "replyTo": "Reply to {{name}}...",
     "saving": "Saving...",
+    "edited": "Edited",
+    "translated": "Translated",
     "justNow": "Just now",
     "hoursAgo": "{{count}}h ago",
     "daysAgo": "{{count}}d ago",
@@ -347,6 +352,7 @@
   },
   "parentConversation": {
     "viewGrades": "View grades",
+    "pageStatus": "Page {{page}} / {{totalPages}}",
     "noMessages": "No posts yet. Start a discussion with {{name}}.",
     "deleteConfirm": "Delete this post?",
     "notFound": "Discussion not found.",
@@ -358,6 +364,8 @@
     "yesterday": "Yesterday",
     "cancel": "Cancel",
     "saving": "Saving...",
+    "edited": "Edited",
+    "translated": "Translated",
     "optionalTitle": "Optional title",
     "bodyPlaceholder": "Write your post...",
     "reply": "Reply",
@@ -369,12 +377,25 @@
   "parentAnnouncements": {
     "title": "School Notices",
     "subtitle": "Important announcements from the school",
+    "totalCount_one": "{{count}} notice",
+    "totalCount_other": "{{count}} notices",
+    "allCategories": "All categories",
+    "categoryAnnouncement": "Announcement",
+    "categoryTask": "Task",
+    "allStatuses": "All statuses",
+    "activeOnly": "Active only",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
     "unreadNotices": "unread notices",
     "new": "New",
     "empty": "No announcements yet.",
     "selectPrompt": "Select an announcement to view details.",
     "due": "Due {{date}}",
-    "important": "Important"
+    "important": "Important",
+    "readBadge": "Read",
+    "unreadBadge": "Unread",
+    "readAt": "Read {{date}}",
+    "translatedAt": "Translated {{date}}"
   },
   "parentExamScores": {
     "title": "Exam Scores",
@@ -412,7 +433,18 @@
     "readUnread": "Unread",
     "sortNewest": "Newest first",
     "sortOldest": "Oldest first",
-    "noContent": "No content available."
+    "noContent": "No content available.",
+    "readBadge": "Read",
+    "unreadBadge": "Unread",
+    "archivedBadge": "Archived",
+    "publishedAt": "Published {{date}}",
+    "periodRange": "Period {{start}} to {{end}}",
+    "readAt": "Read {{date}}",
+    "archivedAt": "Archived {{date}}",
+    "translatedAt": "Translated {{date}}"
+  },
+  "resourceDetail": {
+    "translatedAt": "Translated {{date}}"
   },
   "parentSubject": {
     "teacherPosts": "Teacher Posts ({{count}})",
@@ -423,6 +455,13 @@
     "termAverage": "Term Average",
     "highest": "Highest",
     "lowest": "Lowest",
+    "classAverage": "Class Average",
+    "assignmentCompletion": "Completion",
+    "attendanceRate": "Attendance",
+    "latestSummary": "Latest Summary",
+    "noSummary": "No summary available for this subject yet.",
+    "summaryTranslatedAt": "Translated {{date}}",
+    "learningHealth": "Learning Health",
     "scoreTrend": "Score Trend",
     "classAvg": "Class avg",
     "studentLine": "Student",
@@ -434,6 +473,9 @@
     "generatingInsight": "Generating insight...",
     "insightError": "Unable to load insight."
   },
+  "resourcesCount_one": "{{count}} resource",
+  "resourcesCount_other": "{{count}} resources",
+  "externalResource": "External link",
   "parentDashboard": {
     "overallLearningTrend": "Overall Learning Trend",
     "upcomingActivities": "Upcoming Activities",

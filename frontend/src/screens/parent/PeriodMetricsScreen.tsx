@@ -10,7 +10,7 @@ import { parent as parentApi } from '@/lib/api';
 import type { PeriodMetric, SelectOption } from '@/types/api';
 
 export function ParentPeriodMetricsScreen() {
-  const { t } = useTranslation('app');
+  const { t } = useTranslation(['app', 'common']);
   const { sid } = useParams<{ sid: string }>();
   const [subjects, setSubjects] = useState<SelectOption[]>([]);
   const [terms, setTerms] = useState<SelectOption[]>([]);
