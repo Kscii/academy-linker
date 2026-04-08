@@ -19,8 +19,17 @@ jobs:
           port: 22
           script: |
             export XDG_RUNTIME_DIR=/run/user/$(id -u)
+            export PATH="$HOME/.local/bin:$PATH"
             cd /home/kscii/academy-linker
             git pull origin main
             cd backend
-            podman compose down
+
+            # -v 会直接删除所有数据卷, 生成环境需要删除 -v 参数
+            podman compose down -v
             podman compose up -d --build
+            
+            # 等待容器中的数据库可用
+            podman wait --condition=healthy academy-linker-postgres
+
+            # 用于初始化测试数据, 正式环境需要删除
+            uv run python -m ac_link.db.seed --scenario full-demo --reset --with-auth-tokens
