@@ -142,18 +142,26 @@ export function AdminClassesScreen() {
   const handleAddStudent = async () => {
     if (!selected || !addSid) return;
     setAdding(true);
+    setError('');
     try {
       await adminApi.transferClass(addSid, selected);
       setAddSid('');
       await loadData();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('adminClasses.saveFailed')));
     } finally {
       setAdding(false);
     }
   };
 
   const handleRemoveStudent = async (studentUuid: string) => {
-    await adminApi.updateStudent(studentUuid, { class_uuid: null });
-    await loadData();
+    setError('');
+    try {
+      await adminApi.updateStudent(studentUuid, { class_uuid: null });
+      await loadData();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('adminClasses.saveFailed')));
+    }
   };
 
   return (

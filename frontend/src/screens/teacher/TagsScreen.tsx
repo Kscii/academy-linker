@@ -64,9 +64,14 @@ export function TeacherTagsScreen() {
   };
 
   const handleDelete = async (tagUuid: string) => {
-    await teacherApi.deleteTag(tagUuid);
-    await loadTags();
-    if (form.uuid === tagUuid) openCreate();
+    setError('');
+    try {
+      await teacherApi.deleteTag(tagUuid);
+      await loadTags();
+      if (form.uuid === tagUuid) openCreate();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('failedSaveTag')));
+    }
   };
 
   return (

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
+import { getApiErrorMessage } from '@/lib/api';
 import { LanguageCombobox } from '@/components/layout/LanguageCombobox';
 import { LogoMark } from '@/components/LogoMark';
 
@@ -239,8 +240,8 @@ export function LoginScreen() {
       } else {
         navigate('/teacher/dashboard', { replace: true });
       }
-    } catch {
-      setError(t('invalidCredentials'));
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('invalidCredentials')));
     } finally {
       setLoading(false);
     }

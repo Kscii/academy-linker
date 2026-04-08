@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageCombobox } from '@/components/layout/LanguageCombobox';
-import { settingsApi } from '@/lib/api';
+import { getApiErrorMessage, settingsApi } from '@/lib/api';
 
 // ── Simple localStorage-backed settings ───────────────────────
 
@@ -103,6 +103,7 @@ export function SettingsScreen() {
   const [notifMessages, setNotifMessages] = useBoolSetting('notifMessages', true);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveErrorMessage, setSaveErrorMessage] = useState('');
   const hydratedRef = useRef(false);
 
   useEffect(() => {
@@ -131,6 +132,7 @@ export function SettingsScreen() {
   useEffect(() => {
     if (!hydratedRef.current) return;
     setSaveState('saving');
+    setSaveErrorMessage('');
     const timer = window.setTimeout(() => {
       settingsApi.update({
         language,
@@ -142,7 +144,8 @@ export function SettingsScreen() {
         ai_auto_translate_enabled: aiEnabled,
       }).then(() => {
         setSaveState('saved');
-      }).catch(() => {
+      }).catch((e: unknown) => {
+        setSaveErrorMessage(getApiErrorMessage(e, t('saveFailed')));
         setSaveState('error');
       });
     }, 500);
@@ -255,7 +258,7 @@ export function SettingsScreen() {
       <div style={{ marginTop: 6, fontSize: 12, color: saveState === 'error' ? 'var(--warn)' : 'var(--tx3)' }}>
         {saveState === 'saving' ? t('savingSettings') : null}
         {saveState === 'saved' ? `✓ ${t('saved')}` : null}
-        {saveState === 'error' ? t('saveFailed') : null}
+        {saveState === 'error' ? (saveErrorMessage || t('saveFailed')) : null}
       </div>
     </div>
   );

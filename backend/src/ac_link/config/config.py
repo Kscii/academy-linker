@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     # ── 通用 ───────────────────────────────────────────────────────────────
     debug: bool = False
+    request_timing_enabled: bool = False
+    slow_request_threshold_ms: int = 1000
+    request_timing_log_all: bool = False
 
     # ── JWT ────────────────────────────────────────────────────────────────
     # 必须通过环境变量 JWT_SECRET_KEY 注入，不得硬编码
