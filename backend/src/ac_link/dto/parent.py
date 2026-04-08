@@ -183,6 +183,7 @@ class DashboardContext(BaseModel):
 class SubjectStat(BaseModel):
     subject_uuid: UUID
     subject_name: str
+    subject_code: str | None = None
     score: float | None = None
     progress: float | None = None
     assignment_completion_rate: float | None = None

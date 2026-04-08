@@ -849,6 +849,7 @@
       {
         "subject_uuid": "string",
         "subject_name": "Mathematics",
+        "subject_code": "math",
         "score": 88.0,
         "progress": 75.0,
         "assignment_completion_rate": 0.95
