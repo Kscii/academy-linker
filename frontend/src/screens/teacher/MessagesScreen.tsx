@@ -70,6 +70,11 @@ export function TeacherMessagesScreen() {
   const parentsForActiveStudent = parentLists[activeStudentUuid] ?? [];
   const activeParent = parentsForActiveStudent.find(parent => parent.uuid === activeParentUuid) ?? parentsForActiveStudent[0] ?? null;
   const replyTarget = composerState?.mode === 'reply' ? composerState.post ?? null : null;
+  const composerResetKey = composerState
+    ? composerState.mode === 'create'
+      ? 'create'
+      : `${composerState.mode}:${composerState.post?.uuid ?? ''}`
+    : 'closed';
 
   const studentSummaries = useMemo<Record<string, StudentConvoSummary>>(() => {
     const summaries: Record<string, StudentConvoSummary> = {};
@@ -464,6 +469,7 @@ export function TeacherMessagesScreen() {
       </div>
       <PostComposerDrawer
         open={composerState !== null}
+        resetKey={composerResetKey}
         mode={composerState?.mode ?? 'create'}
         role="teacher"
         availableTags={availableTags}

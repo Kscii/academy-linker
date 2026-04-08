@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useEscapeKey } from '@/lib/keyboard';
 import type { PostTag, ThreadPost } from '@/types/api';
 
 type ComposerMode = 'create' | 'reply' | 'edit';
@@ -8,6 +9,7 @@ type ComposerRole = 'parent' | 'teacher';
 
 interface PostComposerDrawerProps {
   open: boolean;
+  resetKey: string;
   mode: ComposerMode;
   role: ComposerRole;
   availableTags: PostTag[];
@@ -48,6 +50,7 @@ function submitLabelForMode(
 
 export function PostComposerDrawer({
   open,
+  resetKey,
   mode,
   role,
   availableTags,
@@ -75,7 +78,13 @@ export function PostComposerDrawer({
     setContent(initialContent);
     setSelectedTagUuids(initialTagUuids);
     setShowAiChips(false);
-  }, [initialContent, initialTagUuids, initialTitle, open]);
+  }, [open, resetKey]);
+
+  useEscapeKey({
+    enabled: open,
+    allowInInput: true,
+    onEscape: onClose,
+  });
 
   const charLeft = useMemo(
     () => (typeof maxChars === 'number' ? maxChars - content.length : null),

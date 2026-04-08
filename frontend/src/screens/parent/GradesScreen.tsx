@@ -75,10 +75,10 @@ export function GradesScreen() {
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-        {[{labelKey: 'overallPerformance', value: dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—', color: 'a1'},
-          {labelKey: 'assignmentCompletion', value: dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—', color: 'a2'},
-          {labelKey: 'attendance', value: dashboard?.summary_cards.attendance_rate != null ? `${Math.round(dashboard.summary_cards.attendance_rate * 100)}%` : '—', color: 'a3'},
-          {labelKey: 'subjects', value: subjects.length, color: 'a4'},
+        {[{labelKey: 'app:parentGrades.overallPerformance', value: dashboard?.summary_cards.overall_performance_index != null ? `${Math.round(dashboard.summary_cards.overall_performance_index)}%` : '—', color: 'a1'},
+          {labelKey: 'app:parentGrades.assignmentCompletion', value: dashboard?.summary_cards.assignment_completion_rate != null ? `${Math.round(dashboard.summary_cards.assignment_completion_rate * 100)}%` : '—', color: 'a2'},
+          {labelKey: 'app:parentGrades.attendance', value: dashboard?.summary_cards.attendance_rate != null ? `${Math.round(dashboard.summary_cards.attendance_rate * 100)}%` : '—', color: 'a3'},
+          {labelKey: 'app:parentGrades.subjects', value: subjects.length, color: 'a4'},
         ].map((card, i) => (
           <div key={i} className="stat-box">
             <div className="stat-label">{t(card.labelKey)}</div>
@@ -93,7 +93,7 @@ export function GradesScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{t('subjectScores')}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{t('app:parentGrades.subjectScores')}</div>
             <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--tx3)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 4, borderRadius: 2, background: 'var(--a1)', display: 'inline-block' }} />
@@ -101,7 +101,7 @@ export function GradesScreen() {
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 4, borderRadius: 2, background: 'rgba(232,97,78,0.35)', display: 'inline-block' }} />
-                {t('classAvg')}
+                {t('app:parentGrades.classAvg')}
               </span>
             </div>
           </div>
@@ -115,7 +115,7 @@ export function GradesScreen() {
 
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-            {t('overallTrend')}
+            {t('app:parentGrades.overallTrend')}
           </div>
           <LineChart
             data={dashboard?.charts.learning_progress_chart ?? []}
@@ -131,7 +131,7 @@ export function GradesScreen() {
       {/* Subject list */}
       <div className="card">
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-          {t('allSubjects')}
+          {t('app:parentGrades.allSubjects')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {subjects.map((sub, idx) => (

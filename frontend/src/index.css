@@ -997,6 +997,55 @@ p { margin: 0; }
   margin-top: 4px;
 }
 
+/* Spinner */
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-spinner {
+  border-radius: 50%;
+  border: 2px solid var(--bd);
+  border-top-color: var(--a1);
+  animation: ai-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.ai-loading-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* History skeleton */
+@keyframes ai-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.ai-skeleton-item {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-skeleton-line {
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--bg2) 25%,
+    color-mix(in srgb, var(--bg2) 40%, var(--bd) 60%) 50%,
+    var(--bg2) 75%
+  );
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.4s infinite linear;
+}
+
+.ai-skeleton-line.long  { width: 78%; }
+.ai-skeleton-line.short { width: 42%; }
+
 .ai-readonly-banner {
   margin: 0 14px 12px;
   padding: 10px 12px;
