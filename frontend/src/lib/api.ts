@@ -100,6 +100,30 @@ export function setSessionExpiredHandler(handler: () => void) {
   _onSessionExpired = handler;
 }
 
+function buildLoginRedirectUrl(reason: 'session_expired' | 'unauthenticated' = 'unauthenticated'): string {
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const loginUrl = new URL('/login', window.location.origin);
+
+  if (window.location.pathname !== '/login' && currentPath.startsWith('/')) {
+    loginUrl.searchParams.set('redirect', currentPath);
+  }
+  loginUrl.searchParams.set('reason', reason);
+
+  return `${loginUrl.pathname}${loginUrl.search}`;
+}
+
+function redirectToLogin(reason: 'session_expired' | 'unauthenticated' = 'unauthenticated') {
+  _onSessionExpired?.();
+  const nextUrl = buildLoginRedirectUrl(reason);
+  if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+    window.location.replace(nextUrl);
+  }
+}
+
+function shouldHandleUnauthorizedGlobally(path: string): boolean {
+  return path !== '/auth/login';
+}
+
 type ApiValidationErrorItem = {
   msg?: string;
 };
@@ -129,6 +153,12 @@ export function getApiErrorMessage(error: unknown, fallback = '请求失败'): s
   return fallback;
 }
 
+export function isAuthenticationError(error: unknown): boolean {
+  const apiError = error as ApiError | undefined;
+  const code = apiError?.error?.code;
+  return code === 'unauthenticated' || code === 'invalid_token' || code === 'refresh_token_expired';
+}
+
 // ── Core fetch wrapper ───────────────────────────────────────
 
 export async function apiFetch<T>(
@@ -151,25 +181,21 @@ export async function apiFetch<T>(
     return res.json() as Promise<T>;
   }
 
+  let errorBody: { error?: { code?: string; message?: string } } = {};
+  try {
+    errorBody = await res.clone().json();
+  } catch {
+    // ignore parse error
+  }
+
   // Attempt token refresh on 401 access_token_expired
   if (res.status === 401 && retry) {
-    let errorBody: { error?: { code?: string } } = {};
-    try {
-      errorBody = await res.clone().json();
-    } catch {
-      // ignore parse error
-    }
     if (errorBody?.error?.code === 'access_token_expired') {
       if (!isRefreshing) {
         isRefreshing = true;
         refreshPromise = apiFetch<void>('/auth/refresh', { method: 'POST' }, false)
           .catch(() => {
-            // 清除 React 中的过期 session 状态（避免重跳 /login 时 user 仍为非空导致死循环）
-            _onSessionExpired?.();
-            // 只在不在 /login 时才跳转，否则会导致无限重定向循环
-            if (window.location.pathname !== '/login') {
-              window.location.replace('/login');
-            }
+            redirectToLogin('session_expired');
           })
           .finally(() => {
             isRefreshing = false;
@@ -181,13 +207,17 @@ export async function apiFetch<T>(
     }
   }
 
-  let errorBody;
-  try {
-    errorBody = await res.json();
-  } catch {
-    errorBody = { error: { code: 'unknown', message: res.statusText } };
+  if (res.status === 401 && shouldHandleUnauthorizedGlobally(path)) {
+    redirectToLogin(errorBody?.error?.code === 'refresh_token_expired' ? 'session_expired' : 'unauthenticated');
   }
-  throw errorBody;
+
+  let parsedErrorBody;
+  try {
+    parsedErrorBody = await res.json();
+  } catch {
+    parsedErrorBody = { error: { code: 'unknown', message: res.statusText } };
+  }
+  throw parsedErrorBody;
 }
 
 // ── Auth ─────────────────────────────────────────────────────

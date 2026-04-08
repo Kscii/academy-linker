@@ -15,7 +15,7 @@ import {
 } from 'react';
 import i18n from '@/i18n';
 import type { UserSummary } from '@/types/api';
-import { auth, parent as parentApi, settingsApi, setSessionExpiredHandler } from '@/lib/api';
+import { auth, isAuthenticationError, parent as parentApi, settingsApi, setSessionExpiredHandler } from '@/lib/api';
 
 // ── Local session persistence ─────────────────────────────────
 const SESSION_KEY = 'academy_session';
@@ -209,13 +209,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     i18n.changeLanguage(lang);
   }, []);
 
+  const clearAuthState = useCallback(() => {
+    clearSession();
+    setUser(null);
+    setFirstStudentUuid('');
+    setRoleState('parent');
+    setInitialCheckDone(true);
+  }, []);
+
   // Restore session on page load
   useEffect(() => {
     // 注册 refresh token 失效处理器：清除 localStorage 和 React state 中的过期 session
     // 避免页面在 /login 重复跳转自身导致无限重定向循环
     setSessionExpiredHandler(() => {
-      clearSession();
-      setUser(null);
+      clearAuthState();
     });
 
     const stored = loadSession();
@@ -249,10 +256,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       setFirstStudentUuid(sid);
       saveSession(u, sid);
-    }).catch(() => {
+      setInitialCheckDone(true);
+    }).catch((error: unknown) => {
+      if (isAuthenticationError(error)) {
+        clearAuthState();
+        return;
+      }
       if (!stored) setInitialCheckDone(true);
     });
-  }, [applyLanguage]);
+  }, [applyLanguage, clearAuthState]);
 
   // Apply theme class to <html> and persist
   useEffect(() => {
@@ -314,9 +326,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [applyLanguage, language]);
 
   const logout = useCallback(() => {
-    clearSession();
-    setUser(null);
-  }, []);
+    clearAuthState();
+  }, [clearAuthState]);
 
   const value: AppContextValue = {
     theme,

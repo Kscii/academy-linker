@@ -63,8 +63,10 @@ import { TeacherClassTimetableScreen } from '@/screens/teacher/ClassTimetableScr
 
 function ProtectedRoute() {
   const { isLoggedIn, authChecked } = useApp();
+  const location = useLocation();
   if (!authChecked) return null; // 等待 /api/me 返回再决定跳转
-  return isLoggedIn ? <Outlet /> : <Navigate to="/login" replace />;
+  const redirect = `${location.pathname}${location.search}${location.hash}`;
+  return isLoggedIn ? <Outlet /> : <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}&reason=unauthenticated`} replace />;
 }
 
 function RoleRoute({ allowed }: { allowed: Array<'parent' | 'teacher' | 'admin'> }) {
