@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     tts_api_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     tts_model: str = "gemini-2.5-flash-preview-tts"
     tts_voice_en: str = "Kore"
-    tts_voice_zh: str = "Kore"
+    tts_voice_zh: str = "Aoede"
     tts_audio_encoding: str = "WAV"
     tts_audio_sample_rate_hertz: int = 24000
     tts_storage_dir: str = ".tts-cache"

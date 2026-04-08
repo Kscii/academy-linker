@@ -4141,16 +4141,24 @@ Query:
 - 若目标语言无缓存译文：
   - `ai_auto_translate_enabled=true` 时，服务端可先自动补译文，再生成音频。
   - `false` 时，回退朗读原文。
+- 若 `ai_auto_translate_enabled=true` 但 LLM 翻译能力未配置或调用失败，服务端会回退朗读原文，而不是直接报错。
 - 当前 provider 为 Gemini TTS。
 - 服务端通过 `TTS_API_KEY` 调用 Gemini `generateContent` 音频能力。
 - 默认模型推荐使用 `gemini-2.5-flash-preview-tts`；若后续模型升级，通过 `TTS_MODEL` 配置切换。
 - 当前实现输出 WAV 音频，便于直接被浏览器 `<audio>` 播放。
+- `ad_hoc` 音频缓存按创建用户隔离；其他资源型缓存可在有权限的用户之间复用。
+- 资源型 TTS 与源资源权限保持一致；无权访问原资源时，不得生成或下载对应音频。
 
 ### 12C.3 获取音频流（已完成）
 
 **GET** `/api/tts/audio/{audio_uuid}`
 
 返回二进制音频流，供 `<audio>` 或前端播放器直接使用。
+
+规则：
+
+- 若音频来自 `ad_hoc` 文本，仅创建该音频的用户可访问。
+- 若音频来自报告 / 公告 / 帖子 / 资源，则访问权限与对应源资源保持一致。
 
 ---
 
