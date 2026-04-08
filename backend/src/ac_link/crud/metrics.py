@@ -24,6 +24,8 @@ def list_period_metrics(
     *,
     subject_id: int | None = None,
     term: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> list[StudentPeriodMetric]:
     """获取学生周期指标列表，按 snapshot_date DESC 排序。"""
     q = db.query(StudentPeriodMetric).filter(StudentPeriodMetric.student_id == student_id)
@@ -31,6 +33,10 @@ def list_period_metrics(
         q = q.filter(StudentPeriodMetric.subject_id == subject_id)
     if term is not None:
         q = q.filter(StudentPeriodMetric.term == term)
+    if date_from is not None:
+        q = q.filter(StudentPeriodMetric.snapshot_date >= date_from)
+    if date_to is not None:
+        q = q.filter(StudentPeriodMetric.snapshot_date <= date_to)
     return q.order_by(StudentPeriodMetric.snapshot_date.desc()).all()
 
 
