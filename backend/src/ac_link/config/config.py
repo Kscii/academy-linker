@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
-from pydantic import PostgresDsn
+from pydantic import PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -66,6 +68,32 @@ class Settings(BaseSettings):
     tts_audio_encoding: str = "WAV"
     tts_audio_sample_rate_hertz: int = 24000
     tts_storage_dir: str = ".tts-cache"
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def _parse_allowed_origins(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+
+        parsed: list[str]
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            if raw.startswith("["):
+                loaded = json.loads(raw)
+                if not isinstance(loaded, list):
+                    raise ValueError("ALLOWED_ORIGINS 必须是字符串数组")
+                parsed = [str(item) for item in loaded]
+            else:
+                parsed = [item.strip() for item in raw.split(",") if item.strip()]
+        elif isinstance(value, (list, tuple, set)):
+            parsed = [str(item) for item in value]
+        else:
+            raise ValueError("ALLOWED_ORIGINS 格式无效")
+
+        return [item.rstrip("/") for item in parsed if item.strip()]
+
     @property
     def database_url(self) -> str:
         return PostgresDsn.build(
