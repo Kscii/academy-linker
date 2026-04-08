@@ -2,11 +2,12 @@
 // Teacher ReportsScreen — create and update teacher reports
 // ============================================================
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { teacher as teacherApi } from '@/lib/api';
-import type { ReportDetail, ReportType, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
+import type { ReportDetail, ReportType, SelectOption } from '@/types/api';
 
 const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
 
@@ -34,37 +35,31 @@ export function TeacherReportsScreen() {
   const { t } = useTranslation('portal');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
-  const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
+  const [students, setStudents] = useState<SelectOption[]>([]);
   const [studentUuid, setStudentUuid] = useState(requestedStudentUuid);
-  const [subjects, setSubjects] = useState<TeacherClassStudentItem['subjects']>([]);
+  const [subjects, setSubjects] = useState<SelectOption[]>([]);
   const [reports, setReports] = useState<ReportDetail[]>([]);
   const [editingUuid, setEditingUuid] = useState('');
   const [form, setForm] = useState<ReportForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const activeStudent = useMemo(
-    () => students.find(student => student.uuid === studentUuid) ?? null,
-    [studentUuid, students]
-  );
-
   useEffect(() => {
-    teacherApi.getStudents({ page: 1, page_size: 100, sort: 'full_name_asc' }).then(res => {
+    teacherApi.getStudentOptions().then(res => {
       setStudents(res.data);
-      setStudentUuid(prev => prev || requestedStudentUuid || res.data[0]?.uuid || '');
+      setStudentUuid(prev => prev || requestedStudentUuid || res.data[0]?.value || '');
     }).catch(() => {});
   }, [requestedStudentUuid]);
 
   useEffect(() => {
-    if (!studentUuid || !activeStudent?.class_uuid) {
+    if (!studentUuid) {
       setSubjects([]);
       return;
     }
-    teacherApi.getClassStudents(activeStudent.class_uuid, { page: 1, page_size: 100 }).then(res => {
-      const student = res.data.find(item => item.uuid === studentUuid);
-      setSubjects(student?.subjects ?? []);
+    teacherApi.getSubjectOptions({ student_uuid: studentUuid }).then(res => {
+      setSubjects(res.data);
     }).catch(() => setSubjects([]));
-  }, [activeStudent?.class_uuid, studentUuid]);
+  }, [studentUuid]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -151,18 +146,12 @@ export function TeacherReportsScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={students} placeholder={t('selectStudent')} />
             <select className="input-field" value={form.report_type} onChange={e => setForm(prev => ({ ...prev, report_type: e.target.value as ReportType }))}>
               {REPORT_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
             </select>
             <input className="input-field" placeholder={t('reportTitle')} value={form.title} onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))} />
-            <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">{t('allSubjects')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
+            <SearchableSelect value={form.subject_uuid} onChange={(value) => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjects} placeholder={t('allSubjects')} allowClear />
             <input className="input-field" type="date" value={form.period_start} onChange={e => setForm(prev => ({ ...prev, period_start: e.target.value }))} />
             <input className="input-field" type="date" value={form.period_end} onChange={e => setForm(prev => ({ ...prev, period_end: e.target.value }))} />
             <input className="input-field" placeholder={t('originalLanguage')} value={form.original_language} onChange={e => setForm(prev => ({ ...prev, original_language: e.target.value }))} />

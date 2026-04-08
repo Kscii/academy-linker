@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { TtsButton } from '@/components/TtsButton';
 import { resourcesApi, translations } from '@/lib/api';
 import { useApp } from '@/contexts/AppContext';
 import type { PaginationMeta, ResourceCategory, ResourceDetail, ResourceListItem } from '@/types/api';
@@ -154,6 +155,7 @@ export function ResourcesScreen() {
                   <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{detail.category_label} · {detail.published_at.slice(0, 10)}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <TtsButton resourceType="resource" resourceUuid={detail.uuid} />
                   {detail.original_language !== language && (
                     <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => void toggleTranslation()} disabled={resolvingTranslation}>
                       {resolvingTranslation ? '…' : showOriginal ? t('app:actions.showTranslation') : ((detail.translated_content_markdown || detail.display_language !== detail.original_language) ? t('app:actions.showOriginal') : t('app:actions.translate'))}

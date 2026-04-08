@@ -13,6 +13,8 @@
     "translate": "Translate",
     "showOriginal": "Show original",
     "showTranslation": "Show translation",
+    "readAloud": "Read aloud",
+    "pauseAudio": "Pause",
     "searching": "Searching..."
   },
   "common": {

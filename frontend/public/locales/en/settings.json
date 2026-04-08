@@ -26,7 +26,9 @@
   "notifAnnouncementsDesc": "Get notified of new school announcements",
   "notifMessages": "Messages",
   "notifMessagesDesc": "Email alerts for new messages",
+  "savingSettings": "Saving settings...",
   "saved": "Settings saved",
   "saveError": "Could not save settings",
+  "saveFailed": "Could not save settings",
   "saveSettings": "Save Settings"
 }

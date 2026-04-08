@@ -21,6 +21,12 @@ export interface ApiListResponse<T> {
   meta: PaginationMeta;
 }
 
+export interface SelectOption {
+  value: string;
+  label: string;
+  meta?: Record<string, string | number | boolean | null>;
+}
+
 // ── Error ────────────────────────────────────────────────────
 
 export interface ApiError {
@@ -89,6 +95,16 @@ export interface UserSettings {
   default_announcement_time_range: TimeRangeOption;
   ai_chat_style: AiChatStyle;
   ai_auto_translate_enabled: boolean;
+}
+
+export interface TtsAudioData {
+  audio_uuid: string;
+  audio_url: string;
+  mime_type: string;
+  source_language: string;
+  voice_key: string;
+  provider: string;
+  cached: boolean;
 }
 
 // ── Students ─────────────────────────────────────────────────
