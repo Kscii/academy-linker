@@ -9,6 +9,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageCombobox } from './LanguageCombobox';
 import { LogoMark } from '@/components/LogoMark';
+import { useEscapeKey } from '@/lib/keyboard';
 
 // ── Nav item definitions ──────────────────────────────────────
 
@@ -87,6 +88,11 @@ function UserProfile() {
 
   const initials = user?.display_name
     ?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) ?? '?';
+
+  useEscapeKey({
+    enabled: showMenu,
+    onEscape: () => setShowMenu(false),
+  });
 
   return (
     <div style={{ position: 'relative' }}>

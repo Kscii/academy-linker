@@ -9,6 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PostComposerDrawer } from '@/components/PostComposerDrawer';
 import { TtsButton } from '@/components/TtsButton';
 import { getSubjectColor } from '@/lib/constants';
+import { useEscapeKey } from '@/lib/keyboard';
 import type { DiscussionTeacherItem, ThreadPost } from '@/types/api';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, posts as postsApi, translations } from '@/lib/api';
@@ -111,6 +112,14 @@ export function ConversationScreen() {
     });
   }, [messages]);
 
+  useEscapeKey({
+    enabled: composerState === null,
+    onEscape: () => {
+      if (!sid) return;
+      navigate(`/parent/students/${sid}/discussions`);
+    },
+  });
+
   const txViewGrades = t('parentConversation.viewGrades');
   const txNoMessages = t('parentConversation.noMessages', { name: teacherItem?.display_name ?? '' });
   const txTranslate = t('actions.translate');
@@ -120,6 +129,11 @@ export function ConversationScreen() {
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   const replyTarget = composerState?.mode === 'reply' ? composerState.post ?? null : null;
+  const composerResetKey = composerState
+    ? composerState.mode === 'create'
+      ? 'create'
+      : `${composerState.mode}:${composerState.post?.uuid ?? ''}`
+    : 'closed';
 
   const groupedMessages = useMemo(() => {
     const groups: { label: string; msgs: ThreadPost[] }[] = [];
@@ -386,6 +400,7 @@ export function ConversationScreen() {
     </div>
     <PostComposerDrawer
       open={composerState !== null}
+      resetKey={composerResetKey}
       mode={composerState?.mode ?? 'create'}
       role="parent"
       availableTags={availableTags}
