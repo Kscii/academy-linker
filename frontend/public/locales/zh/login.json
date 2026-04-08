@@ -10,6 +10,7 @@
   "rememberMe": "记住我",
   "signIn": "登录",
   "signingIn": "登录中…",
+  "sessionExpired": "登录状态已过期，请重新登录。",
   "invalidCredentials": "邮箱或密码不正确",
   "selectRole": "选择角色",
   "parentRole": "家长",
