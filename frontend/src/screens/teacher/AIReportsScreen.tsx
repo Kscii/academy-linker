@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
-import type { ReportDetail, ReportType, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
+import type { TeacherReportDetail, ReportType, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
 
 const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
 
@@ -34,7 +34,7 @@ export function TeacherAIReportsScreen() {
   const [studentUuid, setStudentUuid] = useState(requestedStudentUuid);
   const [subjects, setSubjects] = useState<TeacherClassStudentItem['subjects']>([]);
   const [form, setForm] = useState<AiForm>(EMPTY_FORM);
-  const [reports, setReports] = useState<ReportDetail[]>([]);
+  const [reports, setReports] = useState<TeacherReportDetail[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
