@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 
 from ac_link.db.orm import AnnouncementCategory, LearningPathwayItemStatus, ReportSourceType, ReportType
-from ac_link.db.orm.enums import AiConversationContextType, AiMessageRole
+from ac_link.db.orm.enums import AiConversationContextType, AiMessageRole, TtsResourceType
 
 from .base import run as run_base
 from .helpers import (
@@ -16,6 +16,7 @@ from .helpers import (
     create_learning_item,
     create_period_metric,
     create_report,
+    create_tts_audio_cache,
     ensure_discussion_thread,
     now,
     reset_demo_teacher_content,
@@ -44,7 +45,7 @@ def run(db: Session) -> dict[str, object]:
     science = subjects["science"]
     history = subjects["history"]
 
-    create_report(
+    report_emma = create_report(
         db,
         student=student_emma,
         subject=math,
@@ -56,7 +57,7 @@ def run(db: Session) -> dict[str, object]:
         days_ago=3,
         read_for=parent_chen,
     )
-    create_report(
+    report_noah = create_report(
         db,
         student=student_noah,
         subject=science,
@@ -68,7 +69,7 @@ def run(db: Session) -> dict[str, object]:
         days_ago=12,
         archived_for=parent_chen,
     )
-    create_report(
+    report_olivia = create_report(
         db,
         student=student_olivia,
         subject=history,
@@ -82,7 +83,7 @@ def run(db: Session) -> dict[str, object]:
     )
 
     published = now() - timedelta(days=2)
-    create_announcement(
+    announcement_emma = create_announcement(
         db,
         student=student_emma,
         subject=english,
@@ -95,7 +96,7 @@ def run(db: Session) -> dict[str, object]:
         due_at=published + timedelta(days=2),
         read_for=parent_chen,
     )
-    create_announcement(
+    announcement_noah = create_announcement(
         db,
         student=student_noah,
         subject=math,
@@ -108,7 +109,7 @@ def run(db: Session) -> dict[str, object]:
         due_at=None,
         read_for=None,
     )
-    create_announcement(
+    announcement_olivia = create_announcement(
         db,
         student=student_olivia,
         subject=science,
@@ -123,7 +124,7 @@ def run(db: Session) -> dict[str, object]:
     )
 
     thread_a = ensure_discussion_thread(db, student=student_emma, parent=parent_chen, teacher=teacher_ada)
-    add_post(
+    post_emma_teacher = add_post(
         db,
         thread=thread_a,
         author=teacher_ada,
@@ -131,7 +132,7 @@ def run(db: Session) -> dict[str, object]:
         content="Emma finished two extra readers this week and is asking insightful questions.",
         tags=[tags["system:follow-up"], tags["teacher_ada:reading-focus"]],
     )
-    add_post(
+    post_emma_parent = add_post(
         db,
         thread=thread_a,
         author=parent_chen,
@@ -141,7 +142,7 @@ def run(db: Session) -> dict[str, object]:
     )
 
     thread_b = ensure_discussion_thread(db, student=student_noah, parent=parent_chen, teacher=teacher_ada)
-    add_post(
+    post_noah_teacher = add_post(
         db,
         thread=thread_b,
         author=teacher_ada,
@@ -151,7 +152,7 @@ def run(db: Session) -> dict[str, object]:
     )
 
     thread_c = ensure_discussion_thread(db, student=student_olivia, parent=parent_wang, teacher=teacher_lin)
-    add_post(
+    post_olivia_teacher = add_post(
         db,
         thread=thread_c,
         author=teacher_lin,
@@ -227,6 +228,17 @@ def run(db: Session) -> dict[str, object]:
         assignment_completion_rate=0.91,
         attendance_rate=0.99,
     )
+    create_period_metric(
+        db,
+        student=student_emma,
+        subject=math,
+        author=teacher_ada,
+        snapshot_date_value="2025-06-18",
+        term="2025-T2",
+        progress=0.87,
+        assignment_completion_rate=0.93,
+        attendance_rate=0.99,
+    )
 
     create_learning_item(
         db,
@@ -274,5 +286,26 @@ def run(db: Session) -> dict[str, object]:
             (AiMessageRole.ASSISTANT, "Emma has built confidence in fractions and now explains her strategy clearly."),
         ],
     )
+
+    for item, resource_type, stub in (
+        (report_emma, TtsResourceType.REPORT, "demo-report-emma"),
+        (report_noah, TtsResourceType.REPORT, "demo-report-noah"),
+        (report_olivia, TtsResourceType.REPORT, "demo-report-olivia"),
+        (announcement_emma, TtsResourceType.ANNOUNCEMENT, "demo-announcement-emma"),
+        (announcement_noah, TtsResourceType.ANNOUNCEMENT, "demo-announcement-noah"),
+        (announcement_olivia, TtsResourceType.ANNOUNCEMENT, "demo-announcement-olivia"),
+        (post_emma_teacher, TtsResourceType.POST, "demo-post-emma-teacher"),
+        (post_emma_parent, TtsResourceType.POST, "demo-post-emma-parent"),
+        (post_noah_teacher, TtsResourceType.POST, "demo-post-noah-teacher"),
+        (post_olivia_teacher, TtsResourceType.POST, "demo-post-olivia-teacher"),
+    ):
+        create_tts_audio_cache(
+            db,
+            resource_type=resource_type,
+            resource_id=item.id,
+            source_text=item.original_content_markdown if hasattr(item, "original_content_markdown") else item.content_markdown,
+            source_language=getattr(item, "original_language", "en-AU") or "en-AU",
+            file_stub=stub,
+        )
 
     return state

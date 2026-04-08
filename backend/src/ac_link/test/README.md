@@ -45,11 +45,13 @@ pip install pytest
 
 ```
 POSTGRES_HOST=localhost
-POSTGRES_PORT=5435
+POSTGRES_PORT=5432
 POSTGRES_USER=kscii
 POSTGRES_PASSWORD=...
 POSTGRES_DB=ac_link
 JWT_SECRET_KEY=...
+TTS_API_KEY=...
+TTS_MODEL=gemini-2.5-flash-preview-tts
 ```
 
 > **注意**：`conftest.py` 在所有 `ac_link` 模块导入前设置 `DEBUG=true`，使 Cookie 不附加 `Secure` 标志，让测试客户端在 HTTP 下正常携带认证 Cookie。
@@ -84,10 +86,17 @@ pytest src/ac_link/test/test_admin.py::TestAdminUsers -v
 pytest src/ac_link/test/ -v --ignore=src/ac_link/test/test_ai.py
 ```
 
-### 启用 AI 测试（配置好 LLM_API_KEY 后）
+### 启用 AI / TTS 测试
 
 ```bash
 LLM_API_KEY=sk-... pytest src/ac_link/test/test_ai.py -v -k "not skip"
+```
+
+TTS 相关测试默认会 monkeypatch Gemini TTS 请求，不会真的访问外部网络；但如果你要联调真实 TTS 接口，请确保：
+
+```bash
+export TTS_API_KEY=your-gemini-api-key
+export TTS_MODEL=gemini-2.5-flash-preview-tts
 ```
 
 ---

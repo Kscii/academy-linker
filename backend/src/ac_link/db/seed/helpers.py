@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -35,12 +36,15 @@ from ac_link.db.orm import (
     Tag,
     TagScope,
     TeachingAssignment,
+    TtsAudioCache,
     ThreadUserState,
     User,
     UserRole,
     UserSettings,
 )
-from ac_link.db.orm.enums import AiConversationContextType, AiMessageRole, IncidentStatus, IncidentType, LeaveRequestStatus, LeaveRequestType
+from ac_link.db.orm.enums import AiConversationContextType, AiMessageRole, IncidentStatus, IncidentType, LeaveRequestStatus, LeaveRequestType, TtsResourceType
+from ac_link.config.config import settings
+from ac_link.services.tts_service import build_content_hash, get_active_tts_provider, get_audio_output_spec, resolve_voice_for_language
 from ac_link.services.auth_service import hash_password
 
 from .models import DEFAULT_PASSWORD, DEMO_EMAIL_DOMAIN, DemoUserSpec
@@ -663,6 +667,53 @@ def create_ai_conversation(
     return conversation
 
 
+def create_tts_audio_cache(
+    db: Session,
+    *,
+    resource_type: TtsResourceType,
+    resource_id: int,
+    source_text: str,
+    source_language: str = "en-AU",
+    voice_key: str | None = None,
+    file_stub: str | None = None,
+) -> TtsAudioCache:
+    resolved_voice = voice_key or resolve_voice_for_language(source_language)
+    content_hash = build_content_hash(text=source_text, language=source_language, voice_key=resolved_voice)
+    provider = get_active_tts_provider()
+    _, mime_type, extension = get_audio_output_spec()
+    item = db.scalar(
+        select(TtsAudioCache).where(
+            TtsAudioCache.content_hash == content_hash,
+            TtsAudioCache.voice_key == resolved_voice,
+            TtsAudioCache.provider == provider,
+        )
+    )
+    if item is None:
+        item = TtsAudioCache(
+            resource_type=resource_type,
+            resource_id=resource_id,
+            content_hash=content_hash,
+            source_text=source_text,
+            source_language=source_language,
+            voice_key=resolved_voice,
+            provider=provider,
+            audio_mime_type=mime_type,
+            storage_path="",
+        )
+        db.add(item)
+        db.flush()
+
+    settings.tts_storage_path.mkdir(parents=True, exist_ok=True)
+    suffix = file_stub or str(item.uuid)
+    file_path = settings.tts_storage_path / f"{suffix}.{extension}"
+    if not file_path.exists():
+        # A tiny deterministic placeholder payload is enough for demo flows that only need a resolvable file.
+        file_path.write_bytes(b"ID3\x03\x00\x00\x00\x00\x00\x21DEMO-TTS-AUDIO")
+    item.storage_path = str(file_path)
+    db.flush()
+    return item
+
+
 def reset_demo_data(db: Session) -> None:
     demo_users = list(db.scalars(select(User).where(User.email.like(f"%@{DEMO_EMAIL_DOMAIN}"))))
     demo_user_ids = [item.id for item in demo_users]
@@ -675,6 +726,40 @@ def reset_demo_data(db: Session) -> None:
     demo_class_ids = list(
         db.scalars(select(Class.id).where(Class.name.in_(["Year 5 Alpha", "Year 6 Beta"])))
     )
+    demo_report_ids = list(db.scalars(select(Report.id).where(Report.student_id.in_(demo_student_ids)))) if demo_student_ids else []
+    demo_announcement_ids = list(db.scalars(select(Announcement.id).where(Announcement.student_id.in_(demo_student_ids)))) if demo_student_ids else []
+    demo_thread_ids = list(db.scalars(select(DiscussionThread.id).where(DiscussionThread.student_id.in_(demo_student_ids)))) if demo_student_ids else []
+    demo_post_ids = list(db.scalars(select(Post.id).where(Post.thread_id.in_(demo_thread_ids)))) if demo_thread_ids else []
+    demo_resource_ids = list(db.scalars(select(Resource.id).where(Resource.title.like("[DEMO]%"))))
+
+    demo_tts_rows = []
+    if demo_report_ids:
+        demo_tts_rows.extend(
+            db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.REPORT, TtsAudioCache.resource_id.in_(demo_report_ids)))
+        )
+    if demo_announcement_ids:
+        demo_tts_rows.extend(
+            db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.ANNOUNCEMENT, TtsAudioCache.resource_id.in_(demo_announcement_ids)))
+        )
+    if demo_post_ids:
+        demo_tts_rows.extend(
+            db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.POST, TtsAudioCache.resource_id.in_(demo_post_ids)))
+        )
+    if demo_resource_ids:
+        demo_tts_rows.extend(
+            db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.RESOURCE, TtsAudioCache.resource_id.in_(demo_resource_ids)))
+        )
+    for item in demo_tts_rows:
+        if item.storage_path and Path(item.storage_path).exists():
+            Path(item.storage_path).unlink(missing_ok=True)
+    if demo_report_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.REPORT, TtsAudioCache.resource_id.in_(demo_report_ids)))
+    if demo_announcement_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.ANNOUNCEMENT, TtsAudioCache.resource_id.in_(demo_announcement_ids)))
+    if demo_post_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.POST, TtsAudioCache.resource_id.in_(demo_post_ids)))
+    if demo_resource_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.RESOURCE, TtsAudioCache.resource_id.in_(demo_resource_ids)))
 
     if demo_user_ids:
         db.execute(delete(UserSettings).where(UserSettings.user_id.in_(demo_user_ids)))
@@ -712,6 +797,26 @@ def reset_demo_data(db: Session) -> None:
 def reset_demo_teacher_content(db: Session) -> None:
     demo_student_ids = list(db.scalars(select(Student.id).where(Student.sid.like("DEMO-STU-%"))))
     demo_user_ids = list(db.scalars(select(User.id).where(User.email.like(f"%@{DEMO_EMAIL_DOMAIN}"))))
+    demo_report_ids = list(db.scalars(select(Report.id).where(Report.student_id.in_(demo_student_ids)))) if demo_student_ids else []
+    demo_announcement_ids = list(db.scalars(select(Announcement.id).where(Announcement.student_id.in_(demo_student_ids)))) if demo_student_ids else []
+    demo_thread_ids = list(db.scalars(select(DiscussionThread.id).where(DiscussionThread.student_id.in_(demo_student_ids)))) if demo_student_ids else []
+    demo_post_ids = list(db.scalars(select(Post.id).where(Post.thread_id.in_(demo_thread_ids)))) if demo_thread_ids else []
+    tts_rows = []
+    if demo_report_ids:
+        tts_rows.extend(db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.REPORT, TtsAudioCache.resource_id.in_(demo_report_ids))))
+    if demo_announcement_ids:
+        tts_rows.extend(db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.ANNOUNCEMENT, TtsAudioCache.resource_id.in_(demo_announcement_ids))))
+    if demo_post_ids:
+        tts_rows.extend(db.scalars(select(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.POST, TtsAudioCache.resource_id.in_(demo_post_ids))))
+    for item in tts_rows:
+        if item.storage_path and Path(item.storage_path).exists():
+            Path(item.storage_path).unlink(missing_ok=True)
+    if demo_report_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.REPORT, TtsAudioCache.resource_id.in_(demo_report_ids)))
+    if demo_announcement_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.ANNOUNCEMENT, TtsAudioCache.resource_id.in_(demo_announcement_ids)))
+    if demo_post_ids:
+        db.execute(delete(TtsAudioCache).where(TtsAudioCache.resource_type == TtsResourceType.POST, TtsAudioCache.resource_id.in_(demo_post_ids)))
     if demo_student_ids:
         db.execute(delete(StudentExamScore).where(StudentExamScore.student_id.in_(demo_student_ids)))
         db.execute(delete(StudentPeriodMetric).where(StudentPeriodMetric.student_id.in_(demo_student_ids)))
@@ -733,5 +838,24 @@ def reset_demo_parent_welfare(db: Session) -> None:
 
 
 def reset_demo_resources(db: Session) -> None:
+    demo_resource_ids = list(db.scalars(select(Resource.id).where(Resource.title.like("[DEMO]%"))))
+    if demo_resource_ids:
+        tts_rows = list(
+            db.scalars(
+                select(TtsAudioCache).where(
+                    TtsAudioCache.resource_type == TtsResourceType.RESOURCE,
+                    TtsAudioCache.resource_id.in_(demo_resource_ids),
+                )
+            )
+        )
+        for item in tts_rows:
+            if item.storage_path and Path(item.storage_path).exists():
+                Path(item.storage_path).unlink(missing_ok=True)
+        db.execute(
+            delete(TtsAudioCache).where(
+                TtsAudioCache.resource_type == TtsResourceType.RESOURCE,
+                TtsAudioCache.resource_id.in_(demo_resource_ids),
+            )
+        )
     db.execute(delete(Resource).where(Resource.title.like("[DEMO]%")))
     db.flush()

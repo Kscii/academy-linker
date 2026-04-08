@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Enum as SAEnum, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ac_link.db.orm.base import Base, uq
@@ -26,7 +26,13 @@ class TtsAudioCache(Base, IntPrimaryKeyMixin, UUIDMixin, TimestampMixin):
     source_language: Mapped[str] = mapped_column(String(32), nullable=False)
     voice_key: Mapped[str] = mapped_column(String(120), nullable=False)
     provider: Mapped[TtsProvider] = mapped_column(
-        enum_column(TtsProvider, 'tts_provider'),
+        SAEnum(
+            TtsProvider,
+            name='tts_provider',
+            native_enum=False,
+            validate_strings=True,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
         nullable=False,
     )
     audio_mime_type: Mapped[str] = mapped_column(String(100), nullable=False, default='audio/mpeg')
