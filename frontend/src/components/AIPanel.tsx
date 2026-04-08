@@ -21,6 +21,7 @@ let msgIdCounter = 0;
 const genId = () => `msg-${++msgIdCounter}`;
 
 const PLACEHOLDER_UUID = '__new__';
+const FLOATING_PANEL_MARGIN = 24;
 
 function resolveContextType(studentUuid?: string, subjectUuid?: string): AiContextType {
   if (studentUuid && subjectUuid) return 'subject';
@@ -201,7 +202,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   const { t, i18n } = useTranslation('app');
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [conversations, setConversations] = useState<AiConversation[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -216,6 +217,10 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   const hasMoved = useRef(false);
   const isDragging = useRef(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const clampToViewport = useCallback((x: number, y: number, width: number, height: number) => ({
+    x: Math.max(FLOATING_PANEL_MARGIN, Math.min(window.innerWidth - width - FLOATING_PANEL_MARGIN, x)),
+    y: Math.max(FLOATING_PANEL_MARGIN, Math.min(window.innerHeight - height - FLOATING_PANEL_MARGIN, y)),
+  }), []);
 
   const contextType = useMemo(() => resolveContextType(studentUuid, subjectUuid), [studentUuid, subjectUuid]);
   const defaultGreeting = useMemo(
@@ -363,9 +368,9 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
     : [t('aiPanel.quickHelp'), t('aiPanel.quickSummary'), t('aiPanel.quickReport')];
 
   const startDrag = (event: React.MouseEvent | React.TouchEvent) => {
-    if (expanded) return;
     if ('button' in event && event.button !== 0) return;
     event.stopPropagation();
+    event.preventDefault();
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
@@ -388,10 +393,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
       const panel = panelRef.current;
       const panelWidth = panel?.offsetWidth ?? 52;
       const panelHeight = panel?.offsetHeight ?? 52;
-      setPos({
-        x: Math.max(0, Math.min(window.innerWidth - panelWidth, rect.left + dx)),
-        y: Math.max(0, Math.min(window.innerHeight - panelHeight, rect.top + dy)),
-      });
+      setPos(clampToViewport(rect.left + dx, rect.top + dy, panelWidth, panelHeight));
     };
 
     const onUp = () => {
@@ -413,11 +415,41 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
     setOpen(prev => !prev);
   };
 
-  const panelStyle: CSSProperties = expanded
-    ? { position: 'fixed', right: 24, bottom: 24, left: 'auto', top: 'auto', zIndex: 200 }
-    : pos
-      ? { position: 'fixed', left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', zIndex: 200 }
-      : {};
+  const handleExpandedToggle = () => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPos(clampToViewport(rect.left, rect.top, rect.width, rect.height));
+    }
+    setExpanded(prev => !prev);
+  };
+
+  useEffect(() => {
+    const onResize = () => {
+      const panel = panelRef.current;
+      if (!panel || !pos) return;
+      const rect = panel.getBoundingClientRect();
+      setPos((current) => {
+        if (!current) return current;
+        return clampToViewport(current.x, current.y, rect.width, rect.height);
+      });
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampToViewport, pos]);
+
+  useEffect(() => {
+    if (!open || !pos || !panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    const clamped = clampToViewport(pos.x, pos.y, rect.width, rect.height);
+    if (clamped.x !== pos.x || clamped.y !== pos.y) {
+      setPos(clamped);
+    }
+  }, [clampToViewport, expanded, historyOpen, open, pos]);
+
+  const panelStyle: CSSProperties = pos
+    ? { position: 'fixed', left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', zIndex: 200 }
+    : { position: 'fixed', right: FLOATING_PANEL_MARGIN, bottom: FLOATING_PANEL_MARGIN, zIndex: 200 };
 
   const activeConversation = conversations.find((conversation) => conversation.uuid === conversationUuid) ?? null;
 
@@ -452,7 +484,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
                 type="button"
                 className="ai-icon-button"
                 onMouseDown={(event) => event.stopPropagation()}
-                onClick={() => setExpanded(prev => !prev)}
+                onClick={handleExpandedToggle}
                 aria-label={expanded ? t('aiPanel.collapse') : t('aiPanel.expand')}
                 title={expanded ? t('aiPanel.collapse') : t('aiPanel.expand')}
               >
@@ -471,7 +503,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
             </div>
           </div>
 
-          <div className="ai-window-body">
+          <div className={`ai-window-body ${historyOpen ? '' : 'history-hidden'}`}>
             {historyOpen && (
               <aside className="ai-history">
                 <div className="ai-history-toolbar">

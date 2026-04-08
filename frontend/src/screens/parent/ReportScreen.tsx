@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
@@ -68,6 +68,7 @@ function MarkdownView({ text }: { text: string }) {
 export function ReportScreen() {
   const { t } = useTranslation('app');
   const { sid } = useParams<{ sid: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { language } = useApp();
 
   const txTitle       = t('nav:reports');
@@ -90,6 +91,7 @@ export function ReportScreen() {
   const [showOriginal, setShowOriginal]   = useState(false);
   const [resolvingTranslation, setResolvingTranslation] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const requestedReportUuid = searchParams.get('report') ?? '';
 
   // ── Fetch reports list ──────────────────────────────────────
   useEffect(() => {
@@ -97,10 +99,19 @@ export function ReportScreen() {
     parentApi.getReports(sid, { page, page_size: 20, status, read_state: readState, sort }).then(res => {
       setReports(res.data);
       setMeta(res.meta);
-      setSelectedUuid(prev => (res.data.some(r => r.uuid === prev) ? prev : res.data[0]?.uuid ?? ''));
+      setSelectedUuid(prev => {
+        if (requestedReportUuid) return requestedReportUuid;
+        return res.data.some(r => r.uuid === prev) ? prev : res.data[0]?.uuid ?? '';
+      });
       setReadIds(new Set(res.data.filter(r => r.is_read).map(r => r.uuid)));
     }).catch(() => {});
-  }, [page, readState, sid, sort, status]);
+  }, [page, readState, requestedReportUuid, sid, sort, status]);
+
+  useEffect(() => {
+    if (requestedReportUuid) {
+      setSelectedUuid(requestedReportUuid);
+    }
+  }, [requestedReportUuid]);
 
   // ── Fetch report detail when selection changes ──────────────
   useEffect(() => {
@@ -129,11 +140,16 @@ export function ReportScreen() {
   // ── Select report: mark as read ─────────────────────────────
   const handleSelect = useCallback((uuid: string) => {
     setSelectedUuid(uuid);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('report', uuid);
+      return next;
+    }, { replace: true });
     if (!readIds.has(uuid)) {
       setReadIds(prev => new Set([...prev, uuid]));
       parentApi.markReportRead(uuid).catch(() => {});
     }
-  }, [readIds]);
+  }, [readIds, setSearchParams]);
 
   // Mark initial report as read on first load
   useEffect(() => {

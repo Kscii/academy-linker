@@ -596,9 +596,24 @@ export function DashboardScreen() {
                     flexShrink: 0, marginTop: 5,
                   }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: color, marginBottom: 2 }}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/parent/students/${sid}/subjects/${sub.uuid}`)}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color,
+                        marginBottom: 2,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-body)',
+                        textAlign: 'left',
+                      }}
+                    >
                       {txForSubject.replace('{subject}', sub.name)}
-                    </div>
+                    </button>
                     <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}>{tip}</div>
                   </div>
                 </div>

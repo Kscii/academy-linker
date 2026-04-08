@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PostComposerDrawer } from '@/components/PostComposerDrawer';
 import { TtsButton } from '@/components/TtsButton';
 import { getSubjectColor } from '@/lib/constants';
@@ -40,6 +40,7 @@ interface MsgTx {
 export function ConversationScreen() {
   const { t } = useTranslation('app');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { sid, teacherUuid } = useParams<{ sid: string; teacherUuid: string }>();
   const { language, markThreadRead } = useApp();
 
@@ -58,6 +59,7 @@ export function ConversationScreen() {
     mode: 'create' | 'reply' | 'edit';
     post?: ThreadPost;
   } | null>(null);
+  const highlightedPostUuid = searchParams.get('post') ?? '';
 
   const loadTeacher = useCallback(async () => {
     if (!sid || !teacherUuid) return null;
@@ -111,6 +113,21 @@ export function ConversationScreen() {
       return Object.fromEntries(Object.entries(prev).filter(([key]) => validIds.has(key)));
     });
   }, [messages]);
+
+  useEffect(() => {
+    if (!highlightedPostUuid) return;
+    const el = document.getElementById(`post-${highlightedPostUuid}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timeout = window.setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('post');
+        return next;
+      }, { replace: true });
+    }, 2500);
+    return () => window.clearTimeout(timeout);
+  }, [highlightedPostUuid, messages, setSearchParams]);
 
   useEscapeKey({
     enabled: composerState === null,
@@ -300,7 +317,19 @@ export function ConversationScreen() {
               const titleText = msg.title?.trim() || t('common.untitled');
 
               return (
-                <div key={msg.uuid} style={{ marginBottom: 12, border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card)', overflow: 'hidden' }}>
+                <div
+                  key={msg.uuid}
+                  id={`post-${msg.uuid}`}
+                  style={{
+                    marginBottom: 12,
+                    border: highlightedPostUuid === msg.uuid ? '1px solid var(--a1)' : '1px solid var(--bd)',
+                    borderRadius: 14,
+                    background: highlightedPostUuid === msg.uuid ? 'rgba(232,97,78,0.06)' : 'var(--card)',
+                    overflow: 'hidden',
+                    boxShadow: highlightedPostUuid === msg.uuid ? '0 0 0 3px rgba(232,97,78,0.12)' : undefined,
+                    transition: 'box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--bd)', background: isParent ? `${subjectColor}10` : 'var(--bg2)' }}>
                     <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, background: isParent ? subjectColor : subjectColor + '20', color: isParent ? '#fff' : subjectColor, fontWeight: 700 }}>
                       {initials(msg.author.display_name)}
