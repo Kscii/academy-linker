@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
-import { teacher as teacherApi } from '@/lib/api';
+import { teacher as teacherApi, getApiErrorMessage } from '@/lib/api';
 import type { PeriodMetric, SelectOption } from '@/types/api';
 
 type MetricForm = {
@@ -108,8 +108,7 @@ export function TeacherPeriodMetricsScreen() {
       setForm(EMPTY_FORM);
       await loadMetrics();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('failedSaveMetric'));
+      setError(getApiErrorMessage(e, t('failedSaveMetric')));
     } finally {
       setSaving(false);
     }

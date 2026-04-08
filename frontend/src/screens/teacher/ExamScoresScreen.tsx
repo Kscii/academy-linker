@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
-import { teacher as teacherApi } from '@/lib/api';
+import { teacher as teacherApi, getApiErrorMessage } from '@/lib/api';
 import type { ExamScore, PaginationMeta, SelectOption, UpdateExamScoreRequest } from '@/types/api';
 
 type ScoreForm = {
@@ -144,8 +144,7 @@ export function TeacherExamScoresScreen() {
       resetForm();
       await loadScores();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('failedSaveExamScore'));
+      setError(getApiErrorMessage(e, t('failedSaveExamScore')));
     } finally {
       setSaving(false);
     }
@@ -153,9 +152,14 @@ export function TeacherExamScoresScreen() {
 
   const handleDelete = async (scoreUuid: string) => {
     if (!studentUuid) return;
-    await teacherApi.deleteExamScore(studentUuid, scoreUuid);
-    await loadScores();
-    if (form.uuid === scoreUuid) resetForm();
+    setError('');
+    try {
+      await teacherApi.deleteExamScore(studentUuid, scoreUuid);
+      await loadScores();
+      if (form.uuid === scoreUuid) resetForm();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('failedSaveExamScore')));
+    }
   };
 
   return (

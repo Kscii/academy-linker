@@ -41,6 +41,7 @@ from ac_link.api.translation_api import router as translation_router
 from ac_link.api.resource_api import router as resource_router
 from ac_link.common.exceptions import AppError
 from ac_link.config.config import settings
+from ac_link.middleware.request_timing import RequestTimingMiddleware
 
 # ── FastAPI 实例 ──────────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RequestTimingMiddleware)
 
 # ── Origin 校验中间件 ──────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { AdminUser, AdminStudent, CreateUserRequest, PaginationMeta, ParentStudentBinding } from '@/types/api';
 
 type ParentRow = AdminUser & { phone_number: string | null };
@@ -99,8 +99,7 @@ export function AdminParentsScreen() {
       setShowForm(false);
       await loadParents();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('adminParents.createFailed'));
+      setError(getApiErrorMessage(e, t('adminParents.createFailed')));
     } finally {
       setSaving(false);
     }
@@ -109,10 +108,13 @@ export function AdminParentsScreen() {
   const handleBind = async () => {
     if (!selected || !bindSid) return;
     setBinding(true);
+    setError('');
     try {
       await adminApi.createBinding({ parent_uuid: selected, student_uuid: bindSid });
       setBindSid('');
       await loadParents();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('adminParents.createFailed')));
     } finally {
       setBinding(false);
     }
@@ -120,17 +122,22 @@ export function AdminParentsScreen() {
 
   const handleUnbind = async (studentUuid: string) => {
     if (!selected) return;
-    const res = await adminApi.getBindings({
-      page: 1,
-      page_size: 20,
-      parent_uuid: selected,
-      student_uuid: studentUuid,
-      is_active: true,
-    });
-    const bindingItem = res.data[0];
-    if (!bindingItem) return;
-    await adminApi.updateBinding(bindingItem.uuid, { is_active: false });
-    await loadParents();
+    setError('');
+    try {
+      const res = await adminApi.getBindings({
+        page: 1,
+        page_size: 20,
+        parent_uuid: selected,
+        student_uuid: studentUuid,
+        is_active: true,
+      });
+      const bindingItem = res.data[0];
+      if (!bindingItem) return;
+      await adminApi.updateBinding(bindingItem.uuid, { is_active: false });
+      await loadParents();
+    } catch (e: unknown) {
+      setError(getApiErrorMessage(e, t('adminParents.createFailed')));
+    }
   };
 
   return (
