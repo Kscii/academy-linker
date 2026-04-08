@@ -4,3 +4,4 @@
 **/backend.egg-info/
 .vscode/
 .pytest_cache/
+.tts-cache/
