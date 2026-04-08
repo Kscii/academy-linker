@@ -92,6 +92,12 @@ const API_BASE = '/api';
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
+// 当 refresh token 失效时的回调（由 AppContext 注册），用于清除 React 中的过期 session 状态
+let _onSessionExpired: (() => void) | null = null;
+export function setSessionExpiredHandler(handler: () => void) {
+  _onSessionExpired = handler;
+}
+
 // ── Core fetch wrapper ───────────────────────────────────────
 
 export async function apiFetch<T>(
@@ -127,7 +133,12 @@ export async function apiFetch<T>(
         isRefreshing = true;
         refreshPromise = apiFetch<void>('/auth/refresh', { method: 'POST' }, false)
           .catch(() => {
-            window.location.replace('/login');
+            // 清除 React 中的过期 session 状态（避免重跳 /login 时 user 仍为非空导致死循环）
+            _onSessionExpired?.();
+            // 只在不在 /login 时才跳转，否则会导致无限重定向循环
+            if (window.location.pathname !== '/login') {
+              window.location.replace('/login');
+            }
           })
           .finally(() => {
             isRefreshing = false;
