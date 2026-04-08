@@ -1051,6 +1051,19 @@ p { margin: 0; }
 .ai-skeleton-line.long  { width: 78%; }
 .ai-skeleton-line.short { width: 42%; }
 
+/* General-purpose skeleton placeholder — reuses ai-shimmer keyframe */
+.skel {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--bg2) 25%,
+    color-mix(in srgb, var(--bg2) 40%, var(--bd) 60%) 50%,
+    var(--bg2) 75%
+  );
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.4s infinite linear;
+}
+
 .ai-readonly-banner {
   margin: 0 14px 12px;
   padding: 10px 12px;

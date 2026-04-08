@@ -17,6 +17,7 @@ export function ParentPeriodMetricsScreen() {
   const [metrics, setMetrics] = useState<PeriodMetric[]>([]);
   const [subjectUuid, setSubjectUuid] = useState('');
   const [term, setTerm] = useState('');
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!sid) return;
@@ -39,8 +40,44 @@ export function ParentPeriodMetricsScreen() {
       term: term || undefined,
     }).then(res => {
       setMetrics(res.data);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setInitialized(true));
   }, [sid, subjectUuid, term]);
+
+  if (!initialized) {
+    return (
+      <div>
+        <div style={{ marginBottom: 24 }}>
+          <div className="skel" style={{ height: 28, width: '52%', marginBottom: 8 }} />
+          <div className="skel" style={{ height: 13, width: '28%' }} />
+        </div>
+        <div className="card">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <div className="skel" style={{ height: 36 }} />
+            <div className="skel" style={{ height: 36 }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} className="card-sm">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div className="skel" style={{ height: 14, width: '44%' }} />
+                  <div className="skel" style={{ height: 12, width: '18%' }} />
+                </div>
+                <div className="skel" style={{ height: 11, width: '52%', marginBottom: 10 }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  {[0, 1, 2].map(j => (
+                    <div key={j} className="stat-box">
+                      <div className="skel" style={{ height: 9, width: '60%', marginBottom: 6 }} />
+                      <div className="skel" style={{ height: 22, width: '38%' }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

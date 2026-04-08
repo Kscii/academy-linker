@@ -23,7 +23,7 @@ import math
 from collections import defaultdict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
@@ -354,6 +354,7 @@ def get_subject_detail(
 )
 def get_student_dashboard(
     student_uuid: UUID,
+    response: Response,
     range: str = "all_time",
     current_user: User = Depends(require_parent),
     db: Session = Depends(get_db),
@@ -363,6 +364,8 @@ def get_student_dashboard(
     优先基于 exam_scores / period_metrics 聚合核心指标与图表；
     summary 取该学生最近一条已发布 report（不限学科）。
     """
+    response.headers["Cache-Control"] = "private, max-age=60, stale-while-revalidate=30"
+
     student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
     if not student:
         raise Errors.not_found("学生不存在或无权访问")
@@ -427,6 +430,7 @@ def get_student_dashboard(
             SubjectStat(
                 subject_uuid=subject.uuid,
                 subject_name=subject.name,
+                subject_code=subject.code,
                 score=score_value,
                 progress=progress_value,
                 assignment_completion_rate=completion_ratio,
