@@ -33,18 +33,18 @@ interface StoredSession {
 }
 
 function saveSession(user: UserSummary, firstStudentUuid: string) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ user, firstStudentUuid } satisfies StoredSession));
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ user, firstStudentUuid } satisfies StoredSession));
 }
 
 function loadSession(): StoredSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(SESSION_KEY);
     return raw ? (JSON.parse(raw) as StoredSession) : null;
   } catch { return null; }
 }
 
 function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 // ── Context shape ─────────────────────────────────────────────
@@ -91,10 +91,18 @@ interface AppContextValue {
   readPostIds: Set<string>;
   markPostRead: (id: string) => void;
 
+  /* Teacher: tracks which post+student threads have been read (red dot logic) */
+  readPostReplies: Set<string>;  // key = `${postUuid}:${studentUuid}`
+  markPostReplyRead: (postUuid: string, studentUuid: string) => void;
+
   /* Personalized class posts (teacher publishes → parents read own version) */
   classPosts: PersonalizedPost[];
   addClassPost: (post: PersonalizedPost) => void;
   addPostReply: (postUuid: string, studentUuid: string, reply: PostReply) => void;
+
+  /* Teacher notes — persisted to localStorage, keyed by studentUuid */
+  teacherNotes: Record<string, string[]>;
+  addTeacherNote: (studentUuid: string, note: string) => void;
 }
 
 // ── Context ───────────────────────────────────────────────────
@@ -149,7 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const markThreadRead = useCallback((key: string) => {
     setThreadUnreadCounts(prev => ({ ...prev, [key]: 0 }));
     recentlyReadRef.current.set(key, Date.now());
-    fetch(`/api/threads/${key}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    fetch(`/api/threads/${key}/read`, { method: 'POST', headers: { Authorization: `Bearer ${sessionStorage.getItem('al_at') ?? ''}` } }).catch(() => {});
   }, []);
 
   const updateThreadUnreadCounts = useCallback((counts: Record<string, number>) => {
@@ -184,7 +192,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Class post read IDs — persisted
   const [readPostIds, setReadPostIds] = useState<Set<string>>(() =>
-    lsLoadSet(LS_READ_POSTS, ['cp-seed-1', 'cp-seed-2'])
+    lsLoadSet(LS_READ_POSTS, ['cp-seed-1', 'cp-seed-2', 'cp-seed-3'])
   );
   useEffect(() => {
     localStorage.setItem(LS_READ_POSTS, JSON.stringify([...readPostIds]));
@@ -192,6 +200,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const markPostRead = useCallback((id: string) => {
     setReadPostIds(prev => new Set([...prev, id]));
+  }, []);
+
+  // Teacher notes — persisted to localStorage, keyed by studentUuid
+  const [teacherNotes, setTeacherNotes] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem('al_teacher_notes');
+      return raw ? JSON.parse(raw) as Record<string, string[]> : {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    localStorage.setItem('al_teacher_notes', JSON.stringify(teacherNotes));
+  }, [teacherNotes]);
+
+  const addTeacherNote = useCallback((studentUuid: string, note: string) => {
+    setTeacherNotes(prev => ({
+      ...prev,
+      [studentUuid]: [...(prev[studentUuid] ?? []), note],
+    }));
+  }, []);
+
+  // Teacher: track which post+student threads have been viewed (unread parent reply dot)
+  const [readPostReplies, setReadPostReplies] = useState<Set<string>>(new Set());
+
+  const markPostReplyRead = useCallback((postUuid: string, studentUuid: string) => {
+    setReadPostReplies(prev => new Set([...prev, `${postUuid}:${studentUuid}`]));
   }, []);
 
   // Track all known announcement UUIDs (mock + API-fetched) so unread count is accurate
@@ -241,20 +274,168 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ],
       },
     },
+    {
+      uuid: 'cp-seed-3',
+      title: 'Oral Presentation — Week 10',
+      original_content: "Oral presentations are scheduled for Week 10. Students will present a 3–4 minute persuasive speech. Practising at home in front of family makes a significant difference to confidence on the day.",
+      target: 'class-8b-eng',
+      target_label: '8B English',
+      subject_name: 'English',
+      subject_color: SUBJECT_COLORS.english,
+      created_at: new Date(Date.now() - 10 * 86400_000).toISOString(),
+      versions: {
+        's-aiden-01': "Hi Li Wei! Just a heads-up that Emily's oral presentation is scheduled for Week 10. She's chosen a great topic and has solid ideas — practising out loud at home a few times will make a real difference to her confidence on the day. Rubric details are on the portal.",
+      },
+      replies: { 's-aiden-01': [] },
+    },
+    {
+      uuid: 'cp-seed-4',
+      title: 'Chapter 4 Test — Next Thursday',
+      original_content: "We have a Chapter 4 assessment on quadratic expressions next Thursday. Students should review factoring techniques and the quadratic formula. Past papers are on the portal.",
+      target: 'class-7a-math',
+      target_label: '7A Mathematics',
+      subject_name: 'Mathematics',
+      subject_color: SUBJECT_COLORS.math,
+      created_at: new Date(Date.now() - 7 * 86400_000).toISOString(),
+      versions: {
+        's-aiden-01': "Hi Li Wei! Emily has a Chapter 4 Maths test next Thursday on quadratic expressions. Based on her recent quiz results (82%), she's in a good position — I'd focus revision on factoring and the quadratic formula. I'm running a lunchtime session Wednesday if she'd like to attend.",
+      },
+      replies: {
+        's-aiden-01': [
+          { uuid: 'pr-s4-1', author_name: 'Li Wei', role: 'parent', text: "Thanks Mr. Roberts! She'll definitely come to the Wednesday session. Is there anything she should bring?", sent_at: new Date(Date.now() - 6 * 86400_000).toISOString() },
+          { uuid: 'pr-s4-2', author_name: 'Mr. Roberts', role: 'teacher', text: "Just her exercise book and a pencil. I'll provide the practice problems. Great to hear she's coming!", sent_at: new Date(Date.now() - 5 * 86400_000 - 20 * 3600_000).toISOString() },
+        ],
+      },
+    },
+    {
+      uuid: 'cp-seed-5',
+      title: 'Science Fair — Final Week!',
+      original_content: "Science fair final submissions are due this Friday. Students should have their display board, data tables, and written report ready. Judging takes place Monday Week 9.",
+      target: 'class-7a-sci',
+      target_label: '7A Science',
+      subject_name: 'Science',
+      subject_color: SUBJECT_COLORS.science,
+      created_at: new Date(Date.now() - 3 * 86400_000).toISOString(),
+      versions: {
+        's-aiden-01': "Hi Li Wei! Quick reminder that Emily's science fair project is due this Friday. Her plant growth experiment is looking fantastic — she just needs to finalise her discussion section and mount everything on the display board. The school provides the board and printing. Judging is Monday Week 9 — very exciting!",
+      },
+      replies: {
+        's-aiden-01': [
+          { uuid: 'pr-s5-1', author_name: 'Li Wei', role: 'parent', text: "She's been working so hard on it! We're really proud. Is there anything specific the judges look for?", sent_at: new Date(Date.now() - 2 * 86400_000 - 10 * 3600_000).toISOString() },
+          { uuid: 'pr-s5-2', author_name: 'Dr. Chen', role: 'teacher', text: "The judges look for: a clear hypothesis, rigorous data collection, honest analysis (including limitations), and confidence answering questions. Emily's data collection has been excellent. Make sure she can explain *why* red light produced faster growth — that will impress the panel.", sent_at: new Date(Date.now() - 2 * 86400_000 - 3 * 3600_000).toISOString() },
+        ],
+      },
+    },
+    {
+      uuid: 'cp-seed-6',
+      title: 'Athletics Carnival — Great Results!',
+      original_content: "What a fantastic athletics carnival! The students showed tremendous school spirit and personal bests were broken across multiple events. We are very proud of everyone's effort.",
+      target: 'all',
+      target_label: 'All Classes',
+      subject_name: 'Physical Education',
+      subject_color: SUBJECT_COLORS.pe,
+      created_at: new Date(Date.now() - 2 * 86400_000).toISOString(),
+      versions: {
+        's-aiden-01': "Hi Li Wei! What a day — Emily was absolutely brilliant at the athletics carnival. She placed 2nd in the 800m with a personal best time, and her relay contribution was outstanding. Her fitness improvement this term has been remarkable. You should be very proud!",
+      },
+      replies: { 's-aiden-01': [] },
+    },
   ]);
 
   const addClassPost = useCallback((post: PersonalizedPost) => {
-    setClassPosts(prev => [post, ...prev]);
+    setClassPosts(prev => {
+      if (prev.some(p => p.uuid === post.uuid)) return prev; // dedup
+      return [post, ...prev];
+    });
+    // Broadcast new post to other tabs
+    try {
+      const key = 'al_new_posts';
+      const posts: PersonalizedPost[] = JSON.parse(localStorage.getItem(key) ?? '[]');
+      posts.push(post);
+      localStorage.setItem(key, JSON.stringify(posts));
+    } catch { /* ignore */ }
   }, []);
 
   const unreadNoticeCount = unreadAnnCount + classPosts.filter(p => !readPostIds.has(p.uuid)).length;
 
+  const applyReplyEvent = useCallback((postUuid: string, studentUuid: string, reply: PostReply) => {
+    setClassPosts(prev => prev.map(p => {
+      if (p.uuid !== postUuid) return p;
+      const existing = p.replies[studentUuid] ?? [];
+      if (existing.some(r => r.uuid === reply.uuid)) return p; // dedup
+      return { ...p, replies: { ...p.replies, [studentUuid]: [...existing, reply] } };
+    }));
+  }, []);
+
   const addPostReply = useCallback((postUuid: string, studentUuid: string, reply: PostReply) => {
-    setClassPosts(prev => prev.map(p =>
-      p.uuid === postUuid
-        ? { ...p, replies: { ...p.replies, [studentUuid]: [...(p.replies[studentUuid] ?? []), reply] } }
-        : p
-    ));
+    applyReplyEvent(postUuid, studentUuid, reply);
+    // Broadcast to other tabs via localStorage storage event
+    try {
+      const key = 'al_reply_events';
+      const events: { postUuid: string; studentUuid: string; reply: PostReply }[] =
+        JSON.parse(localStorage.getItem(key) ?? '[]');
+      events.push({ postUuid, studentUuid, reply });
+      // Keep last 200 events to avoid unbounded growth
+      if (events.length > 200) events.splice(0, events.length - 200);
+      localStorage.setItem(key, JSON.stringify(events));
+    } catch { /* storage unavailable */ }
+  }, [applyReplyEvent]);
+
+  // Listen for cross-tab reply broadcasts
+  useEffect(() => {
+    // Apply any existing events from other tabs (e.g. teacher already replied before parent opened)
+    try {
+      const events: { postUuid: string; studentUuid: string; reply: PostReply }[] =
+        JSON.parse(localStorage.getItem('al_reply_events') ?? '[]');
+      for (const { postUuid, studentUuid, reply } of events) {
+        applyReplyEvent(postUuid, studentUuid, reply);
+      }
+    } catch { /* ignore */ }
+
+    // Apply any new posts published in another tab
+    try {
+      const posts: PersonalizedPost[] = JSON.parse(localStorage.getItem('al_new_posts') ?? '[]');
+      for (const post of posts) {
+        setClassPosts(prev => prev.some(p => p.uuid === post.uuid) ? prev : [post, ...prev]);
+      }
+    } catch { /* ignore */ }
+
+    const handler = (e: StorageEvent) => {
+      if (e.key === 'al_reply_events' && e.newValue) {
+        try {
+          const events: { postUuid: string; studentUuid: string; reply: PostReply }[] = JSON.parse(e.newValue);
+          const latest = events[events.length - 1];
+          if (latest) applyReplyEvent(latest.postUuid, latest.studentUuid, latest.reply);
+        } catch { /* ignore */ }
+      }
+      if (e.key === 'al_new_posts' && e.newValue) {
+        try {
+          const posts: PersonalizedPost[] = JSON.parse(e.newValue);
+          const latest = posts[posts.length - 1];
+          if (latest) setClassPosts(prev => prev.some(p => p.uuid === latest.uuid) ? prev : [latest, ...prev]);
+        } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [applyReplyEvent]);
+
+  // On mount: mark all pre-seeded parent replies as already read
+  // Use a ref to capture initial classPosts without causing re-renders
+  useEffect(() => {
+    setClassPosts(curr => {
+      const initial = new Set<string>();
+      for (const post of curr) {
+        for (const [studentUuid, replies] of Object.entries(post.replies)) {
+          if ((replies as PostReply[]).some((r: PostReply) => r.role === 'parent')) {
+            initial.add(`${post.uuid}:${studentUuid}`);
+          }
+        }
+      }
+      setReadPostReplies(initial);
+      return curr; // no change to classPosts
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Total unread = sum of all persisted counts (populated by MessagesScreen API call)
@@ -408,9 +589,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAnnouncementUuids,
     readPostIds,
     markPostRead,
+    readPostReplies,
+    markPostReplyRead,
     classPosts,
     addClassPost,
     addPostReply,
+    teacherNotes,
+    addTeacherNote,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

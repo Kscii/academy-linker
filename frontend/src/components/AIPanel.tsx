@@ -1,6 +1,6 @@
 // ============================================================
 // AIPanel — Floating AI assistant (bottom-right FAB, draggable)
-// Calls /api/ai/chat (DeepSeek backend)
+// Calls /api/ai/chat (AI backend)
 // ============================================================
 
 import { useState, useRef, useEffect } from 'react';
@@ -27,7 +27,6 @@ async function callAIChat(
 ): Promise<string> {
   const res = await apiFetch('/api/ai/chat', {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages,
@@ -43,20 +42,6 @@ async function callAIChat(
   return data.data.reply as string;
 }
 
-async function loadChatHistory(): Promise<Message[]> {
-  try {
-    const res = await apiFetch('/api/ai/chat/history');
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.data as { role: string; content: string }[]).map(m => ({
-      id: genId(),
-      role: m.role === 'user' ? 'user' : 'assistant',
-      text: m.content,
-    }));
-  } catch {
-    return [];
-  }
-}
 
 export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelProps) {
   const [open, setOpen] = useState(false);
@@ -74,21 +59,17 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
   const txSend        = useTranslatedText('Send', uiLanguage);
   const txTitle       = useTranslatedText('AI Assistant', uiLanguage);
 
-  // ── Translated greeting ───────────────────────────────────────
+  // ── Reset chat and translate greeting on language change ─────
   useEffect(() => {
+    const greeting: Message = { id: genId(), role: 'assistant', text: defaultGreeting };
     if (uiLanguage === 'en') {
-      setMessages(prev => [{ ...prev[0], text: defaultGreeting }, ...prev.slice(1)]);
+      setMessages([greeting]);
       return;
     }
     import('@/lib/translate').then(({ translateText }) =>
       translateText(defaultGreeting, uiLanguage)
     ).then(translated => {
-      setMessages(prev => {
-        if (prev[0]?.role === 'assistant') {
-          return [{ ...prev[0], text: translated }, ...prev.slice(1)];
-        }
-        return prev;
-      });
+      setMessages([{ ...greeting, text: translated }]);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiLanguage]);
@@ -110,11 +91,7 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
   const [thinking, setThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadChatHistory().then(hist => {
-      if (hist.length > 0) setMessages(prev => [...prev, ...hist]);
-    });
-  }, []);
+  // History intentionally not loaded across sessions — avoids language mismatch
 
   useEffect(() => {
     if (open && messagesEndRef.current) {
@@ -242,7 +219,7 @@ export function AIPanel({ studentUuid, reportUuid, uiLanguage = 'en' }: AIPanelP
               }}>✦</div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{txTitle}</div>
-                <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Powered by DeepSeek</div>
+                <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Powered by AI</div>
               </div>
             </div>
             <button

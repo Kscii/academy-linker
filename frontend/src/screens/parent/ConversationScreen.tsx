@@ -12,7 +12,7 @@ import { translateText, useTranslatedText } from '@/lib/translate';
 import { parent as parentApi, posts as postsApi } from '@/lib/api';
 
 const MAX_CHARS = 300;
-const POLL_INTERVAL = 10_000; // 10s
+const POLL_INTERVAL = 3_000; // 3s
 
 interface DisplayMsg {
   uuid: string;

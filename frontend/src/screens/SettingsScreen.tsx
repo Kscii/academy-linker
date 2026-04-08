@@ -117,8 +117,7 @@ export function SettingsScreen() {
     try {
       await fetch('http://localhost:8000/api/settings', {
         method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('al_at') ?? ''}` },
         body: JSON.stringify({
           language,
           notifications: {

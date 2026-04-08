@@ -92,7 +92,8 @@ function mdToHtml(md: string): string {
 
 export function ReportScreen() {
   const { sid } = useParams<{ sid: string }>();
-  const { language } = useApp();
+  const { language, teacherNotes } = useApp();
+  const studentNotes = teacherNotes[sid ?? ''] ?? [];
 
   const txTitle       = useTranslatedText('Progress Reports', language);
   const txSectionHdr  = useTranslatedText('Reports', language);
@@ -140,13 +141,9 @@ export function ReportScreen() {
   useEffect(() => {
     if (!selectedUuid || richContent[cacheKey]) return;
     setGenerating(true);
-    parentApi.generateReport(selectedUuid, language)
+    parentApi.generateReport(selectedUuid, language, studentNotes.length > 0 ? studentNotes : undefined)
       .then(res => setRichContent(prev => ({ ...prev, [cacheKey]: res.data.content_markdown })))
-      .catch(() => {
-        if (detail?.content_markdown) {
-          setRichContent(prev => ({ ...prev, [cacheKey]: detail.content_markdown }));
-        }
-      })
+      .catch(() => {/* generation failed — don't cache, let user see static fallback */})
       .finally(() => setGenerating(false));
   }, [selectedUuid, language]); // eslint-disable-line react-hooks/exhaustive-deps
 

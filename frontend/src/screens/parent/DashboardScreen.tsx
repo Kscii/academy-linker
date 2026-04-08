@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { translateBatch, useTranslatedText } from '@/lib/translate';
+import { translateBatch, translateText, useTranslatedText } from '@/lib/translate';
 import { mockParentDashboard, mockStudents } from '@/lib/mock-data';
 import { parent as parentApi } from '@/lib/api';
 import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType } from '@/types/api';
@@ -78,6 +78,7 @@ function nextFestival(within = 14): (Festival & { daysLeft: number }) | null {
 
 // ── Subject-based teaching suggestions ───────────────────────
 
+
 const SUBJECT_TIPS: Record<string, { below: string; good: string }> = {
   math:    { below: 'Try 10 min of Khan Academy together each evening — short worked examples beat long homework sessions.', good: 'Keep the momentum with puzzle games or coding challenges to deepen logical thinking.' },
   english: { below: 'Read aloud together for 15 min nightly. Discussing the story builds both vocabulary and comprehension.', good: 'Encourage a short personal journal — writing freely builds fluency and voice.' },
@@ -109,6 +110,26 @@ export function DashboardScreen() {
   const [showLeaveForm, setShowLeaveForm] = useState(false);
   const [leaveForm, setLeaveForm] = useState({ type: 'sick' as LeaveRequestType, start_date: '', end_date: '', reason: '' });
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+
+  // Translated subject tips (SUBJECT_TIPS are English — translate on language change)
+  const [translatedSubjectTips, setTranslatedSubjectTips] = useState<string[]>([]);
+  useEffect(() => {
+    const subs = dashboard.subjects.slice(0, 3);
+    const raw = subs.map(sub => {
+      const tips = SUBJECT_TIPS[sub.code];
+      if (!tips) return '';
+      return (sub.score ?? 100) < 70 ? tips.below : tips.good;
+    });
+    if (language === 'en') { setTranslatedSubjectTips(raw); return; }
+    translateBatch(raw, language).then(results => setTranslatedSubjectTips(results));
+  }, [language, dashboard.subjects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Parent teaching suggestions
+  interface ParentTip { subjectCode: string; subjectName: string; subjectColor: string; original: string; translated: string; }
+  const [parentSuggestion, setParentSuggestion] = useState('');
+  const [parentSubjectIdx, setParentSubjectIdx] = useState(0);
+  const [savedTips, setSavedTips] = useState<ParentTip[]>([]);
+  const [tipSaving, setTipSaving] = useState(false);
 
   // Incident report state
   const [showIncidentForm, setShowIncidentForm] = useState(false);
@@ -212,8 +233,14 @@ export function DashboardScreen() {
   const txBirthdayOf        = useTranslatedText("{name}'s birthday", language);
 
   // Teaching suggestions labels
-  const txSuggestTitle  = useTranslatedText('Teaching Suggestions', language);
-  const txForSubject    = useTranslatedText('For {subject}', language);
+  const txSuggestTitle       = useTranslatedText('Teaching Suggestions', language);
+  const txForSubject         = useTranslatedText('For {subject}', language);
+  const txAddNotePlaceholder = useTranslatedText('Add a suggestion for this subject…', language);
+  const txSaveNote           = useTranslatedText('Save', language);
+  const txSaving             = useTranslatedText('Saving…', language);
+
+  // Incident report body text
+  const txIncidentBody     = useTranslatedText('If you have concerns about your child\'s safety or wellbeing at school, you can report them here. All reports are handled confidentially by school staff.', language);
 
   // Incident report labels
   const txIncidentTitle    = useTranslatedText('Report an Incident', language);
@@ -513,11 +540,9 @@ export function DashboardScreen() {
             💡 {txSuggestTitle}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {dashboard.subjects.slice(0, 3).map(sub => {
-              const tips = SUBJECT_TIPS[sub.code];
-              if (!tips) return null;
-              const isBelow = (sub.score ?? 100) < 70;
-              const tip = isBelow ? tips.below : tips.good;
+            {dashboard.subjects.slice(0, 3).map((sub, idx) => {
+              if (!SUBJECT_TIPS[sub.code]) return null;
+              const tip = translatedSubjectTips[idx] ?? '';
               return (
                 <div key={sub.uuid} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{
@@ -533,6 +558,62 @@ export function DashboardScreen() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Parent-added tips — displayed same style as system tips */}
+          {savedTips.map((tip, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 12 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: tip.subjectColor, flexShrink: 0, marginTop: 5 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: tip.subjectColor, marginBottom: 2 }}>
+                  {txForSubject.replace('{subject}', tip.subjectName)}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}>
+                  {tip.translated || tip.original}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Add suggestion form */}
+          <div style={{ marginTop: 14, borderTop: '1px solid var(--bd)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <select
+              value={parentSubjectIdx}
+              onChange={e => setParentSubjectIdx(Number(e.target.value))}
+              style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--bd)', background: 'var(--card)', color: 'var(--tx)', fontSize: 12, fontFamily: 'var(--font-body)' }}
+            >
+              {dashboard.subjects.map((sub, i) => (
+                <option key={sub.uuid} value={i}>
+                  {txForSubject.replace('{subject}', sub.name)}
+                </option>
+              ))}
+            </select>
+            <textarea
+              className="input-field"
+              placeholder={txAddNotePlaceholder}
+              value={parentSuggestion}
+              onChange={e => setParentSuggestion(e.target.value)}
+              rows={2}
+              style={{ resize: 'none', fontFamily: 'var(--font-body)', fontSize: 12 }}
+            />
+            <button
+              className="btn-primary"
+              disabled={!parentSuggestion.trim() || tipSaving}
+              onClick={async () => {
+                const text = parentSuggestion.trim();
+                if (!text) return;
+                const sub = dashboard.subjects[parentSubjectIdx];
+                if (!sub) return;
+                setTipSaving(true);
+                const translated = language !== 'en' ? await translateText(text, language) : text;
+                setSavedTips(prev => [...prev, { subjectCode: sub.code, subjectName: sub.name, subjectColor: sub.color, original: text, translated }]);
+                setParentSuggestion('');
+                setTipSaving(false);
+              }}
+              style={{ fontSize: 12, padding: '6px 14px', width: 'auto', opacity: (!parentSuggestion.trim() || tipSaving) ? 0.45 : 1 }}
+            >
+              {tipSaving ? txSaving : txSaveNote}
+            </button>
           </div>
         </div>
 
@@ -612,7 +693,7 @@ export function DashboardScreen() {
 
           {!showIncidentForm && !incidentDone && (
             <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.7 }}>
-              If you have concerns about your child's safety or wellbeing at school, you can report them here. All reports are handled confidentially by school staff.
+              {txIncidentBody}
             </div>
           )}
         </div>

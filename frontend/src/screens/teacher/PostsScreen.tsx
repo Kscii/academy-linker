@@ -68,7 +68,7 @@ async function personaliseForStudent(
 // ── PostsScreen ───────────────────────────────────────────────
 
 export function TeacherPostsScreen() {
-  const { language, classPosts, addClassPost, addPostReply } = useApp();
+  const { language, classPosts, addClassPost, addPostReply, readPostReplies, markPostReplyRead } = useApp();
 
   const [selected, setSelected] = useState<'all' | string>('all');
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
@@ -410,7 +410,6 @@ export function TeacherPostsScreen() {
             const isOpen = expandedPost === post.uuid;
             const studentVersions = Object.entries(post.versions);
             const totalReplies = Object.values(post.replies).flat().length;
-            const parentReplies = Object.values(post.replies).flat().filter(r => r.role === 'parent').length;
 
             return (
               <div key={post.uuid} style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 12, overflow: 'hidden' }}>
@@ -433,7 +432,10 @@ export function TeacherPostsScreen() {
                         {totalReplies > 0 && (
                           <span style={{ fontSize: 11, color: 'var(--tx3)' }}>{totalReplies} {totalReplies === 1 ? 'reply' : 'replies'}</span>
                         )}
-                        {parentReplies > 0 && (
+                        {/* Red dot: any student thread with unread parent reply */}
+                        {Object.entries(post.replies).some(([sUuid, replies]) =>
+                          replies.some(r => r.role === 'parent') && !readPostReplies.has(`${post.uuid}:${sUuid}`)
+                        ) && (
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--a1)', display: 'inline-block' }} />
                         )}
                       </div>
@@ -469,14 +471,18 @@ export function TeacherPostsScreen() {
                       const isStudentOpen = expandedStudent === studentKey;
                       const studentReplies = post.replies[studentUuid] ?? [];
                       const studentName = student.student.display_name;
-                      const hasNewReply = studentReplies.some(r => r.role === 'parent');
+                      const hasUnreadReply = studentReplies.some(r => r.role === 'parent')
+                        && !readPostReplies.has(`${post.uuid}:${studentUuid}`);
 
                       return (
                         <div key={studentUuid} style={{ borderBottom: '1px solid var(--bd)' }}>
                           {/* Student row header */}
                           <div
                             style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: isStudentOpen ? 'var(--bg2)' : undefined, transition: 'background 0.12s' }}
-                            onClick={() => setExpandedStudent(isStudentOpen ? null : studentKey)}
+                            onClick={() => {
+                              setExpandedStudent(isStudentOpen ? null : studentKey);
+                              if (!isStudentOpen) markPostReplyRead(post.uuid, studentUuid);
+                            }}
                           >
                             <div
                               className="avatar"
@@ -488,7 +494,7 @@ export function TeacherPostsScreen() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{studentName}</span>
                                 {student.at_risk && <span className="badge badge-warn" style={{ fontSize: 9 }}>At Risk</span>}
-                                {hasNewReply && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--a1)', display: 'inline-block' }} />}
+                                {hasUnreadReply && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--a1)', display: 'inline-block' }} />}
                               </div>
                               <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
                                 {student.overall_score}% overall · {studentReplies.length} {studentReplies.length === 1 ? 'reply' : 'replies'}
@@ -497,47 +503,78 @@ export function TeacherPostsScreen() {
                             <span style={{ fontSize: 11, color: 'var(--tx3)' }}>{isStudentOpen ? '▴' : '▾'}</span>
                           </div>
 
-                          {/* Personalized content + replies */}
+                          {/* Personalized content + Reddit-style comments */}
                           {isStudentOpen && (
-                            <>
-                              <div style={{ padding: '12px 18px 14px', fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7, background: SUBJECT_COLORS.english + '06' }}>
+                            <div style={{ borderTop: '1px solid var(--bd)' }}>
+                              {/* Personalized content */}
+                              <div style={{ padding: '12px 18px 14px', fontSize: 13, color: 'var(--tx)', lineHeight: 1.7, background: SUBJECT_COLORS.english + '05' }}>
                                 {content}
                               </div>
 
-                              {studentReplies.map(reply => (
-                                <div
-                                  key={reply.uuid}
-                                  style={{ padding: '10px 18px', borderTop: '1px solid var(--bd)', background: reply.role === 'teacher' ? 'var(--a4)08' : 'var(--bg2)', fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}
-                                >
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                                    <span style={{ fontWeight: 700, color: reply.role === 'teacher' ? 'var(--a4)' : 'var(--tx)' }}>{reply.author_name}</span>
-                                    <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{timeAgo(reply.sent_at)}</span>
-                                  </div>
-                                  {reply.text}
+                              {/* Comments section */}
+                              <div style={{ borderTop: '2px solid var(--bd)', padding: '0 18px' }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '10px 0 8px' }}>
+                                  {studentReplies.length} Comment{studentReplies.length !== 1 ? 's' : ''}
                                 </div>
-                              ))}
 
-                              {/* Reply input */}
-                              <div style={{ padding: '10px 18px', borderTop: '1px solid var(--bd)', display: 'flex', gap: 8, alignItems: 'flex-end', background: 'var(--card)' }}>
-                                <textarea
-                                  className="input-field"
-                                  placeholder={`Reply to ${studentName}'s parent…`}
-                                  value={replyDrafts[studentKey] ?? ''}
-                                  onChange={e => setReplyDrafts(prev => ({ ...prev, [studentKey]: e.target.value }))}
-                                  rows={2}
-                                  style={{ flex: 1, resize: 'none', fontFamily: 'var(--font-body)', fontSize: 12, minHeight: 40 }}
-                                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(post.uuid, studentUuid); } }}
-                                />
-                                <button
-                                  className="btn-primary"
-                                  style={{ width: 'auto', padding: '7px 16px', fontSize: 12, flexShrink: 0, alignSelf: 'flex-end', opacity: !(replyDrafts[studentKey] ?? '').trim() ? 0.4 : 1 }}
-                                  onClick={() => handleReply(post.uuid, studentUuid)}
-                                  disabled={!(replyDrafts[studentKey] ?? '').trim()}
-                                >
-                                  Reply
-                                </button>
+                                {studentReplies.map(reply => {
+                                  const isTeacher = reply.role === 'teacher';
+                                  const ini = reply.author_name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                                  const ac = SUBJECT_COLORS.english;
+                                  return (
+                                    <div key={reply.uuid} style={{ display: 'flex', gap: 12, paddingBottom: 14 }}>
+                                      <div style={{
+                                        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                                        background: isTeacher ? ac + '20' : 'var(--a2)20',
+                                        color: isTeacher ? ac : 'var(--a2)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 11, fontWeight: 700, marginTop: 1,
+                                      }}>
+                                        {ini}
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{reply.author_name}</span>
+                                          {isTeacher && (
+                                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: ac + '18', color: ac }}>Teacher</span>
+                                          )}
+                                          <span style={{ fontSize: 11, color: 'var(--tx3)' }}>· {timeAgo(reply.sent_at)}</span>
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'var(--tx)', lineHeight: 1.65 }}>{reply.text}</div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Add comment */}
+                                <div style={{ display: 'flex', gap: 12, paddingBottom: 14 }}>
+                                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: SUBJECT_COLORS.english + '20', color: SUBJECT_COLORS.english, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+                                    MT
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <textarea
+                                      className="input-field"
+                                      placeholder={`Comment on ${studentName}'s thread…`}
+                                      value={replyDrafts[studentKey] ?? ''}
+                                      onChange={e => setReplyDrafts(prev => ({ ...prev, [studentKey]: e.target.value }))}
+                                      rows={2}
+                                      style={{ resize: 'none', fontFamily: 'var(--font-body)', fontSize: 12, borderRadius: 8, minHeight: 52 }}
+                                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(post.uuid, studentUuid); } }}
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6, gap: 8 }}>
+                                      <button
+                                        className="btn-primary"
+                                        style={{ width: 'auto', padding: '6px 18px', fontSize: 12, borderRadius: 20, opacity: !(replyDrafts[studentKey] ?? '').trim() ? 0.4 : 1 }}
+                                        onClick={() => handleReply(post.uuid, studentUuid)}
+                                        disabled={!(replyDrafts[studentKey] ?? '').trim()}
+                                      >
+                                        Comment
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            </>
+                            </div>
                           )}
                         </div>
                       );

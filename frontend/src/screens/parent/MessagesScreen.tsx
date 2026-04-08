@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi } from '@/lib/api';
+import { mockDiscussionTeachers } from '@/lib/mock-data';
 import type { DiscussionTeacherItem } from '@/types/api';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 
@@ -40,7 +41,13 @@ export function MessagesScreen() {
       updateThreadUnreadCounts(
         Object.fromEntries(res.data.map(t => [t.thread_uuid, t.unread_count]))
       );
-    }).catch(() => {});
+    }).catch(() => {
+      // Backend offline — fall back to mock data
+      setItems(mockDiscussionTeachers);
+      updateThreadUnreadCounts(
+        Object.fromEntries(mockDiscussionTeachers.map(t => [t.thread_uuid, t.unread_count]))
+      );
+    });
   }, [sid]);
 
   useEffect(() => {

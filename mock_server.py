@@ -21,7 +21,7 @@ import requests as http_requests
 from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 
-# ── DeepSeek AI 配置 ──────────────────────────────────────────────────────────
+# ── AI 配置 ───────────────────────────────────────────────────────────────────
 # 读取 .env 文件（简易加载，无需 python-dotenv）
 _env_path = os.path.join(os.path.dirname(__file__), ".env")
 if os.path.exists(_env_path):
@@ -30,11 +30,30 @@ if os.path.exists(_env_path):
             _line = _line.strip()
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
-                os.environ.setdefault(_k.strip(), _v.strip())
+                os.environ[_k.strip()] = _v.strip()  # .env 始终覆盖已有环境变量
 
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-chat"
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
+AI_BASE_URL = "https://api.curricullm.com/v1"
+AI_MODEL = "CurricuLLM-AU"
+
+# Translation uses Gemini Flash Lite; content generation uses CurricuLLM-AU
+TRANSLATE_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+TRANSLATE_MODEL   = "gemini-3.1-flash-lite-preview"
+
+# ── List available Gemini models at startup ───────────────────
+if TRANSLATE_API_KEY:
+    try:
+        _r = http_requests.get(
+            f"https://generativelanguage.googleapis.com/v1beta/models?key={TRANSLATE_API_KEY}",
+            timeout=10,
+        )
+        if _r.ok:
+            _names = [m["name"].replace("models/", "") for m in _r.json().get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
+            print(f"  可用 Gemini 模型: {', '.join(_names[:20])}")
+        else:
+            print(f"  [Gemini ListModels 失败] {_r.status_code}: {_r.text[:100]}")
+    except Exception as _e:
+        print(f"  [Gemini ListModels 异常] {_e}")
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"], supports_credentials=True)
@@ -673,37 +692,17 @@ def make_rt(user_uuid: str) -> str:
     return token
 
 
-def set_at_cookie(resp, token: str):
-    resp.set_cookie(
-        "access_token", token,
-        httponly=True, samesite="Lax", secure=False,
-        max_age=AT_EXP_MINUTES * 60, path="/",
-    )
-
-
-def set_rt_cookie(resp, token: str):
-    resp.set_cookie(
-        "refresh_token", token,
-        httponly=True, samesite="Lax", secure=False,
-        max_age=RT_EXP_DAYS * 86400, path="/api/auth/refresh",
-    )
-
-
-def clear_cookies(resp):
-    resp.set_cookie("access_token", "", expires=0, path="/")
-    resp.set_cookie("refresh_token", "", expires=0, path="/api/auth/refresh")
-
-
 def decode_at(token: str):
     """Returns payload dict or raises jwt.ExpiredSignatureError / jwt.InvalidTokenError."""
     return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
 
 
 def get_current_user():
-    """Read access_token cookie, return user dict or None."""
-    token = request.cookies.get("access_token")
-    if not token:
+    """Read access_token from Authorization: Bearer header, return user dict or None."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
         return None, "missing"
+    token = auth_header[7:]
     try:
         payload = decode_at(token)
         user = USERS.get(payload["sub"])
@@ -782,30 +781,27 @@ def login():
     at = make_at(user["uuid"])
     rt = make_rt(user["uuid"])
 
-    resp = make_response(jsonify({
+    return jsonify({
         "data": {
-            "user": {k: user[k] for k in ("uuid", "role", "display_name", "email", "avatar_url")}
+            "access_token": at,
+            "refresh_token": rt,
+            "user": {k: user[k] for k in ("uuid", "role", "display_name", "email", "avatar_url")},
         }
-    }), 200)
-    set_at_cookie(resp, at)
-    set_rt_cookie(resp, rt)
-    return resp
+    }), 200
 
 
 @app.post("/api/auth/refresh")
 def refresh():
     if e := check_origin():
         return e
-    rt = request.cookies.get("refresh_token")
+    body = request.get_json(silent=True) or {}
+    rt = body.get("refresh_token", "")
     if not rt or rt not in REFRESH_TOKENS:
         return err("refresh_token_expired", "Refresh token invalid or expired.", 401)
 
     user_uuid = REFRESH_TOKENS[rt]
     at = make_at(user_uuid)
-
-    resp = make_response(jsonify({"data": {"success": True}}), 200)
-    set_at_cookie(resp, at)
-    return resp
+    return jsonify({"data": {"access_token": at}}), 200
 
 
 @app.post("/api/auth/logout")
@@ -813,12 +809,11 @@ def refresh():
 def logout(user):
     if e := check_origin():
         return e
-    rt = request.cookies.get("refresh_token")
+    body = request.get_json(silent=True) or {}
+    rt = body.get("refresh_token", "")
     if rt:
         REFRESH_TOKENS.pop(rt, None)
-    resp = make_response(jsonify({"data": {"success": True}}), 200)
-    clear_cookies(resp)
-    return resp
+    return jsonify({"data": {"success": True}}), 200
 
 
 @app.post("/api/auth/logout_all")
@@ -829,9 +824,7 @@ def logout_all(user):
     tokens_to_del = [k for k, v in REFRESH_TOKENS.items() if v == user["uuid"]]
     for t in tokens_to_del:
         del REFRESH_TOKENS[t]
-    resp = make_response(jsonify({"data": {"success": True}}), 200)
-    clear_cookies(resp)
-    return resp
+    return jsonify({"data": {"success": True}}), 200
 
 
 @app.get("/api/me")
@@ -1180,73 +1173,99 @@ def generate_full_report(user, report_uuid):
         return e
     body = request.get_json(silent=True) or {}
     lang = (body.get("language") or "en").lower()
+    extra_notes: list = body.get("teacher_notes") or []
 
     r = REPORTS.get(report_uuid)
     if not r:
         return err("not_found", "Report not found.", 404)
 
-    cache_key = (report_uuid, lang)
-    if cache_key in REPORT_FULL_CACHE:
-        return ok({"content_markdown": REPORT_FULL_CACHE[cache_key], "cached": True})
+    en_key   = (report_uuid, "en")
+    lang_key = (report_uuid, lang)
 
-    student_uuid = r["student_uuid"]
-    student = STUDENTS.get(student_uuid, {})
-    stats    = SUBJECT_STATS.get(student_uuid, {})
-    subjects = r.get("subjects", [])
+    # ── Step 1: get or build the English master ───────────────────
+    if en_key in REPORT_FULL_CACHE:
+        en_content = REPORT_FULL_CACHE[en_key]
+    else:
+        student_uuid = r["student_uuid"]
+        student  = STUDENTS.get(student_uuid, {})
+        subjects = r.get("subjects", [])
 
-    # School activities (announcements)
-    activities = [a for a in ANNOUNCEMENTS.values()]
+        activities   = list(ANNOUNCEMENTS.values())
+        thread_uuids = {t["uuid"] for t in THREADS.values() if t.get("student_uuid") == student_uuid}
+        teacher_posts = [
+            p for p in (POSTS + RUNTIME_POSTS)
+            if p["thread_uuid"] in thread_uuids and p["author"].get("role") == "teacher"
+        ]
 
-    # Teacher posts / observations for this student
-    thread_uuids = {t["uuid"] for t in THREADS.values() if t.get("student_uuid") == student_uuid}
-    teacher_posts = [
-        p for p in (POSTS + RUNTIME_POSTS)
-        if p["thread_uuid"] in thread_uuids and p["author"].get("role") == "teacher"
-    ]
+        student_name = student.get("full_name", "the student")
+        avg_score    = round(sum(s["score"] for s in subjects) / len(subjects), 1) if subjects else 0
+        subject_lines = "\n".join(
+            f"- {s['subject_name']}: {s['score']}% — {s['summary']}" for s in subjects)
+        activity_lines = "\n".join(
+            f"- [{a.get('category','School')}] {a['title']}: {a['body_preview'][:120]}" for a in activities)
+        thread_obs = "\n".join(
+            f"- {p['author']['display_name']}: {p.get('title') or ''} — {p['content_markdown'][:200]}"
+            for p in teacher_posts[:6])
+        extra_obs  = "\n".join(f"- {n}" for n in extra_notes) if extra_notes else ""
+        teacher_lines = "\n".join(filter(None, [thread_obs, extra_obs]))
+
+        system_prompt = (
+            "You are a warm, professional educational consultant writing a detailed weekly progress report for a parent. "
+            "Write entirely in English. "
+            "CRITICAL FORMATTING RULES: "
+            "(1) Use '## Section Name' ONLY for the five top-level section headers. "
+            "(2) Do NOT use ### or deeper — write subject names as plain text. "
+            "(3) Do NOT use ** bold or * italic — plain prose only. "
+            "(4) Use '- ' bullets or numbered lists where helpful. "
+            "Sections in order: ## Executive Summary, ## Academic Performance, "
+            "## School Activities & Events, ## Teacher Observations, ## Recommendations & Action Items. "
+            "Be encouraging but honest. Personalise using the student's name. "
+            "Write at least 3-4 substantial paragraphs per section. Aim for ~1200–1600 words total. "
+            "For Academic Performance, discuss each subject individually with specific observations. "
+            "For Recommendations, provide detailed, actionable advice for each area of improvement."
+        )
+        user_prompt = (
+            f"Student: {student_name} | Report: {r['title']} | Term {r.get('term',2)}, Week {r.get('week','?')} | Date: {r['created_at'][:10]}\n"
+            f"Overall average: {avg_score}%\n\n"
+            f"SUBJECT PERFORMANCE:\n{subject_lines}\n\n"
+            f"SCHOOL ACTIVITIES & EVENTS:\n{activity_lines}\n\n"
+            f"TEACHER NOTES & OBSERVATIONS:\n{teacher_lines}"
+        )
+        try:
+            en_content = call_ai(
+                [{"role": "system", "content": system_prompt},
+                 {"role": "user",   "content": user_prompt}],
+                temperature=0.45, max_tokens=2500,
+            )
+        except Exception as exc:
+            return err("ai_error", f"Report generation failed: {exc}", 502)
+
+        REPORT_FULL_CACHE[en_key] = en_content
+
+    # ── Step 2: return English immediately, or translate ─────────
+    if lang == "en":
+        return ok({"content_markdown": en_content, "cached": False})
+
+    if lang_key in REPORT_FULL_CACHE:
+        return ok({"content_markdown": REPORT_FULL_CACHE[lang_key], "cached": True})
 
     lang_name = LANG_NAMES.get(lang, "English")
-    student_name = student.get("full_name", "the student")
-    avg_score = round(sum(s["score"] for s in subjects) / len(subjects), 1) if subjects else 0
-
-    subject_lines = "\n".join(
-        f"- {s['subject_name']}: {s['score']}% — {s['summary']}" for s in subjects
+    translate_system = (
+        f"You are a professional translator. Translate the following educational report from English to {lang_name}. "
+        f"Preserve all formatting exactly — keep '## ' section headers, '- ' bullet points, and numbered lists. "
+        f"Translate only the text content, not the markdown symbols. Output ONLY the translated report, nothing else."
     )
-    activity_lines = "\n".join(
-        f"- [{a.get('category','School')}] {a['title']}: {a['body_preview'][:120]}" for a in activities
-    )
-    teacher_lines = "\n".join(
-        f"- {p['author']['display_name']}: {p.get('title') or ''} — {p['content_markdown'][:200]}"
-        for p in teacher_posts[:6]
-    )
-
-    system_prompt = (
-        f"You are a warm, professional educational consultant writing a comprehensive weekly progress report for a parent. "
-        f"Write entirely in {lang_name}. Use clear markdown formatting with these sections in order: "
-        f"1) Executive Summary (2–3 sentences), "
-        f"2) Academic Performance (one subsection per subject with score, detailed feedback, specific home tips), "
-        f"3) School Activities & Events (from the data), "
-        f"4) Teacher Observations (synthesise teacher notes), "
-        f"5) Consultant Recommendations & This Week's Action Items (numbered, specific, actionable). "
-        f"Be encouraging but honest. Personalise using the student's name. Aim for ~600–900 words."
-    )
-    user_prompt = (
-        f"Student: {student_name} | Report: {r['title']} | Term {r.get('term',2)}, Week {r.get('week','?')} | Date: {r['created_at'][:10]}\n"
-        f"Overall average: {avg_score}%\n\n"
-        f"SUBJECT PERFORMANCE:\n{subject_lines}\n\n"
-        f"SCHOOL ACTIVITIES & EVENTS:\n{activity_lines}\n\n"
-        f"TEACHER NOTES & OBSERVATIONS:\n{teacher_lines}"
-    )
-
     try:
-        content = deepseek_chat(
-            [{"role": "system", "content": system_prompt},
-             {"role": "user",   "content": user_prompt}],
-            temperature=0.45, max_tokens=3000,
+        content = call_translate_ai(
+            [{"role": "system", "content": translate_system},
+             {"role": "user",   "content": en_content}],
+            temperature=0.1,
         )
-    except Exception as exc:
-        return err("ai_error", f"Report generation failed: {exc}", 502)
+    except Exception:
+        # Translation failed — return English so the user still sees the full report
+        return ok({"content_markdown": en_content, "cached": False})
 
-    REPORT_FULL_CACHE[cache_key] = content
+    REPORT_FULL_CACHE[lang_key] = content
     return ok({"content_markdown": content, "cached": False})
 
 
@@ -1687,29 +1706,56 @@ def create_tag(user, ):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# AI — DeepSeek 集成
+# AI 集成
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def deepseek_chat(messages: list[dict], temperature: float = 0.7, max_tokens: int = 1024) -> str:
-    """调用 DeepSeek Chat API，返回回复文本；失败时抛出异常。"""
-    if not DEEPSEEK_API_KEY:
-        raise ValueError("DEEPSEEK_API_KEY 未配置")
+def call_ai(messages: list[dict], temperature: float = 0.7, max_tokens: int = 1024) -> str:
+    """调用 CurricuLLM-AU，用于报告生成、AI Insight、AI 对话。"""
+    if not AI_API_KEY:
+        raise ValueError("AI_API_KEY 未配置")
     resp = http_requests.post(
-        f"{DEEPSEEK_BASE_URL}/chat/completions",
+        f"{AI_BASE_URL}/chat/completions",
         headers={
-            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Authorization": f"Bearer {AI_API_KEY}",
             "Content-Type": "application/json",
         },
         json={
-            "model": DEEPSEEK_MODEL,
+            "model": AI_MODEL,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         },
         timeout=30,
     )
+    if not resp.ok:
+        print(f"[AI ERROR] {resp.status_code} — {resp.text[:500]}")
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+def call_translate_ai(messages: list[dict], temperature: float = 0.1) -> str:
+    """调用 Gemini Flash Lite（原生 API），专用于文本翻译。"""
+    if not TRANSLATE_API_KEY:
+        raise ValueError("GEMINI_API_KEY 未配置")
+    # Convert OpenAI-style messages to Gemini format
+    system_text = next((m["content"] for m in messages if m["role"] == "system"), "")
+    user_text   = next((m["content"] for m in messages if m["role"] == "user"), "")
+    prompt = f"{system_text}\n\n{user_text}".strip() if system_text else user_text
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{TRANSLATE_MODEL}:generateContent?key={TRANSLATE_API_KEY}"
+    resp = http_requests.post(
+        url,
+        headers={"Content-Type": "application/json"},
+        json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": temperature},
+        },
+        timeout=60,
+    )
+    if not resp.ok:
+        print(f"[translate] HTTP {resp.status_code}: {resp.text[:300]}")
+    resp.raise_for_status()
+    return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 
 LANG_NAMES = {
@@ -1789,7 +1835,9 @@ def ai_chat(user):
     system_parts: list[str] = [
         f"You are a helpful school-home communication assistant for Academy Linker. "
         f"Be concise, warm, and supportive. Always respond in {lang_name} unless the user explicitly writes in another language. "
-        f"You have access to real student data provided below — use it to give specific, accurate answers."
+        f"You have access to real student data provided below — use it to give specific, accurate answers. "
+        f"IMPORTANT: Do NOT use any markdown syntax in your response — no **, no *, no ##, no __, no backticks. "
+        f"Write in plain prose only."
     ]
 
     # 注入学生真实数据
@@ -1813,16 +1861,23 @@ def ai_chat(user):
     full_messages = [system_msg] + messages
 
     try:
-        reply = deepseek_chat(full_messages, temperature=0.7, max_tokens=800)
+        en_reply = call_ai(full_messages, temperature=0.7, max_tokens=800)
+        # Always translate via DeepSeek to enforce correct output language
+        reply = call_translate_ai(
+            [
+                {"role": "system", "content": f"Translate to {lang_name}. Output ONLY the translation. No explanations. No markdown."},
+                {"role": "user", "content": en_reply},
+            ],
+        )
     except Exception as exc:
         return err("ai_error", f"AI 服务异常: {exc}", 502)
 
-    # 保存聊天记录
+    # 保存英文原文到历史（与语言无关，切换语言时 history 仍可用）
     hist = CHAT_HISTORY.setdefault(user["uuid"], [])
     for m in messages[-2:]:  # 只存最新的用户消息
         if m.get("role") == "user":
             hist.append({"role": "user", "content": m["content"], "ts": now_iso()})
-    hist.append({"role": "assistant", "content": reply, "ts": now_iso()})
+    hist.append({"role": "assistant", "content": en_reply, "ts": now_iso()})
     # 只保留最近 100 条
     CHAT_HISTORY[user["uuid"]] = hist[-100:]
 
@@ -1855,9 +1910,9 @@ def ai_insight(user):
     lang_name = LANG_NAMES.get(ui_lang, "English")
 
     system_parts = [
-        f"You are an AI assistant for a school parent portal called Academy Linker. "
-        f"You generate concise, warm, parent-facing subject insights. "
-        f"Always respond in {lang_name}. Your response must be ONLY valid JSON with no markdown fences."
+        "You are an AI assistant for a school parent portal called Academy Linker. "
+        "You generate concise, warm, parent-facing subject insights in English. "
+        "Your response must be ONLY valid JSON with no markdown fences."
     ]
     if student_uuid:
         ctx = build_student_context(student_uuid)
@@ -1867,9 +1922,8 @@ def ai_insight(user):
     user_prompt = (
         f"Generate an AI insight for the student's {subject_name} subject. "
         f"Current score: {current_score}%. Term average: {term_avg}%. "
-        f"Write in {lang_name}. "
         f'Reply with ONLY this JSON (no markdown, no explanation): '
-        f'{{"summary":"2 concise sentences in {lang_name}","suggestions":["action tip 1","action tip 2","action tip 3"]}}'
+        f'{{"summary":"2 concise sentences","suggestions":["action tip 1","action tip 2","action tip 3"]}}'
     )
 
     messages = [
@@ -1877,22 +1931,41 @@ def ai_insight(user):
         {"role": "user", "content": user_prompt},
     ]
     try:
-        reply = deepseek_chat(messages, temperature=0.5, max_tokens=400)
+        reply = call_ai(messages, temperature=0.5, max_tokens=400)
     except Exception as exc:
         return err("ai_error", f"AI 服务异常: {exc}", 502)
 
     # 解析 JSON（AI 可能包裹在 ```json ... ```）
+    parsed = None
     match = re.search(r'\{[\s\S]*\}', reply)
     if match:
         try:
-            parsed = json.loads(match.group())
-            if "summary" in parsed and "suggestions" in parsed:
-                return ok(parsed)
+            candidate = json.loads(match.group())
+            if "summary" in candidate and "suggestions" in candidate:
+                parsed = candidate
         except Exception:
             pass
 
-    # 回退：把整段文本作为 summary
-    return ok({"summary": reply.strip(), "suggestions": []})
+    if parsed is None:
+        parsed = {"summary": reply.strip(), "suggestions": []}
+
+    # Translate to target language via DeepSeek if not English
+    if ui_lang != "en":
+        def _tx(text: str) -> str:
+            try:
+                return call_translate_ai(
+                    [
+                        {"role": "system", "content": f"Translate to {lang_name}. Output ONLY the translation. No explanations. No markdown."},
+                        {"role": "user", "content": text},
+                    ],
+                )
+            except Exception:
+                return text  # fallback to English on error
+
+        parsed["summary"] = _tx(parsed["summary"])
+        parsed["suggestions"] = [_tx(s) for s in parsed.get("suggestions", [])]
+
+    return ok(parsed)
 
 
 @app.post("/api/content/translate")
@@ -1921,18 +1994,17 @@ def translate_content(user):
     messages = [
         {
             "role": "system",
-            "content": (
-                f"Translate the following text into {lang_name}. "
-                f"Rules: (1) Preserve ALL Markdown formatting. "
-                f"(2) Keep abbreviations, acronyms (e.g. HASS, PE, IT, STEM), proper nouns, "
-                f"subject codes, and names unchanged — do NOT expand or explain them. "
-                f"(3) Output ONLY the translated text, no explanations or additions."
-            ),
+            "content": f"Translate to {lang_name}. Output ONLY the translation. No explanations. No markdown.",
         },
         {"role": "user", "content": text},
     ]
     try:
-        translated = deepseek_chat(messages, temperature=0.2, max_tokens=2048)
+        translated = call_translate_ai(messages)
+        # Strip markdown symbols in case model ignores the rule
+        import re as _re
+        translated = _re.sub(r'\*{1,2}([^*]+)\*{1,2}', r'\1', translated)
+        translated = _re.sub(r'#{1,6}\s*', '', translated)
+        translated = translated.strip()
     except Exception as exc:
         return err("ai_error", f"翻译失败: {exc}", 502)
 
@@ -1977,7 +2049,7 @@ def translate_report(user, report_uuid):
     ]
 
     try:
-        translated = deepseek_chat(messages, temperature=0.3, max_tokens=2048)
+        translated = call_ai(messages, temperature=0.3, max_tokens=2048)
     except Exception as exc:
         return err("ai_error", f"翻译失败: {exc}", 502)
 
@@ -2021,7 +2093,7 @@ def summarize_report(user, report_uuid):
     ]
 
     try:
-        summary = deepseek_chat(messages, temperature=0.5, max_tokens=400)
+        summary = call_ai(messages, temperature=0.5, max_tokens=400)
     except Exception as exc:
         return err("ai_error", f"摘要生成失败: {exc}", 502)
 
@@ -2420,8 +2492,8 @@ if __name__ == "__main__":
     print("    教师  thompson@westside.edu.au / password123")
     print("    管理员 admin@westside.edu.au   / admin123")
     print()
-    ai_status = "✅ 已配置" if DEEPSEEK_API_KEY else "❌ 未配置 (设置 DEEPSEEK_API_KEY)"
-    print(f"  DeepSeek AI: {ai_status}")
+    ai_status = "✅ 已配置" if AI_API_KEY else "❌ 未配置 (设置 AI_API_KEY)"
+    print(f"  AI: {ai_status}")
     print()
     print("  AI 接口:")
     print("    POST /api/ai/chat                        — 通用 AI 对话")

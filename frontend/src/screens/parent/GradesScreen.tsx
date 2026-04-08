@@ -4,7 +4,7 @@
 
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { translateBatch, useTranslatedText } from '@/lib/translate';
 import { parent as parentApi } from '@/lib/api';
@@ -20,7 +20,7 @@ const ACCENT_COLORS: Record<string, string> = {
 export function GradesScreen() {
   const navigate = useNavigate();
   const { sid } = useParams<{ sid: string }>();
-  const { language } = useApp();
+  const { language, classPosts, readPostIds, markPostRead } = useApp();
   const { t } = useTranslation('dashboard');
 
   const [dashboard, setDashboard] = useState<DashboardResponse>(mockParentDashboard);
@@ -39,6 +39,13 @@ export function GradesScreen() {
     const t2 = setTimeout(() => setBarsReady(true), 60);
     return () => clearTimeout(t2);
   }, []);
+
+  const myTeacherPosts = useMemo(
+    () => classPosts.filter(p => sid && p.versions[sid] !== undefined),
+    [classPosts, sid],
+  );
+
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
 
   const [txSubjects, setTxSubjects] = useState(dashboard.subjects);
   const [txChartData, setTxChartData] = useState(dashboard.subject_chart);

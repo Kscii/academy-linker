@@ -45,7 +45,7 @@ Academy Linker bridges the gap between home and school by giving:
 | Parent Management | Create parent accounts, link/unlink students |
 
 ### Platform-wide
-- **AI Assistant** — Floating chat panel powered by DeepSeek, context-aware of the current page
+- **AI Assistant** — Floating chat panel powered by AI, context-aware of the current page
 - **17-language support** — i18next static translations + AI translation fallback for dynamic content
 - **Dark / Light mode** — Follows system preference, user preference persisted
 - **JWT auth** — HttpOnly cookie, auto-refresh on expiry
@@ -59,8 +59,8 @@ Academy Linker bridges the gap between home and school by giving:
 |-------|-----------|
 | Frontend | React 19 · TypeScript · Vite · react-router v7 |
 | Styling | CSS variables · Tailwind v4 |
-| i18n | react-i18next · DeepSeek AI translation fallback |
-| AI | DeepSeek Chat API (deepseek-chat model) |
+| i18n | react-i18next · AI AI translation fallback |
+| AI | AI Chat API (deepseek-chat model) |
 | Mock Backend | Python · Flask · PyJWT |
 | Charts | Custom SVG line/bar chart components |
 
@@ -85,7 +85,7 @@ pip install flask pyjwt flask-cors requests
 
 ```bash
 cp .env.example .env
-# Edit .env and add your DeepSeek API key
+# Edit .env and add your AI API key
 ```
 
 ### 3. Start the mock backend
@@ -136,7 +136,7 @@ academy-linker/
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DEEPSEEK_API_KEY` | Yes (for AI) | DeepSeek API key. AI features gracefully degrade if unset. |
+| `AI_API_KEY` | Yes (for AI) | AI API key. AI features gracefully degrade if unset. |
 
 Set via `.env` file (see `.env.example`) or export in your shell before running `mock_server.py`.
 

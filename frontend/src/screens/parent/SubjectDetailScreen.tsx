@@ -12,138 +12,168 @@ import { translateBatch, useTranslatedText, apiFetch } from '@/lib/translate';
 import { parent as parentApi } from '@/lib/api';
 import type { SubjectDetailResponse, ThreadPost } from '@/types/api';
 
-// ── Post board ────────────────────────────────────────────────
-
-interface ReplyState {
-  [postUuid: string]: {
-    text: string;
-    submitted: boolean;
-    submittedText?: string;
-  };
-}
+// ── Post board (Reddit-style) ─────────────────────────────────
 
 function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor: string }) {
-  const [replyStates, setReplyStates] = useState<ReplyState>({});
-
-  const getReply = (uuid: string) => replyStates[uuid] ?? { text: '', submitted: false };
-
-  const setReplyText = (uuid: string, text: string) => {
-    setReplyStates(prev => ({
-      ...prev,
-      [uuid]: { ...getReply(uuid), text: text.slice(0, 200) },
-    }));
-  };
-
-  const submitReply = (uuid: string) => {
-    const r = getReply(uuid);
-    if (!r.text.trim()) return;
-    setReplyStates(prev => ({
-      ...prev,
-      [uuid]: { text: '', submitted: true, submittedText: r.text },
-    }));
-  };
+  // draft per post uuid
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // submitted comments per post uuid (local optimistic)
+  const [localComments, setLocalComments] = useState<Record<string, { author: string; text: string; time: string }[]>>({});
+  const [expanded, setExpanded] = useState<string | null>(posts[0]?.uuid ?? null);
 
   function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
-    const days = Math.floor(diff / 86400_000);
-    if (days === 0) return 'today';
-    if (days === 1) return 'yesterday';
-    return `${days}d ago`;
+    const h = Math.floor(diff / 3_600_000);
+    const d = Math.floor(diff / 86_400_000);
+    if (h < 1) return 'just now';
+    if (h < 24) return `${h}h ago`;
+    return `${d}d ago`;
   }
 
-  const initials = (name: string) =>
-    name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const ini = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const submit = (postUuid: string) => {
+    const text = (drafts[postUuid] ?? '').trim();
+    if (!text) return;
+    setLocalComments(prev => ({
+      ...prev,
+      [postUuid]: [...(prev[postUuid] ?? []), { author: 'Li Wei', text, time: new Date().toISOString() }],
+    }));
+    setDrafts(prev => ({ ...prev, [postUuid]: '' }));
+  };
+
+  // Combine api replies with local optimistic comments
+  const allReplies = (post: ThreadPost) => {
+    const apiReplies = (post.replies ?? []).map(r => ({
+      uuid: r.uuid,
+      author: r.author.display_name,
+      role: r.author.role,
+      text: r.content_markdown,
+      time: r.created_at,
+    }));
+    const local = (localComments[post.uuid] ?? []).map((c, i) => ({
+      uuid: `local-${i}`,
+      author: c.author,
+      role: 'parent' as const,
+      text: c.text,
+      time: c.time,
+    }));
+    return [...apiReplies, ...local];
+  };
+
+  if (posts.length === 0) {
+    return <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '32px 0' }}>No posts yet.</div>;
+  }
 
   return (
-    <div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-        Teacher Posts ({posts.length})
-      </div>
-
-      {posts.map(post => {
-        const reply = getReply(post.uuid);
-        const charCount = reply.text.length;
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {posts.map((post, idx) => {
+        const replies = allReplies(post);
+        const isOpen = expanded === post.uuid;
+        const draft = drafts[post.uuid] ?? '';
+        const isLast = idx === posts.length - 1;
 
         return (
-          <div key={post.uuid} className="post-card">
-            <div className="post-card-header">
-              <div
-                className="avatar"
-                style={{ background: subjectColor + '22', color: subjectColor, fontWeight: 700 }}
-              >
-                {initials(post.author.display_name)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>
-                  {post.author.display_name}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{timeAgo(post.created_at)}</div>
-              </div>
-              {post.subject_name && (
-                <span
-                  className="subject-chip"
-                  style={{ background: subjectColor + '18', color: subjectColor }}
-                >
-                  {post.subject_name}
+          <div key={post.uuid} style={{ borderBottom: isLast ? 'none' : '1px solid var(--bd)' }}>
+
+            {/* ── Post header (clickable to expand) ── */}
+            <div
+              style={{ padding: '14px 0', cursor: 'pointer' }}
+              onClick={() => setExpanded(isOpen ? null : post.uuid)}
+            >
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: subjectColor + '18', color: subjectColor }}>
+                  {post.subject_name ?? post.author.display_name}
                 </span>
+                <span style={{ fontSize: 11, color: 'var(--tx3)' }}>
+                  posted by {post.author.display_name} · {timeAgo(post.created_at)}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--tx3)', marginLeft: 'auto' }}>
+                  💬 {replies.length}
+                </span>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', lineHeight: 1.3, marginBottom: isOpen ? 0 : 4 }}>
+                {post.title || post.content_markdown.slice(0, 60)}
+              </div>
+              {!isOpen && post.title && (
+                <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 4, lineHeight: 1.5 }}>
+                  {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1').slice(0, 100)}…
+                </div>
               )}
             </div>
 
-            {post.title && (
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 6 }}>
-                {post.title}
-              </div>
-            )}
-
-            <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 12 }}>
-              {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1')}
-            </div>
-
-            {reply.submitted && reply.submittedText && (
-              <div style={{
-                background: 'rgba(61,182,168,0.08)', border: '1px solid rgba(61,182,168,0.2)',
-                borderRadius: 8, padding: '10px 12px', marginBottom: 10,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div className="avatar" style={{ width: 24, height: 24, fontSize: 10, background: 'var(--a2)', color: '#fff' }}>
-                    You
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--a2)' }}>Your reply</div>
-                  <span className="badge badge-ok" style={{ marginLeft: 'auto', fontSize: 10 }}>✓ Sent</span>
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--tx)' }}>{reply.submittedText}</div>
-              </div>
-            )}
-
-            {!reply.submitted && (
+            {/* ── Expanded body + comments ── */}
+            {isOpen && (
               <div>
-                <textarea
-                  className="input-field"
-                  placeholder="Write a reply to this post… (max 200 characters)"
-                  value={reply.text}
-                  onChange={e => setReplyText(post.uuid, e.target.value)}
-                  rows={3}
-                  style={{ resize: 'vertical', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 72 }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                  <div style={{ fontSize: 11, color: charCount >= 180 ? 'var(--warn)' : 'var(--tx3)' }}>
-                    {charCount}/200 · 1 reply per post
-                  </div>
-                  <button
-                    className="btn-primary"
-                    onClick={() => submitReply(post.uuid)}
-                    disabled={!reply.text.trim()}
-                    style={{ width: 'auto', padding: '7px 16px', fontSize: 12, opacity: reply.text.trim() ? 1 : 0.5 }}
-                  >
-                    Reply
-                  </button>
+                {/* Post body */}
+                <div style={{ padding: '0 0 14px', fontSize: 13, color: 'var(--tx)', lineHeight: 1.75 }}>
+                  {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1')}
                 </div>
-              </div>
-            )}
 
-            {reply.submitted && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <span className="badge badge-ok" style={{ fontSize: 11 }}>✓ Replied</span>
+                {/* Comments */}
+                <div style={{ borderTop: '2px solid var(--bd)', paddingTop: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                    {replies.length} Comment{replies.length !== 1 ? 's' : ''}
+                  </div>
+
+                  {replies.map(r => (
+                    <div key={r.uuid} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                        background: r.role === 'teacher' ? subjectColor + '20' : 'var(--a2)20',
+                        color: r.role === 'teacher' ? subjectColor : 'var(--a2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, marginTop: 1,
+                      }}>
+                        {ini(r.author)}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{r.author}</span>
+                          {r.role === 'teacher' && (
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: subjectColor + '18', color: subjectColor }}>Teacher</span>
+                          )}
+                          <span style={{ fontSize: 11, color: 'var(--tx3)' }}>· {timeAgo(r.time)}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--tx)', lineHeight: 1.65 }}>{r.text}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add comment */}
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'var(--a2)20', color: 'var(--a2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+                      LW
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <textarea
+                        className="input-field"
+                        placeholder="Add a comment…"
+                        value={draft}
+                        onChange={e => setDrafts(prev => ({ ...prev, [post.uuid]: e.target.value }))}
+                        rows={2}
+                        style={{ resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, borderRadius: 8, minHeight: 60 }}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(post.uuid); } }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6, gap: 8 }}>
+                        <button
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--tx3)', fontFamily: 'var(--font-body)', padding: '5px 10px' }}
+                          onClick={() => setDrafts(prev => ({ ...prev, [post.uuid]: '' }))}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn-primary"
+                          style={{ width: 'auto', padding: '6px 18px', fontSize: 12, borderRadius: 20, opacity: draft.trim() ? 1 : 0.4 }}
+                          onClick={() => submit(post.uuid)}
+                          disabled={!draft.trim()}
+                        >
+                          Comment
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -189,8 +219,23 @@ export function SubjectDetailScreen() {
   const subject = detail.subject;
   const subjectColor = subject.color ?? 'var(--a1)';
 
+  // Merge classPosts (PersonalizedPost) that belong to this student + subject into ThreadPost format
+  const classPostsForSubject = classPosts
+    .filter(p => sid && p.versions[sid] !== undefined && (
+      !p.subject_name || p.subject_name === subject.name
+    ))
+    .map(p => ({
+      uuid: p.uuid,
+      author: { uuid: 'teacher', display_name: p.subject_name ? `${p.subject_name} Teacher` : 'Your Teacher', role: 'teacher' as const, email: '' },
+      title: p.title,
+      content_markdown: p.versions[sid!],
+      created_at: p.created_at,
+      subject_name: p.subject_name,
+      subject_color: p.subject_color,
+    }));
+
   // ── Translated content state ──────────────────────────────────
-  const [txPosts, setTxPosts] = useState(detail.posts);
+  const [txPosts, setTxPosts] = useState([...classPostsForSubject, ...detail.posts]);
   const [txSubjectName, setTxSubjectName] = useState(subject.name);
   const [txTimeline, setTxTimeline] = useState(detail.timeline);
 
@@ -204,7 +249,6 @@ export function SubjectDetailScreen() {
     setInsightLoading(true);
     apiFetch('/api/ai/insight', {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         subject_name: detail.subject.name,
@@ -229,13 +273,14 @@ export function SubjectDetailScreen() {
   }, [subjectUuid, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setTxPosts(detail.posts);
+    const allPosts = [...classPostsForSubject, ...detail.posts];
+    setTxPosts(allPosts);
     setTxSubjectName(subject.name);
     setTxTimeline(detail.timeline);
 
     if (language === 'en') return;
 
-    const postTexts = detail.posts.flatMap(p => [p.title ?? '', p.content_markdown]);
+    const postTexts = allPosts.flatMap(p => [p.title ?? '', p.content_markdown]);
     const metaTexts = [subject.name, ...detail.timeline.map(n => n.title)];
 
     translateBatch([...postTexts, ...metaTexts], language).then(results => {
@@ -243,7 +288,7 @@ export function SubjectDetailScreen() {
       const postResults = results.slice(0, postCount);
       const metaResults = results.slice(postCount);
 
-      setTxPosts(detail.posts.map((p, i) => ({
+      setTxPosts(allPosts.map((p, i) => ({
         ...p,
         title: postResults[i * 2] || p.title,
         content_markdown: postResults[i * 2 + 1] || p.content_markdown,
@@ -414,7 +459,7 @@ export function SubjectDetailScreen() {
           </div>
         </div>
 
-        <div className="card" style={{ overflowY: 'auto', maxHeight: 600 }}>
+        <div className="card">
           <PostBoard posts={txPosts} subjectColor={subjectColor} />
         </div>
       </div>

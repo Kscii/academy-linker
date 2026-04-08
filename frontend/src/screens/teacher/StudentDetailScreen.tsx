@@ -6,12 +6,14 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { mockTeacherStudents, mockSubjectDetails, SUBJECT_COLORS } from '@/lib/mock-data';
 import { LineChart } from '@/components/charts/LineChart';
+import { useApp } from '@/contexts/AppContext';
 
 export function StudentDetailScreen() {
   const navigate = useNavigate();
   const { studentUuid } = useParams<{ studentUuid: string }>();
+  const { teacherNotes, addTeacherNote } = useApp();
   const [note, setNote] = useState('');
-  const [notes, setNotes] = useState<string[]>([]);
+  const notes = teacherNotes[studentUuid ?? ''] ?? [];
 
   const studentItem =
     mockTeacherStudents.find(s => s.student.uuid === studentUuid) ??
@@ -24,8 +26,8 @@ export function StudentDetailScreen() {
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   const addNote = () => {
-    if (!note.trim()) return;
-    setNotes(n => [...n, note.trim()]);
+    if (!note.trim() || !studentUuid) return;
+    addTeacherNote(studentUuid, note.trim());
     setNote('');
   };
 

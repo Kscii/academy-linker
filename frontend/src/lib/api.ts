@@ -1,6 +1,6 @@
 // ============================================================
 // Academy Linker — API Client
-// All requests use credentials:'include' (HttpOnly JWT cookies)
+// All requests use Authorization: Bearer <token> (sessionStorage, per-tab)
 // Auto-refreshes access token on 401 access_token_expired
 // ============================================================
 
@@ -44,6 +44,24 @@ import type {
 
 const API_BASE = '/api';
 
+// ── Token storage (sessionStorage = per-tab isolation) ───────
+
+const AT_KEY = 'al_at';
+const RT_KEY = 'al_rt';
+
+export function getAccessToken(): string | null {
+  return sessionStorage.getItem(AT_KEY);
+}
+
+export function setTokens(accessToken: string, refreshToken?: string) {
+  sessionStorage.setItem(AT_KEY, accessToken);
+  if (refreshToken) sessionStorage.setItem(RT_KEY, refreshToken);
+}
+
+export function clearTokens() {
+  sessionStorage.removeItem(AT_KEY);
+  sessionStorage.removeItem(RT_KEY);
+}
 
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
@@ -55,11 +73,12 @@ async function apiFetch<T>(
   options: RequestInit = {},
   retry = true
 ): Promise<T> {
+  const token = getAccessToken();
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers ?? {}),
     },
   });
@@ -79,9 +98,15 @@ async function apiFetch<T>(
     if (errorBody?.error?.code === 'access_token_expired') {
       if (!isRefreshing) {
         isRefreshing = true;
-        refreshPromise = apiFetch<void>('/auth/refresh', { method: 'POST' }, false)
+        const rt = sessionStorage.getItem(RT_KEY);
+        refreshPromise = apiFetch<{ data: { access_token: string } }>(
+          '/auth/refresh',
+          { method: 'POST', body: JSON.stringify({ refresh_token: rt }) },
+          false
+        )
+          .then((r) => { setTokens(r.data.access_token); })
           .catch(() => {
-            // Refresh failed — redirect to login
+            clearTokens();
             window.location.replace('/login');
           })
           .finally(() => {
@@ -108,17 +133,32 @@ async function apiFetch<T>(
 // ── Auth ─────────────────────────────────────────────────────
 
 export const auth = {
-  login: (body: LoginRequest) =>
-    apiFetch<ApiResponse<{ user: UserSummary }>>('/auth/login', {
+  login: async (body: LoginRequest) => {
+    const res = await apiFetch<ApiResponse<{ user: UserSummary; access_token: string; refresh_token: string }>>(
+      '/auth/login',
+      { method: 'POST', body: JSON.stringify(body) }
+    );
+    setTokens(res.data.access_token, res.data.refresh_token);
+    return res;
+  },
+
+  refresh: () => {
+    const rt = sessionStorage.getItem(RT_KEY);
+    return apiFetch<{ data: { access_token: string } }>(
+      '/auth/refresh',
+      { method: 'POST', body: JSON.stringify({ refresh_token: rt }) },
+      false
+    ).then((r) => { setTokens(r.data.access_token); });
+  },
+
+  logout: () => {
+    const rt = sessionStorage.getItem(RT_KEY);
+    clearTokens();
+    return apiFetch<void>('/auth/logout', {
       method: 'POST',
-      body: JSON.stringify(body),
-    }),
-
-  refresh: () =>
-    apiFetch<void>('/auth/refresh', { method: 'POST' }),
-
-  logout: () =>
-    apiFetch<void>('/auth/logout', { method: 'POST' }),
+      body: JSON.stringify({ refresh_token: rt }),
+    }).catch(() => { /* ignore — tokens already cleared */ });
+  },
 
   getMe: () =>
     apiFetch<ApiResponse<{ user: UserSummary }>>('/me'),
@@ -158,10 +198,10 @@ export const parent = {
   markReportRead: (reportUuid: string) =>
     apiFetch<void>(`/reports/${reportUuid}/read`, { method: 'POST' }),
 
-  generateReport: (reportUuid: string, language: string) =>
+  generateReport: (reportUuid: string, language: string, teacherNotes?: string[]) =>
     apiFetch<ApiResponse<{ content_markdown: string; cached: boolean }>>(
       `/reports/${reportUuid}/generate`,
-      { method: 'POST', body: JSON.stringify({ language }) },
+      { method: 'POST', body: JSON.stringify({ language, teacher_notes: teacherNotes }) },
     ),
 
   getAnnouncements: (studentUuid: string, page = 1) =>

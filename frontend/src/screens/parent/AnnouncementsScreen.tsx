@@ -175,72 +175,118 @@ export function AnnouncementsScreen() {
               const content = post.versions[studentUuid];
               const replies = post.replies[studentUuid] ?? [];
               const isOpen = expandedTeacherPost === post.uuid;
-              const accentColor = post.subject_color ?? 'var(--a4)';
+              const ac = post.subject_color ?? 'var(--a4)';
+              const ini = (name: string) => name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
               return (
-                <div
-                  key={post.uuid}
-                  style={{ border: '1px solid var(--bd)', borderLeft: `4px solid ${accentColor}`, borderRadius: 10, background: 'var(--card)', overflow: 'hidden' }}
-                >
+                <div key={post.uuid} style={{ border: '1px solid var(--bd)', borderRadius: 12, background: 'var(--card)', overflow: 'hidden' }}>
+
+                  {/* ── Post header (always visible) ── */}
                   <div
-                    style={{ padding: '12px 16px', cursor: 'pointer' }}
+                    style={{ padding: '14px 16px', cursor: 'pointer' }}
                     onClick={() => {
                       const opening = !isOpen;
                       setExpandedTeacherPost(opening ? post.uuid : null);
                       if (opening && !readPostIds.has(post.uuid)) markPostRead(post.uuid);
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: accentColor + '18', color: accentColor }}>
-                            {post.subject_name ?? post.target_label}
-                          </span>
-                          <span style={{ fontSize: 11, color: 'var(--tx3)' }}>{timeAgo(post.created_at)}</span>
-                          {replies.length > 0 && <span style={{ fontSize: 11, color: 'var(--tx3)' }}>{replies.length} {replies.length === 1 ? 'reply' : 'replies'}</span>}
-                        </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: isOpen ? 0 : 4 }}>{post.title}</div>
-                        {!isOpen && <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.5 }}>{content.slice(0, 90)}…</div>}
-                      </div>
-                      <span style={{ fontSize: 12, color: 'var(--tx3)', flexShrink: 0 }}>{isOpen ? '▴' : '▾'}</span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: ac + '18', color: ac }}>
+                        {post.subject_name ?? post.target_label}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--tx3)' }}>posted by Ms. Thompson · {timeAgo(post.created_at)}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--tx3)' }}>
+                        💬 {replies.length} comment{replies.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)', lineHeight: 1.3 }}>{post.title}</div>
+                    {!isOpen && (
+                      <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 6, lineHeight: 1.5 }}>
+                        {content?.slice(0, 100)}…
+                      </div>
+                    )}
                   </div>
 
+                  {/* ── Expanded: body + comments ── */}
                   {isOpen && (
-                    <>
-                      <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--tx2)', lineHeight: 1.75, borderTop: '1px solid var(--bd)', paddingTop: 12 }}>
+                    <div style={{ borderTop: '1px solid var(--bd)' }}>
+
+                      {/* Post body */}
+                      <div style={{ padding: '14px 16px 16px', fontSize: 13, color: 'var(--tx)', lineHeight: 1.75, background: ac + '04' }}>
                         {content}
                       </div>
 
-                      {replies.map(r => (
-                        <div key={r.uuid} style={{ padding: '10px 16px', borderTop: '1px solid var(--bd)', background: r.role === 'teacher' ? accentColor + '08' : 'var(--bg2)', fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                            <span style={{ fontWeight: 700, color: r.role === 'teacher' ? accentColor : 'var(--tx)' }}>{r.author_name}</span>
-                            <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{timeAgo(r.sent_at)}</span>
-                          </div>
-                          {r.text}
+                      {/* Comments section */}
+                      <div style={{ borderTop: '2px solid var(--bd)', padding: '0 16px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '12px 0 10px' }}>
+                          {replies.length} Comment{replies.length !== 1 ? 's' : ''}
                         </div>
-                      ))}
 
-                      <div style={{ padding: '10px 16px', borderTop: '1px solid var(--bd)', display: 'flex', gap: 8, alignItems: 'flex-end', background: 'var(--card)' }}>
-                        <textarea
-                          className="input-field"
-                          placeholder="Reply to this post…"
-                          value={postReplyDrafts[post.uuid] ?? ''}
-                          onChange={e => setPostReplyDrafts(prev => ({ ...prev, [post.uuid]: e.target.value }))}
-                          rows={2}
-                          style={{ flex: 1, resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 44 }}
-                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTeacherPostReply(post.uuid); } }}
-                        />
-                        <button
-                          className="btn-primary"
-                          style={{ width: 'auto', padding: '8px 16px', fontSize: 13, flexShrink: 0, alignSelf: 'flex-end', opacity: !(postReplyDrafts[post.uuid] ?? '').trim() ? 0.4 : 1 }}
-                          onClick={() => handleTeacherPostReply(post.uuid)}
-                          disabled={!(postReplyDrafts[post.uuid] ?? '').trim()}
-                        >
-                          Reply
-                        </button>
+                        {/* Comment list */}
+                        {replies.map(r => {
+                          const isTeacher = r.role === 'teacher';
+                          return (
+                            <div key={r.uuid} style={{ display: 'flex', gap: 12, paddingBottom: 16 }}>
+                              <div style={{
+                                width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                                background: isTeacher ? ac + '20' : 'var(--a2)20',
+                                color: isTeacher ? ac : 'var(--a2)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 11, fontWeight: 700, marginTop: 1,
+                              }}>
+                                {ini(r.author_name)}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{r.author_name}</span>
+                                  {isTeacher && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: ac + '18', color: ac }}>
+                                      Teacher
+                                    </span>
+                                  )}
+                                  <span style={{ fontSize: 11, color: 'var(--tx3)' }}>· {timeAgo(r.sent_at)}</span>
+                                </div>
+                                <div style={{ fontSize: 13, color: 'var(--tx)', lineHeight: 1.65 }}>{r.text}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Add comment */}
+                        <div style={{ display: 'flex', gap: 12, paddingBottom: 14 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'var(--a2)20', color: 'var(--a2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+                            LW
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <textarea
+                              className="input-field"
+                              placeholder="Add a comment…"
+                              value={postReplyDrafts[post.uuid] ?? ''}
+                              onChange={e => setPostReplyDrafts(prev => ({ ...prev, [post.uuid]: e.target.value }))}
+                              rows={2}
+                              style={{ resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, borderRadius: 8, minHeight: 60 }}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTeacherPostReply(post.uuid); } }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6, gap: 8 }}>
+                              <button
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--tx3)', fontFamily: 'var(--font-body)', padding: '5px 10px' }}
+                                onClick={() => setPostReplyDrafts(prev => ({ ...prev, [post.uuid]: '' }))}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="btn-primary"
+                                style={{ width: 'auto', padding: '6px 18px', fontSize: 12, borderRadius: 20, opacity: !(postReplyDrafts[post.uuid] ?? '').trim() ? 0.4 : 1 }}
+                                onClick={() => handleTeacherPostReply(post.uuid)}
+                                disabled={!(postReplyDrafts[post.uuid] ?? '').trim()}
+                              >
+                                Comment
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               );

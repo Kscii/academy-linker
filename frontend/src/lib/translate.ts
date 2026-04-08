@@ -1,30 +1,54 @@
 // ============================================================
 // translate.ts — 内容翻译工具
-// 流程: 本地内存缓存 → 后端缓存 → DeepSeek AI 翻译
+// 流程: 本地内存缓存 → 后端缓存 → AI 翻译
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
+import { getAccessToken, setTokens, clearTokens } from './api';
+
+function authHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 // ── Auto-refresh helper ───────────────────────────────────────
-// When any API call returns 401 (expired token), silently try
-// /api/auth/refresh once, then retry the original request.
 let _refreshing: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
   if (_refreshing) return _refreshing;
+  const rt = sessionStorage.getItem('al_rt');
   _refreshing = fetch('/api/auth/refresh', {
-    method: 'POST', credentials: 'include',
-  }).then(r => r.ok).catch(() => false).finally(() => { _refreshing = null; });
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: rt }),
+  })
+    .then(async r => {
+      if (r.ok) {
+        const data = await r.json();
+        setTokens(data.data.access_token);
+        return true;
+      }
+      return false;
+    })
+    .catch(() => false)
+    .finally(() => { _refreshing = null; });
   return _refreshing;
 }
 
 export async function apiFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-  const res = await fetch(input, { credentials: 'include', ...init });
+  const res = await fetch(input, {
+    ...init,
+    headers: { ...authHeaders(), ...(init?.headers as Record<string, string> ?? {}) },
+  });
   if (res.status === 401) {
     const refreshed = await tryRefresh();
     if (refreshed) {
-      return fetch(input, { credentials: 'include', ...init });
+      return fetch(input, {
+        ...init,
+        headers: { ...authHeaders(), ...(init?.headers as Record<string, string> ?? {}) },
+      });
     }
+    clearTokens();
   }
   return res;
 }
