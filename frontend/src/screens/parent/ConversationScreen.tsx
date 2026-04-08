@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
+import { TtsButton } from '@/components/TtsButton';
 import { getSubjectColor } from '@/lib/constants';
 import type { DiscussionTeacherItem, ThreadPost } from '@/types/api';
 import { useApp } from '@/contexts/AppContext';
@@ -406,6 +407,7 @@ export function ConversationScreen() {
                           {tx?.loading ? '···' : isShowingOriginal ? t('actions.showTranslation') : (msg.translated_content_markdown || tx?.text || msg.display_language !== msg.original_language ? t('actions.showOriginal') : txTranslate)}
                         </button>
                       )}
+                      {!msg.is_deleted && <TtsButton resourceType="post" resourceUuid={msg.uuid} />}
                       {isParent && !isEditing && (
                         <>
                           <button onClick={() => startEditing(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a2)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}>

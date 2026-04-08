@@ -2,7 +2,7 @@
 // SettingsScreen — appearance, language, accessibility, AI, notifications
 // ============================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageCombobox } from '@/components/layout/LanguageCombobox';
@@ -102,7 +102,8 @@ export function SettingsScreen() {
   const [notifAnnouncements, setNotifAnnouncements] = useBoolSetting('notifAnnouncements', true);
   const [notifMessages, setNotifMessages] = useBoolSetting('notifMessages', true);
 
-  const [saved, setSaved] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
     settingsApi.get().then(res => {
@@ -113,6 +114,7 @@ export function SettingsScreen() {
       setAiEnabled(data.ai_auto_translate_enabled);
       setNotifReports(data.email_digest_enabled);
       setNotifAnnouncements(data.email_post_notification_enabled);
+      hydratedRef.current = true;
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -126,9 +128,11 @@ export function SettingsScreen() {
     }
   }, [highContrast]);
 
-  const handleSave = async () => {
-    try {
-      await settingsApi.update({
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    setSaveState('saving');
+    const timer = window.setTimeout(() => {
+      settingsApi.update({
         language,
         theme: theme === 'night' ? 'dark' : 'light',
         high_contrast_mode: highContrast,
@@ -136,13 +140,14 @@ export function SettingsScreen() {
         email_digest_enabled: notifReports,
         email_post_notification_enabled: notifAnnouncements || notifMessages,
         ai_auto_translate_enabled: aiEnabled,
+      }).then(() => {
+        setSaveState('saved');
+      }).catch(() => {
+        setSaveState('error');
       });
-    } catch {
-      // Backend offline — localStorage already saved
-    }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [aiEnabled, highContrast, language, notifAnnouncements, notifMessages, notifReports, theme, ttsEnabled]);
 
   const isNight = theme === 'night';
 
@@ -247,16 +252,10 @@ export function SettingsScreen() {
         />
       </Section>
 
-      {/* Save button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-        <button className="btn-primary" onClick={handleSave} style={{ width: 'auto', padding: '10px 28px' }}>
-          {t('saveSettings')}
-        </button>
-        {saved && (
-          <span style={{ fontSize: 13, color: 'var(--a2)', fontWeight: 700 }}>
-            ✓ {t('saved')}
-          </span>
-        )}
+      <div style={{ marginTop: 6, fontSize: 12, color: saveState === 'error' ? 'var(--warn)' : 'var(--tx3)' }}>
+        {saveState === 'saving' ? t('savingSettings') : null}
+        {saveState === 'saved' ? `✓ ${t('saved')}` : null}
+        {saveState === 'error' ? t('saveFailed') : null}
       </div>
     </div>
   );

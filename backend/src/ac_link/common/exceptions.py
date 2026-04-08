@@ -100,5 +100,13 @@ class Errors:
         return AppError(500, "ai_chat_failed", message)
 
     @staticmethod
+    def tts_not_configured(message: str = "TTS 服务未配置") -> AppError:
+        return AppError(503, "tts_not_configured", message)
+
+    @staticmethod
+    def tts_generation_failed(message: str = "语音生成失败") -> AppError:
+        return AppError(500, "tts_generation_failed", message)
+
+    @staticmethod
     def internal_error(message: str = "服务端内部错误") -> AppError:
         return AppError(500, "internal_error", message)

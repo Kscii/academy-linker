@@ -4012,6 +4012,148 @@ Admin 首页聚合统计，返回系统内各类实体的计数摘要。
 
 ---
 
+## 12B. Options 选项接口
+
+### 12B.1 Admin 选项接口（已完成）
+
+- `GET /api/admin/options/classes`
+- `GET /api/admin/options/students`
+- `GET /api/admin/options/teachers`
+- `GET /api/admin/options/subjects`
+- `GET /api/admin/options/grade-levels`
+- `GET /api/admin/options/academic-years`
+
+统一返回：
+
+```json
+{
+  "data": [
+    {
+      "value": "uuid-or-string",
+      "label": "Display Label",
+      "meta": {}
+    }
+  ]
+}
+```
+
+约定：
+
+- 所有接口用于前端可搜索下拉，不承载分页 meta。
+- `value` 为提交值，`label` 为展示文本，`meta` 为可选辅助信息。
+
+### 12B.2 Teacher 选项接口（已完成）
+
+- `GET /api/teachers/me/options/classes`
+- `GET /api/teachers/me/options/students`
+- `GET /api/teachers/me/options/subjects`
+- `GET /api/teachers/me/options/terms`
+
+约定：
+
+- 只返回当前老师有权限访问的数据。
+- `subject_uuid=null` 的 AI report / metrics 相关前端下拉，语义为“当前老师负责范围内的全部学科”。
+
+### 12B.3 Parent 选项接口（已完成）
+
+- `GET /api/parents/me/students/{student_uuid}/options/subjects`
+- `GET /api/parents/me/students/{student_uuid}/options/terms`
+
+约定：
+
+- 只返回当前家长对该学生可见的学科与周期项。
+
+---
+
+## 12C. TTS 接口
+
+### 12C.1 获取可用语音（已完成）
+
+**GET** `/api/tts/voices`
+
+Query:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `language` | string | 否 | 语言前缀筛选，如 `en` / `zh` |
+
+#### Success 200
+
+```json
+{
+  "data": [
+    { "key": "Kore", "language": "en-US", "provider": "gemini" },
+    { "key": "Aoede", "language": "zh-CN", "provider": "gemini" }
+  ]
+}
+```
+
+规则：
+
+- 服务端返回系统允许使用的 Gemini TTS 预置 voice 列表。
+- `language` 参数会按语言前缀过滤，如 `en` / `zh-CN`。
+
+### 12C.2 解析或生成朗读音频（已完成）
+
+**POST** `/api/tts/resolve`
+
+#### Request Body
+
+资源模式：
+
+```json
+{
+  "resource_type": "report",
+  "resource_uuid": "uuid",
+  "target_language": "zh"
+}
+```
+
+自由文本模式：
+
+```json
+{
+  "resource_type": "ad_hoc",
+  "text": "Custom text",
+  "target_language": "en"
+}
+```
+
+#### Success 200
+
+```json
+{
+  "data": {
+    "audio_uuid": "uuid",
+    "audio_url": "/api/tts/audio/uuid",
+    "mime_type": "audio/wav",
+    "source_language": "zh",
+    "voice_key": "Kore",
+    "provider": "gemini",
+    "cached": true
+  }
+}
+```
+
+规则：
+
+- TTS 始终优先朗读“当前目标语言文本”。
+- 若目标语言无缓存译文：
+  - `ai_auto_translate_enabled=true` 时，服务端可先自动补译文，再生成音频。
+  - `false` 时，回退朗读原文。
+- 当前 provider 为 Gemini TTS。
+- 服务端通过 `TTS_API_KEY` 调用 Gemini `generateContent` 音频能力。
+- 默认模型推荐使用 `gemini-2.5-flash-preview-tts`；若后续模型升级，通过 `TTS_MODEL` 配置切换。
+- 当前实现输出 WAV 音频，便于直接被浏览器 `<audio>` 播放。
+
+### 12C.3 获取音频流（已完成）
+
+**GET** `/api/tts/audio/{audio_uuid}`
+
+返回二进制音频流，供 `<audio>` 或前端播放器直接使用。
+
+---
+
 ## 13. 关键实现规则
 
 ### 13.1 403 与 404 的边界

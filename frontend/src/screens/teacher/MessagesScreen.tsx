@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
 import { teacher as teacherApi, posts as postsApi, translations } from '@/lib/api';
 import type { DiscussionParentItem, PostTag, TeacherStudentListItem, ThreadPost } from '@/types/api';
@@ -480,6 +481,7 @@ export function TeacherMessagesScreen() {
                             {tx?.loading ? '···' : isShowingOriginal ? t('actions.showTranslation') : ((post.translated_content_markdown || tx?.text || post.display_language !== post.original_language) ? t('actions.showOriginal') : txTranslate)}
                           </button>
                         )}
+                        {!post.is_deleted && <TtsButton resourceType="post" resourceUuid={post.uuid} />}
                         {isTeacher && !isEditing && (
                           <>
                             <button

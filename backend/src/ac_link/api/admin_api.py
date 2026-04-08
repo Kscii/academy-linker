@@ -45,7 +45,7 @@ from ac_link.crud import resource as resource_crud
 from ac_link.crud import timetable as timetable_crud
 from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
-from ac_link.db.orm.academic import Student, Subject, TeachingAssignment
+from ac_link.db.orm.academic import Class, Student, Subject, TeachingAssignment
 from ac_link.db.orm.enums import ResourceAudienceRole, TagScope, TranslationResourceType, UserRole
 from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.admin import (
@@ -75,6 +75,7 @@ from ac_link.dto.admin import (
     UserListItem,
 )
 from ac_link.dto.auth import ApiResponse
+from ac_link.dto.options import SelectOption
 from ac_link.dto.resource import (
     CreateResourceRequest,
     DeleteResourceResult,
@@ -170,6 +171,146 @@ def get_admin_overview(
 # ─────────────────────────────────────────────────────────────────────────────
 # 用户管理
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/options/classes", response_model=ApiResponse[list[SelectOption]])
+def list_class_options(
+    keyword: str | None = None,
+    is_active: bool | None = True,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    query = db.query(Class)
+    if is_active is not None:
+        query = query.filter(Class.is_active == is_active)
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.filter(Class.name.ilike(like))
+    items = query.order_by(Class.name.asc()).limit(200).all()
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(item.uuid),
+            label=item.name,
+            meta={
+                "grade_level": item.grade_level,
+                "academic_year": item.academic_year,
+            },
+        )
+        for item in items
+    ])
+
+
+@router.get("/options/students", response_model=ApiResponse[list[SelectOption]])
+def list_student_options(
+    keyword: str | None = None,
+    class_uuid: UUID | None = None,
+    is_active: bool | None = True,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    class_id: int | None = None
+    if class_uuid is not None:
+        cls_obj = admin_crud.get_class_by_uuid(db, class_uuid)
+        if cls_obj is None:
+            raise Errors.not_found("班级不存在")
+        class_id = cls_obj.id
+
+    items, _ = admin_crud.list_students(
+        db,
+        page=1,
+        page_size=200,
+        keyword=keyword,
+        class_id=class_id,
+        is_active=is_active,
+        sort="created_at_desc",
+    )
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(item.uuid),
+            label=item.full_name,
+            meta={
+                "sid": item.sid,
+                "class_uuid": str(item.class_obj.uuid) if item.class_obj else None,
+                "class_name": item.class_obj.name if item.class_obj else None,
+            },
+        )
+        for item in items
+    ])
+
+
+@router.get("/options/teachers", response_model=ApiResponse[list[SelectOption]])
+def list_teacher_options(
+    keyword: str | None = None,
+    is_active: bool | None = True,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    query = db.query(User).filter(User.role == UserRole.TEACHER)
+    if is_active is not None:
+        query = query.filter(User.is_active == is_active)
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.filter((User.display_name.ilike(like)) | (User.email.ilike(like)))
+    items = query.order_by(User.display_name.asc()).limit(200).all()
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(item.uuid),
+            label=item.display_name,
+            meta={"email": item.email},
+        )
+        for item in items
+    ])
+
+
+@router.get("/options/subjects", response_model=ApiResponse[list[SelectOption]])
+def list_subject_options(
+    keyword: str | None = None,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    query = db.query(Subject).filter(Subject.is_active == True)  # noqa: E712
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.filter((Subject.name.ilike(like)) | (Subject.code.ilike(like)))
+    items = query.order_by(Subject.name.asc()).limit(200).all()
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(item.uuid),
+            label=item.name,
+            meta={"code": item.code},
+        )
+        for item in items
+    ])
+
+
+@router.get("/options/grade-levels", response_model=ApiResponse[list[SelectOption]])
+def list_grade_level_options(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    rows = (
+        db.query(Class.grade_level)
+        .filter(Class.grade_level.isnot(None))
+        .distinct()
+        .order_by(Class.grade_level.asc())
+        .all()
+    )
+    return ApiResponse(data=[SelectOption(value=value, label=value) for (value,) in rows if value])
+
+
+@router.get("/options/academic-years", response_model=ApiResponse[list[SelectOption]])
+def list_academic_year_options(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    rows = (
+        db.query(Class.academic_year)
+        .filter(Class.academic_year.isnot(None))
+        .distinct()
+        .order_by(Class.academic_year.desc())
+        .all()
+    )
+    return ApiResponse(data=[SelectOption(value=value, label=value) for (value,) in rows if value])
 
 @router.get("/users", response_model=PaginatedResponse[UserListItem])
 def list_users(

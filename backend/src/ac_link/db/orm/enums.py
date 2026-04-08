@@ -64,6 +64,20 @@ class TranslationResourceType(StrEnum):
     RESOURCE = 'resource'
 
 
+class TtsResourceType(StrEnum):
+    REPORT = 'report'
+    ANNOUNCEMENT = 'announcement'
+    POST = 'post'
+    RESOURCE = 'resource'
+    AD_HOC = 'ad_hoc'
+
+
+class TtsProvider(StrEnum):
+    AZURE = 'azure'
+    GOOGLE = 'gcp'
+    GEMINI = 'gemini'
+
+
 class AiConversationContextType(StrEnum):
     GLOBAL = 'global'
     STUDENT = 'student'
@@ -106,6 +120,3 @@ class LearningPathwayItemStatus(StrEnum):
     COMPLETED = 'completed'
     IN_PROGRESS = 'in_progress'
     UPCOMING = 'upcoming'
-
-
-

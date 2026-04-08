@@ -23,7 +23,7 @@ os.environ.setdefault("DEBUG", "true")
 import pytest
 from starlette.testclient import TestClient
 
-from ac_link.db.db import SessionLocal
+from ac_link.db.db import SessionLocal, init_db
 from ac_link.db.orm.academic import Class, ParentStudentBinding, Student, Subject
 from ac_link.db.orm.communication import Tag
 from ac_link.db.orm.enums import TagScope, UserRole
@@ -46,6 +46,7 @@ TEST_PASSWORD = "TestPass1234"  # 满足强度：大写+小写+数字，长度>=
 @pytest.fixture(scope="session")
 def db_session():
     """直接操作数据库的 SQLAlchemy Session，用于初始化／清理测试数据。"""
+    init_db()
     session = SessionLocal()
     yield session
     session.close()
@@ -62,18 +63,6 @@ def seed(db_session):
     通过 API：teacher user、parent user、class、student、
               parent-student binding、teaching assignment、system tag
     """
-    # ── 1. 清理可能残留的上次测试数据（幂等保护） ─────────────────────────
-    for email in (ADMIN_EMAIL, TEACHER_EMAIL, PARENT_EMAIL):
-        u = db_session.query(User).filter(User.email == email).first()
-        if u:
-            # 先删 teaching_assignments，避免 ORM 尝试 SET NULL teacher_user_id 而违反 NOT NULL 约束
-            for ta in list(u.teaching_assignments):
-                db_session.delete(ta)
-            # 再删 binding，避免 ORM 尝试 SET NULL parent_user_id 而违反 NOT NULL 约束
-            for b in list(u.parent_student_bindings):
-                db_session.delete(b)
-            db_session.flush()
-            db_session.delete(u)
     # 删学生（CASCADE 会删除 teaching_assignments、reports 等依赖数据）
     old_student = db_session.query(Student).filter(Student.sid == "TST001").first()
     if old_student:
@@ -92,6 +81,16 @@ def seed(db_session):
     old_tag = db_session.query(Tag).filter(Tag.name == "test-urgent", Tag.scope == TagScope.SYSTEM).first()
     if old_tag:
         db_session.delete(old_tag)
+    # 最后再删用户，避免先删 author/owner 导致 ORM 尝试把非空外键置空
+    for email in (ADMIN_EMAIL, TEACHER_EMAIL, PARENT_EMAIL):
+        u = db_session.query(User).filter(User.email == email).first()
+        if u:
+            for ta in list(u.teaching_assignments):
+                db_session.delete(ta)
+            for b in list(u.parent_student_bindings):
+                db_session.delete(b)
+            db_session.flush()
+            db_session.delete(u)
     db_session.commit()
 
     # ── 2. 直接创建 admin user（无 API 端点可从外部创建首个 admin） ──────
