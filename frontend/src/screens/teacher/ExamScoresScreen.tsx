@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { teacher as teacherApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import type { ExamScore, PaginationMeta, TeacherClassStudentItem, TeacherStudentListItem, UpdateExamScoreRequest } from '@/types/api';
 
 type ScoreForm = {
@@ -52,6 +53,8 @@ export function TeacherExamScoresScreen() {
   const [error, setError] = useState('');
 
   const activeStudent = students.find(student => student.uuid === studentUuid) ?? null;
+  const studentOptions = students.map(student => ({ value: student.uuid, label: student.full_name, meta: { description: student.sid ?? student.class_name ?? '' } }));
+  const subjectOptions = subjects.map(subject => ({ value: subject.uuid, label: subject.name }));
 
   useEffect(() => {
     teacherApi.getStudents({ page: 1, page_size: 100, sort: 'full_name_asc' }).then(res => {
@@ -172,14 +175,8 @@ export function TeacherExamScoresScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
-            <select className="input-field" value={filterSubjectUuid} onChange={e => setFilterSubjectUuid(e.target.value)}>
-              <option value="">{t('allSubjects')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={studentOptions} placeholder={t('selectStudent')} />
+            <SearchableSelect value={filterSubjectUuid} onChange={setFilterSubjectUuid} options={subjectOptions} placeholder={t('selectSubject')} clearLabel={t('allSubjects')} />
             <input className="input-field" type="date" value={examDateFrom} onChange={e => setExamDateFrom(e.target.value)} />
             <input className="input-field" type="date" value={examDateTo} onChange={e => setExamDateTo(e.target.value)} />
           </div>
@@ -222,10 +219,7 @@ export function TeacherExamScoresScreen() {
             {form.uuid ? t('editScore') : t('createScore')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">{t('selectSubject')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
+            <SearchableSelect value={form.subject_uuid} onChange={value => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjectOptions} placeholder={t('selectSubject')} />
             <input className="input-field" placeholder={t('examName')} value={form.exam_name} onChange={e => setForm(prev => ({ ...prev, exam_name: e.target.value }))} />
             <input className="input-field" type="date" value={form.exam_date} onChange={e => setForm(prev => ({ ...prev, exam_date: e.target.value }))} />
             <input className="input-field" placeholder={t('score')} value={form.score} onChange={e => setForm(prev => ({ ...prev, score: e.target.value }))} />

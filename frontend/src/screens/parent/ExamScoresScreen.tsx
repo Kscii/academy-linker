@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { parent as parentApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import type { ExamScore, PaginationMeta, SubjectSummary } from '@/types/api';
 
 const EMPTY_META: PaginationMeta = {
@@ -25,6 +26,7 @@ export function ParentExamScoresScreen() {
   const [subjectUuid, setSubjectUuid] = useState('');
   const [examDateFrom, setExamDateFrom] = useState('');
   const [examDateTo, setExamDateTo] = useState('');
+  const subjectOptions = subjects.map(subject => ({ value: subject.uuid, label: subject.name, meta: { description: subject.code ?? '' } }));
 
   useEffect(() => {
     if (!sid) return;
@@ -56,10 +58,7 @@ export function ParentExamScoresScreen() {
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <select className="input-field" value={subjectUuid} onChange={e => { setPage(1); setSubjectUuid(e.target.value); }}>
-            <option value="">{t('parentExamScores.allSubjects')}</option>
-            {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-          </select>
+          <SearchableSelect value={subjectUuid} onChange={value => { setPage(1); setSubjectUuid(value); }} options={subjectOptions} placeholder={t('parentExamScores.allSubjects')} clearLabel={t('common.all')} />
           <input className="input-field" type="date" value={examDateFrom} onChange={e => { setPage(1); setExamDateFrom(e.target.value); }} />
           <input className="input-field" type="date" value={examDateTo} onChange={e => { setPage(1); setExamDateTo(e.target.value); }} />
         </div>
