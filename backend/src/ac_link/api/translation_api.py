@@ -164,7 +164,7 @@ def resolve_translation(
     # 执行翻译
     try:
         from ac_link.services.openai_service import translate_content
-        translated_text = translate_content(original_content, original_language, target_language)
+        translated_text = translate_content(original_content, target_language)
     except Exception:
         logger.exception("翻译失败: resource_type=%s resource_id=%d", body.resource_type, resource_id)
         raise Errors.ai_translation_failed()
