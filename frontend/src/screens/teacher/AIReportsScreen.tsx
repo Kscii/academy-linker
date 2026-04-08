@@ -5,8 +5,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { teacher as teacherApi } from '@/lib/api';
-import type { ReportDetail, ReportType, TeacherClassStudentItem, TeacherStudentListItem } from '@/types/api';
+import type { ReportDetail, ReportType, SelectOption } from '@/types/api';
 
 const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
 
@@ -30,20 +31,18 @@ export function TeacherAIReportsScreen() {
   const { t } = useTranslation('portal');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedStudentUuid = searchParams.get('student') ?? '';
-  const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
+  const [students, setStudents] = useState<SelectOption[]>([]);
   const [studentUuid, setStudentUuid] = useState(requestedStudentUuid);
-  const [subjects, setSubjects] = useState<TeacherClassStudentItem['subjects']>([]);
+  const [subjects, setSubjects] = useState<SelectOption[]>([]);
   const [form, setForm] = useState<AiForm>(EMPTY_FORM);
   const [reports, setReports] = useState<ReportDetail[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const activeStudent = students.find(student => student.uuid === studentUuid) ?? null;
-
   useEffect(() => {
-    teacherApi.getStudents({ page: 1, page_size: 100, sort: 'full_name_asc' }).then(res => {
+    teacherApi.getStudentOptions().then(res => {
       setStudents(res.data);
-      setStudentUuid(prev => prev || requestedStudentUuid || res.data[0]?.uuid || '');
+      setStudentUuid(prev => prev || requestedStudentUuid || res.data[0]?.value || '');
     }).catch(() => {});
   }, [requestedStudentUuid]);
 
@@ -54,15 +53,14 @@ export function TeacherAIReportsScreen() {
   }, [setSearchParams, studentUuid]);
 
   useEffect(() => {
-    if (!studentUuid || !activeStudent?.class_uuid) {
+    if (!studentUuid) {
       setSubjects([]);
       return;
     }
-    teacherApi.getClassStudents(activeStudent.class_uuid, { page: 1, page_size: 100 }).then(res => {
-      const student = res.data.find(item => item.uuid === studentUuid);
-      setSubjects(student?.subjects ?? []);
+    teacherApi.getSubjectOptions({ student_uuid: studentUuid }).then(res => {
+      setSubjects(res.data);
     }).catch(() => setSubjects([]));
-  }, [activeStudent?.class_uuid, studentUuid]);
+  }, [studentUuid]);
 
   const handleGenerate = async () => {
     if (!studentUuid || !form.period_start || !form.period_end) {
@@ -100,17 +98,11 @@ export function TeacherAIReportsScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <select className="input-field" value={studentUuid} onChange={e => setStudentUuid(e.target.value)}>
-              <option value="">{t('selectStudent')}</option>
-              {students.map(student => <option key={student.uuid} value={student.uuid}>{student.full_name}</option>)}
-            </select>
+            <SearchableSelect value={studentUuid} onChange={setStudentUuid} options={students} placeholder={t('selectStudent')} />
             <select className="input-field" value={form.report_type} onChange={e => setForm(prev => ({ ...prev, report_type: e.target.value as ReportType }))}>
               {REPORT_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
             </select>
-            <select className="input-field" value={form.subject_uuid} onChange={e => setForm(prev => ({ ...prev, subject_uuid: e.target.value }))}>
-              <option value="">{t('wholeStudent')}</option>
-              {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-            </select>
+            <SearchableSelect value={form.subject_uuid} onChange={(value) => setForm(prev => ({ ...prev, subject_uuid: value }))} options={subjects} placeholder={t('wholeStudent')} allowClear />
             <input className="input-field" type="date" value={form.period_start} onChange={e => setForm(prev => ({ ...prev, period_start: e.target.value }))} />
             <input className="input-field" type="date" value={form.period_end} onChange={e => setForm(prev => ({ ...prev, period_end: e.target.value }))} />
           </div>

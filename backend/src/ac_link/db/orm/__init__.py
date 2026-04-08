@@ -20,9 +20,12 @@ from ac_link.db.orm.enums import (
     TimeRange,
     TranslationResourceType,
     TranslationStatus,
+    TtsProvider,
+    TtsResourceType,
     UserRole,
 )
 from ac_link.db.orm.timetable import ClassTimetableEntry
+from ac_link.db.orm.tts import TtsAudioCache
 from ac_link.db.orm.translation import ResourceTranslation
 from ac_link.db.orm.user import User, UserSession, UserSettings
 from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
@@ -32,6 +35,8 @@ __all__ = [
     'UserRole',
     'TranslationStatus',
     'TranslationResourceType',
+    'TtsProvider',
+    'TtsResourceType',
     'ReportType',
     'ReportSourceType',
     'ResourceAudienceRole',
@@ -67,6 +72,7 @@ __all__ = [
     'Announcement',
     'AnnouncementUserState',
     'ClassTimetableEntry',
+    'TtsAudioCache',
     'Resource',
     'ResourceTranslation',
     'AiConversation',

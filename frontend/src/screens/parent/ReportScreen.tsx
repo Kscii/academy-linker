@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
 import type { PaginationMeta, Report, ReportDetail } from '@/types/api';
@@ -325,6 +326,7 @@ export function ReportScreen() {
               <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{detail ? formatDate(detail.created_at) : ''}</div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+              {detail ? <TtsButton resourceType="report" resourceUuid={detail.uuid} /> : null}
               {detail?.original_language !== language && (
                 <button
                   className="btn-secondary"

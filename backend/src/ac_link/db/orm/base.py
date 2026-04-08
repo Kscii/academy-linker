@@ -37,6 +37,8 @@ TABLE_ALIASES: dict[str, str] = {
     'resources':                     'res',
     'ai_conversations':              'aic',
     'ai_messages':                   'aim',
+    'class_timetable_entries':       'cte',
+    'tts_audio_cache':               'tts',
 }
 
 

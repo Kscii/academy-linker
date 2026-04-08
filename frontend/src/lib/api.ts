@@ -80,6 +80,8 @@ import type {
   CreateIncidentReport,
   ClassTimetableData,
   ReplaceClassTimetableRequest,
+  SelectOption,
+  TtsAudioData,
 } from '@/types/api';
 import i18n from '@/i18n';
 
@@ -346,6 +348,22 @@ export const parent = {
     );
   },
 
+  getSubjectOptions: (studentUuid: string, params: { keyword?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/parents/me/students/${studentUuid}/options/subjects${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getTermOptions: (studentUuid: string, params: { subject_uuid?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/parents/me/students/${studentUuid}/options/terms${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
   getLeaveRequests: (studentUuid: string, params: { page?: number; page_size?: number; status?: string } = {}) => {
     const q = new URLSearchParams({ page: String(params.page ?? 1) });
     if (params.page_size !== undefined) q.set('page_size', String(params.page_size));
@@ -542,6 +560,42 @@ export const teacher = {
       `/teachers/me/students/${studentUuid}/ai-reports`,
       { method: 'POST', body: JSON.stringify(body) }
     ),
+
+  getClassOptions: (params: { keyword?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/teachers/me/options/classes${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getStudentOptions: (params: { class_uuid?: string; keyword?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.class_uuid) q.set('class_uuid', params.class_uuid);
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/teachers/me/options/students${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getSubjectOptions: (params: { student_uuid?: string; class_uuid?: string; keyword?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.student_uuid) q.set('student_uuid', params.student_uuid);
+    if (params.class_uuid) q.set('class_uuid', params.class_uuid);
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/teachers/me/options/subjects${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getTermOptions: (params: { student_uuid?: string; subject_uuid?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.student_uuid) q.set('student_uuid', params.student_uuid);
+    if (params.subject_uuid) q.set('subject_uuid', params.subject_uuid);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/teachers/me/options/terms${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
 };
 
 // ── Admin ─────────────────────────────────────────────────────
@@ -698,6 +752,48 @@ export const admin = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+
+  getClassOptions: (params: { keyword?: string; is_active?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/admin/options/classes${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getStudentOptions: (params: { keyword?: string; class_uuid?: string; is_active?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.class_uuid) q.set('class_uuid', params.class_uuid);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/admin/options/students${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getTeacherOptions: (params: { keyword?: string; is_active?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    if (params.is_active !== undefined) q.set('is_active', String(params.is_active));
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/admin/options/teachers${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getSubjectOptions: (params: { keyword?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.keyword) q.set('keyword', params.keyword);
+    return apiFetch<ApiResponse<SelectOption[]>>(
+      `/admin/options/subjects${q.toString() ? `?${q.toString()}` : ''}`
+    );
+  },
+
+  getGradeLevelOptions: () =>
+    apiFetch<ApiResponse<SelectOption[]>>('/admin/options/grade-levels'),
+
+  getAcademicYearOptions: () =>
+    apiFetch<ApiResponse<SelectOption[]>>('/admin/options/academic-years'),
 };
 
 // ── Posts ─────────────────────────────────────────────────────
@@ -772,5 +868,15 @@ export const ai = {
   deleteConversation: (conversationUuid: string) =>
     apiFetch<ApiResponse<{ success: boolean }>>(`/ai/conversations/${conversationUuid}`, {
       method: 'DELETE',
+    }),
+};
+
+// ── TTS ───────────────────────────────────────────────────────
+
+export const tts = {
+  resolve: (body: { resource_type: string; resource_uuid?: string | null; text?: string | null; target_language?: string | null }) =>
+    apiFetch<ApiResponse<TtsAudioData>>('/tts/resolve', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 };

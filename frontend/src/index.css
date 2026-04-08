@@ -92,6 +92,43 @@
   --ring:                 var(--a1);
 }
 
+.high-contrast {
+  --a1: #c62828;
+  --a2: #00695c;
+  --a3: #8c6d00;
+  --a4: #0d47a1;
+  --tx: #111111;
+  --tx2: #2f2f2f;
+  --tx3: #555555;
+  --card: #ffffff;
+  --bd: rgba(0, 0, 0, 0.55);
+  --background: var(--bg);
+  --foreground: var(--tx);
+  --border: var(--bd);
+  --input: var(--bd);
+  --ring: #111111;
+}
+
+.night.high-contrast {
+  --bg: #000000;
+  --bg2: #121212;
+  --sb: #050505;
+  --a1: #ff5a5f;
+  --a2: #35f0d2;
+  --a3: #ffe45c;
+  --a4: #7bc3ff;
+  --tx: #ffffff;
+  --tx2: #f2f2f2;
+  --tx3: #d0d0d0;
+  --card: #0f0f0f;
+  --bd: rgba(255, 255, 255, 0.75);
+  --warn: #ff9a9a;
+  --foreground: var(--tx);
+  --border: var(--bd);
+  --input: var(--bd);
+  --ring: #ffffff;
+}
+
 /* ============================================================
    RESET & GLOBAL
    ============================================================ */
@@ -107,6 +144,15 @@ body {
   background: var(--bg);
   color: var(--tx);
   font-family: var(--font-body);
+}
+
+.high-contrast button:focus-visible,
+.high-contrast input:focus-visible,
+.high-contrast select:focus-visible,
+.high-contrast textarea:focus-visible,
+.high-contrast a:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* Remove the old centered narrow layout */

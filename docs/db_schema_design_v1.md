@@ -1038,4 +1038,10 @@ ai_conversations(id PK, uuid UNIQUE, user_id FK -> users.id, context_type,
 
 ai_messages(id PK, uuid UNIQUE, conversation_id FK -> ai_conversations.id,
             role, preset NULL, content_markdown, created_at, deleted_at NULL)
+
+tts_audio_cache(id PK, uuid UNIQUE, resource_type, resource_id NULL,
+                content_hash, source_text, source_language, voice_key, provider,
+                audio_mime_type, storage_path, duration_ms NULL,
+                created_at, updated_at,
+                UNIQUE(content_hash, voice_key, provider))
 ```

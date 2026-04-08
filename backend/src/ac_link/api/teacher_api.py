@@ -21,6 +21,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
 
 from ac_link.common.deps import require_teacher
 from ac_link.common.exceptions import AppError, Errors
@@ -31,6 +32,7 @@ from ac_link.crud import timetable as timetable_crud
 from ac_link.crud import teacher as teacher_crud
 from ac_link.crud import translation as translation_crud
 from ac_link.db.db import get_db
+from ac_link.db.orm.academic import Student, StudentPeriodMetric, Subject, TeachingAssignment
 from ac_link.db.orm.enums import AnnouncementCategory, ReportType, TranslationResourceType, UserRole
 from ac_link.db.orm.user import User, UserSettings
 from ac_link.dto.admin import PaginatedResponse, PaginationMeta
@@ -46,6 +48,7 @@ from ac_link.dto.discussion import (
     build_post_item,
 )
 from ac_link.dto.parent import AuthorBrief, StudentBrief, SubjectBrief, SummaryCards
+from ac_link.dto.options import SelectOption
 from ac_link.dto.teacher import (
     AiReportGenerateRequest,
     AnnouncementCreate,
@@ -148,7 +151,150 @@ def get_teacher_overview(
             )
             for cls, is_homeroom, student_count in result["classes"]
         ],
-    ))
+    )) 
+
+
+@router.get("/options/classes", response_model=ApiResponse[list[SelectOption]])
+def list_class_options(
+    keyword: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    rows = teacher_crud.list_teacher_classes(db, current_user.id)
+    data = []
+    for cls, _, student_count in rows:
+        if keyword and keyword.lower() not in cls.name.lower():
+            continue
+        data.append(
+            SelectOption(
+                value=str(cls.uuid),
+                label=cls.name,
+                meta={
+                    "grade_level": cls.grade_level,
+                    "academic_year": cls.academic_year,
+                    "student_count": str(student_count),
+                },
+            )
+        )
+    return ApiResponse(data=data)
+
+
+@router.get("/options/students", response_model=ApiResponse[list[SelectOption]])
+def list_student_options(
+    class_uuid: UUID | None = None,
+    keyword: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    class_id: int | None = None
+    if class_uuid is not None:
+        cls = teacher_crud.get_class_for_teacher(db, current_user.id, class_uuid)
+        if cls is None:
+            raise Errors.not_found("班级不存在或无访问权")
+        class_id = cls.id
+    rows, _ = teacher_crud.list_teacher_students(
+        db,
+        current_user.id,
+        page=1,
+        page_size=200,
+        class_id=class_id,
+        subject_id=None,
+        keyword=keyword,
+        sort="full_name_asc",
+    )
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(student.uuid),
+            label=student.full_name,
+            meta={
+                "sid": student.sid,
+                "class_uuid": str(student.class_obj.uuid) if student.class_obj else None,
+                "class_name": student.class_obj.name if student.class_obj else None,
+            },
+        )
+        for student, _ in rows
+    ])
+
+
+@router.get("/options/subjects", response_model=ApiResponse[list[SelectOption]])
+def list_subject_options(
+    student_uuid: UUID | None = None,
+    class_uuid: UUID | None = None,
+    keyword: str | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    query = db.query(Subject).join(TeachingAssignment, TeachingAssignment.subject_id == Subject.id)
+    if student_uuid is not None:
+        student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+        if student is None:
+            raise Errors.not_found("学生不存在或无权访问")
+        query = query.filter(TeachingAssignment.student_id == student.id)
+    elif class_uuid is not None:
+        cls = teacher_crud.get_class_for_teacher(db, current_user.id, class_uuid)
+        if cls is None:
+            raise Errors.not_found("班级不存在或无访问权")
+        query = query.join(Student, Student.id == TeachingAssignment.student_id).filter(
+            Student.class_id == cls.id,
+            Student.is_active == True,  # noqa: E712
+        )
+    query = query.filter(
+        TeachingAssignment.teacher_user_id == current_user.id,
+        TeachingAssignment.is_active == True,  # noqa: E712
+        Subject.is_active == True,  # noqa: E712
+    )
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.filter((Subject.name.ilike(like)) | (Subject.code.ilike(like)))
+    subjects = query.distinct().order_by(Subject.name.asc()).limit(200).all()
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(item.uuid),
+            label=item.name,
+            meta={"code": item.code},
+        )
+        for item in subjects
+    ])
+
+
+@router.get("/options/terms", response_model=ApiResponse[list[SelectOption]])
+def list_term_options(
+    student_uuid: UUID | None = None,
+    subject_uuid: UUID | None = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    student_id: int | None = None
+    if student_uuid is not None:
+        student = teacher_crud.get_student_for_teacher(db, current_user.id, student_uuid)
+        if student is None:
+            raise Errors.not_found("学生不存在或无权访问")
+        student_id = student.id
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        subject = teacher_crud.get_subject_by_uuid(db, subject_uuid)
+        if subject is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subject.id
+    query = (
+        db.query(StudentPeriodMetric.term)
+        .join(
+            TeachingAssignment,
+            (TeachingAssignment.student_id == StudentPeriodMetric.student_id)
+            & (TeachingAssignment.subject_id == StudentPeriodMetric.subject_id),
+        )
+        .filter(
+            TeachingAssignment.teacher_user_id == current_user.id,
+            TeachingAssignment.is_active == True,  # noqa: E712
+            StudentPeriodMetric.term.isnot(None),
+        )
+    )
+    if student_id is not None:
+        query = query.filter(StudentPeriodMetric.student_id == student_id)
+    if subject_id is not None:
+        query = query.filter(StudentPeriodMetric.subject_id == subject_id)
+    rows = query.distinct().order_by(StudentPeriodMetric.term.desc()).all()
+    return ApiResponse(data=[SelectOption(value=value, label=value) for (value,) in rows if value])
 
 
 # ── 翻译辅助 ──────────────────────────────────────────────────────────────────

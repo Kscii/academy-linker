@@ -5,8 +5,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { SearchableSelect } from '@/components/forms/SearchableSelect';
 import { parent as parentApi } from '@/lib/api';
-import type { ExamScore, PaginationMeta, SubjectSummary } from '@/types/api';
+import type { ExamScore, PaginationMeta, SelectOption } from '@/types/api';
 
 const EMPTY_META: PaginationMeta = {
   page: 1,
@@ -18,7 +19,7 @@ const EMPTY_META: PaginationMeta = {
 export function ParentExamScoresScreen() {
   const { t } = useTranslation('app');
   const { sid } = useParams<{ sid: string }>();
-  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
+  const [subjects, setSubjects] = useState<SelectOption[]>([]);
   const [scores, setScores] = useState<ExamScore[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
   const [page, setPage] = useState(1);
@@ -28,7 +29,7 @@ export function ParentExamScoresScreen() {
 
   useEffect(() => {
     if (!sid) return;
-    parentApi.getSubjects(sid).then(res => {
+    parentApi.getSubjectOptions(sid).then(res => {
       setSubjects(res.data);
     }).catch(() => {});
   }, [sid]);
@@ -56,10 +57,7 @@ export function ParentExamScoresScreen() {
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <select className="input-field" value={subjectUuid} onChange={e => { setPage(1); setSubjectUuid(e.target.value); }}>
-            <option value="">{t('parentExamScores.allSubjects')}</option>
-            {subjects.map(subject => <option key={subject.uuid} value={subject.uuid}>{subject.name}</option>)}
-          </select>
+          <SearchableSelect value={subjectUuid} onChange={(value) => { setPage(1); setSubjectUuid(value); }} options={subjects} placeholder={t('parentExamScores.allSubjects')} allowClear />
           <input className="input-field" type="date" value={examDateFrom} onChange={e => { setPage(1); setExamDateFrom(e.target.value); }} />
           <input className="input-field" type="date" value={examDateTo} onChange={e => { setPage(1); setExamDateTo(e.target.value); }} />
         </div>
