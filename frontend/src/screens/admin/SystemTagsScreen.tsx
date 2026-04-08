@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { SystemTag } from '@/types/api';
 
 type TagForm = {
@@ -86,8 +86,7 @@ export function AdminSystemTagsScreen() {
       setShowForm(false);
       await loadTags();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('failedSaveSystemTag'));
+      setError(getApiErrorMessage(e, t('failedSaveSystemTag')));
     } finally {
       setSaving(false);
     }

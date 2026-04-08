@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { AdminUser, AdminStudent, CreateUserRequest, PaginationMeta, ParentStudentBinding } from '@/types/api';
 
 type ParentRow = AdminUser & { phone_number: string | null };
@@ -99,8 +99,7 @@ export function AdminParentsScreen() {
       setShowForm(false);
       await loadParents();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('adminParents.createFailed'));
+      setError(getApiErrorMessage(e, t('adminParents.createFailed')));
     } finally {
       setSaving(false);
     }

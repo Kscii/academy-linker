@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
-import { admin as adminApi } from '@/lib/api';
+import { admin as adminApi, getApiErrorMessage } from '@/lib/api';
 import type { AdminClass, AdminStudent, CreateClassRequest, PaginationMeta, SelectOption, UpdateClassRequest } from '@/types/api';
 
 type ClassForm = {
@@ -133,8 +133,7 @@ export function AdminClassesScreen() {
       setShowForm(false);
       await loadData();
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('adminClasses.saveFailed'));
+      setError(getApiErrorMessage(e, t('adminClasses.saveFailed')));
     } finally {
       setSaving(false);
     }

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '@/components/forms/SearchableSelect';
-import { teacher as teacherApi } from '@/lib/api';
+import { teacher as teacherApi, getApiErrorMessage } from '@/lib/api';
 import type { TeacherReportDetail, ReportType, SelectOption } from '@/types/api';
 
 const REPORT_TYPES: ReportType[] = ['weekly', 'monthly', 'custom'];
@@ -79,8 +79,7 @@ export function TeacherAIReportsScreen() {
       });
       setReports(prev => [res.data, ...prev.filter(item => item.uuid !== res.data.uuid)]);
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message;
-      setError(msg ?? t('failedGenerateAiReport'));
+      setError(getApiErrorMessage(e, t('failedGenerateAiReport')));
     } finally {
       setSaving(false);
     }
