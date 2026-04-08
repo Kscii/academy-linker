@@ -46,8 +46,15 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str | None = None      # 留空则使用 OpenAI 官方地址
     llm_model: str = "gpt-4o"
-    llm_temperature: float = 0.3
-    llm_max_tokens: int = 2048
+    # 翻译：高准确度，低创意性
+    llm_translate_temperature: float = 0.1
+    llm_translate_max_tokens: int = 4096
+    # 报告生成：结构稳定，章节内容较长
+    llm_report_temperature: float = 0.3
+    llm_report_max_tokens: int = 4096
+    # 对话：自然流畅的会话感
+    llm_chat_temperature: float = 0.6
+    llm_chat_max_tokens: int = 2048
 
     # ── TTS（Gemini Text-to-Speech）──────────────────────────────
     tts_provider: str = "gemini"

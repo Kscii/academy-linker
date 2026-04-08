@@ -116,9 +116,8 @@ class TestTtsResolve:
 
         seen: dict[str, str] = {}
 
-        def fake_translate(content: str, source_language: str, target_language: str) -> str:
+        def fake_translate(content: str, target_language: str) -> str:
             assert content == unique_content
-            assert source_language == "en-AU"
             assert target_language == "zh-CN"
             return translated_content
 
