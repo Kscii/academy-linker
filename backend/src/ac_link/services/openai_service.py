@@ -32,6 +32,13 @@ def _get_client() -> OpenAI:
     return _client
 
 
+# ── 平台基础身份 ──────────────────────────────────────────────────────────────
+
+_PLATFORM_BASE_PROMPT = """\
+你所在的平台是 Academy Linker，一个连接教师与家长的教育管理系统。
+教师可以记录学生成绩与周期指标、撰写报告；家长可以了解孩子的学习情况。
+"""
+
 # ── 翻译 ──────────────────────────────────────────────────────────────────────
 
 _TRANSLATE_SYSTEM_PROMPT = """\
@@ -48,11 +55,10 @@ _TRANSLATE_SYSTEM_PROMPT = """\
 
 def translate_content(
     original_text: str,
-    source_language: str,
     target_language: str,
 ) -> str:
     """
-    将原文翻译为目标语言。
+    将原文翻译为目标语言（自动识别原文语言）。
 
     Raises:
         Exception: OpenAI API 调用失败
@@ -60,14 +66,14 @@ def translate_content(
     client = _get_client()
     resp = client.chat.completions.create(
         model=settings.llm_model,
-        temperature=settings.llm_temperature,
-        max_completion_tokens=settings.llm_max_tokens,
+        temperature=settings.llm_translate_temperature,
+        max_completion_tokens=settings.llm_translate_max_tokens,
         messages=[
             {"role": "system", "content": _TRANSLATE_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": (
-                    f"请将以下内容从 {source_language} 翻译为 {target_language}：\n\n"
+                    f"请将以下内容翻译为 {target_language}（自动识别原文语言）：\n\n"
                     f"{original_text}"
                 ),
             },
@@ -83,19 +89,22 @@ _REPORT_SYSTEM_PROMPT = """\
 
 报告撰写要求：
 1. 使用 {language} 撰写，语气专业但温暖，适合教育场景
-2. 使用 Markdown 格式组织内容，包含清晰的标题层级
-3. 报告应包含以下方面（如有相关数据）：
-   - 学习表现概况
-   - 各学科具体评价（含成绩趋势分析）
-   - 行为与课堂参与度评价
-   - 作业完成情况
-   - 出勤记录
-   - 优势与亮点
-   - 需要改进的方面
-   - 具体、可操作的建议
-4. 基于数据说话，不要编造数据中没有的信息
+2. 使用 Markdown 格式，严格按照以下章节顺序输出，不增减章节：
+
+## 学习表现概况
+## 各科目评价
+## 行为与课堂参与度
+## 作业完成情况
+## 出勤记录
+## 优势与亮点
+## 需要改进的方面
+## 建议
+
+3. 如某章节暂无对应数据，写"本期暂无相关数据"
+4. 基于数据说话，不要编造数据中没有的信息；引用具体数据时请注明日期和数值
 5. 保持客观公正，同时关注学生的进步和潜力
-6. 如果提供了老师的额外说明，请将其融入报告中
+6. 各科目评价中需包含成绩趋势分析（上升/下降/稳定）
+7. 如果提供了老师的额外说明，请将其融入报告中
 """
 
 
@@ -125,21 +134,29 @@ def generate_ai_report(
     if subject_name:
         context_parts.append(f"学科: {subject_name}")
 
-    context_parts.append(f"\n考试成绩记录:\n{exam_scores_text or '暂无数据'}")
-    context_parts.append(f"\n周期指标记录:\n{period_metrics_text or '暂无数据'}")
-    context_parts.append(f"\n近期教师报告:\n{teacher_reports_text or '暂无数据'}")
+    context_parts.append(
+        f"\n<exam_scores>\n{exam_scores_text or '暂无数据'}\n</exam_scores>"
+    )
+    context_parts.append(
+        f"\n<period_metrics>\n{period_metrics_text or '暂无数据'}\n</period_metrics>"
+    )
+    context_parts.append(
+        f"\n<teacher_notes>\n{teacher_reports_text or '暂无数据'}\n</teacher_notes>"
+    )
 
     if extra_instruction:
         safe_instruction = extra_instruction[:_EXTRA_INSTRUCTION_MAX_LEN]
-        context_parts.append(f"\n老师额外说明:\n{safe_instruction}")
+        context_parts.append(
+            f"\n<extra_instruction>\n{safe_instruction}\n</extra_instruction>"
+        )
 
     user_message = "\n".join(context_parts)
 
     client = _get_client()
     resp = client.chat.completions.create(
         model=settings.llm_model,
-        temperature=settings.llm_temperature,
-        max_completion_tokens=settings.llm_max_tokens,
+        temperature=settings.llm_report_temperature,
+        max_completion_tokens=settings.llm_report_max_tokens,
         messages=[
             {"role": "system", "content": _REPORT_SYSTEM_PROMPT.format(language=language)},
             {"role": "user", "content": f"请根据以下学生数据生成报告：\n\n{user_message}"},
@@ -151,11 +168,12 @@ def generate_ai_report(
 # ── AI 对话 ───────────────────────────────────────────────────────────────────
 
 _CHAT_SYSTEM_PROMPT_PARENT = """\
+{base}
 你是一名智能教育助手，正在与一位学生家长对话。
 
 对话要求：
 1. 以友好、专业、易于理解的方式回应家长的问题
-2. 如果提供了学生/学科的上下文信息，请结合这些信息回答
+2. 如果提供了学生/学科的上下文信息，请结合这些信息回答，并引用具体数据（如"根据 X 月 X 日的考试成绩..."）
 3. 给出的建议应当具体、可操作、适合家庭教育场景
 4. 避免使用过于专业的教育术语，用家长能理解的语言解释
 5. 如果不确定某些信息，坦诚说明，不要编造
@@ -163,11 +181,12 @@ _CHAT_SYSTEM_PROMPT_PARENT = """\
 """
 
 _CHAT_SYSTEM_PROMPT_TEACHER = """\
+{base}
 你是一名智能教育助手，正在与一位老师对话。
 
 对话要求：
 1. 以专业、高效的方式回应老师的问题
-2. 如果提供了学生/学科的上下文信息，请结合这些信息分析
+2. 如果提供了学生/学科的上下文信息，请结合这些信息分析，并引用具体数据（如"根据 X 月 X 日的考试成绩..."）
 3. 可以使用教育领域的专业术语
 4. 给出的建议应当具有专业深度和可操作性
 5. 帮助老师更好地理解学生表现、优化教学策略
@@ -209,9 +228,13 @@ def ai_chat(
         Exception: OpenAI API 调用失败
     """
     if role == "teacher":
-        system_prompt = _CHAT_SYSTEM_PROMPT_TEACHER.format(language=language)
+        system_prompt = _CHAT_SYSTEM_PROMPT_TEACHER.format(
+            base=_PLATFORM_BASE_PROMPT, language=language
+        )
     else:
-        system_prompt = _CHAT_SYSTEM_PROMPT_PARENT.format(language=language)
+        system_prompt = _CHAT_SYSTEM_PROMPT_PARENT.format(
+            base=_PLATFORM_BASE_PROMPT, language=language
+        )
 
     if context_info:
         system_prompt += f"\n\n当前对话上下文信息：\n{context_info}"
@@ -232,8 +255,8 @@ def ai_chat(
     client = _get_client()
     resp = client.chat.completions.create(
         model=settings.llm_model,
-        temperature=settings.llm_temperature,
-        max_completion_tokens=settings.llm_max_tokens,
+        temperature=settings.llm_chat_temperature,
+        max_completion_tokens=settings.llm_chat_max_tokens,
         messages=api_messages,  # type: ignore[arg-type]
     )
     return resp.choices[0].message.content or ""
