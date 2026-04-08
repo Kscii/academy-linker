@@ -37,6 +37,28 @@ function toDisplayMessage(message: AiMessage): DisplayMessage {
   };
 }
 
+function buildOptimisticConversation(
+  uuid: string,
+  contextType: AiContextType,
+  text: string,
+  studentUuid?: string,
+  subjectUuid?: string,
+): AiConversation {
+  const now = new Date().toISOString();
+  const title = text.trim().slice(0, 60) || null;
+  return {
+    uuid,
+    title,
+    context_type: contextType,
+    student_uuid: studentUuid || null,
+    subject_uuid: subjectUuid || null,
+    is_archived: false,
+    last_message_at: now,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
 function parseInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
@@ -265,12 +287,13 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   useEffect(() => {
     if (!conversationUuid || conversationUuid === PLACEHOLDER_UUID) return;
     const existsInCurrentFilter = conversations.some((conversation) => conversation.uuid === conversationUuid);
+    if (thinking || messages.length > 0) return;
     if (!existsInCurrentFilter && currentArchived === showArchived) {
       setConversationUuid(PLACEHOLDER_UUID);
       setCurrentArchived(false);
       setMessages([]);
     }
-  }, [conversationUuid, conversations, currentArchived, showArchived]);
+  }, [conversationUuid, conversations, currentArchived, messages.length, showArchived, thinking]);
 
   useEffect(() => {
     if (!open || !messagesEndRef.current) return;
@@ -320,6 +343,10 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
 
     try {
       const uuid = await ensureConversation();
+      setConversations(prev => {
+        if (prev.some((conversation) => conversation.uuid === uuid)) return prev;
+        return [buildOptimisticConversation(uuid, contextType, text, studentUuid, subjectUuid), ...prev];
+      });
       void loadHistory();
       const res = await ai.sendMessage(uuid, { message: text, preset: 'default' });
       setConversationUuid(res.data.conversation_uuid);
@@ -330,7 +357,7 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
     } finally {
       setThinking(false);
     }
-  }, [currentArchived, ensureConversation, loadHistory, t, thinking]);
+  }, [contextType, currentArchived, ensureConversation, loadHistory, studentUuid, subjectUuid, t, thinking]);
 
   const handleArchiveToggle = useCallback(async () => {
     if (!conversationUuid) return;
