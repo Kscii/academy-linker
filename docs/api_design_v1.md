@@ -4083,6 +4083,47 @@ v1 推荐：**懒创建**
 - `subject` 会话必须同时绑定 `student_uuid + subject_uuid`
 - AI 会话独立于 discussion thread，不复用 `thread / post` 表结构
 
+### 13.9 选项接口（Searchable Select）
+
+为支持前端搜索下拉，允许提供轻量级 `options` 接口。该类接口只返回可选项，不返回完整资源详情。
+
+统一响应结构：
+
+```json
+{
+  "data": [
+    {
+      "value": "string",
+      "label": "string",
+      "meta": {}
+    }
+  ]
+}
+```
+
+当前 v1 已实现以下接口：
+
+- `GET /api/admin/options/subjects`
+  - Query:
+    - `keyword?: string`
+  - 语义：
+    - 返回启用中的学科选项，供 admin 侧教学分配等表单使用
+
+- `GET /api/teachers/me/options/terms`
+  - Query:
+    - `student_uuid: uuid` 必填
+    - `subject_uuid?: uuid`
+  - 语义：
+    - 返回当前教师对该学生可见的 `student_period_metrics.term` 去重结果
+    - 若提供 `subject_uuid`，则仅返回该学科下的 term
+
+- `GET /api/parents/me/students/{student_uuid}/options/terms`
+  - Query:
+    - `subject_uuid?: uuid`
+  - 语义：
+    - 返回家长对该学生可见的 `student_period_metrics.term` 去重结果
+    - 若提供 `subject_uuid`，则仅返回该学科下的 term
+
 ---
 
 ## 14. 实现差异备注（截至 2026-04）
