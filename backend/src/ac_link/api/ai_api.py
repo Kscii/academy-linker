@@ -129,7 +129,7 @@ def _build_context_info(
     db: Session,
     conv: object,
 ) -> str | None:
-    """根据会话上下文类型组装上下文信息文本。"""
+    """根据会话上下文类型组装上下文信息文本，包含近期学业数据摘要。"""
     from ac_link.db.orm.ai import AiConversation as ConvORM
     c: ConvORM = conv  # type: ignore[assignment]
 
@@ -145,8 +145,41 @@ def _build_context_info(
         if cls:
             parts.append(f"班级: {cls.name}")
 
+    subject_id: int | None = None
     if c.subject:
         parts.append(f"学科: {c.subject.name}")
+        subject_id = c.subject.id
+
+    # 注入近期学业数据，让 AI 能基于真实数据回答
+    if c.student:
+        from ac_link.crud import score as score_crud
+        from ac_link.crud import metrics as metrics_crud
+
+        recent_scores, _ = score_crud.list_exam_scores(
+            db, c.student.id, subject_id=subject_id, page=1, page_size=3,
+        )
+        if recent_scores:
+            score_lines = []
+            for s in recent_scores:
+                subj = s.subject.name if s.subject else "N/A"
+                score_lines.append(
+                    f"  - {s.exam_date} | {subj} | {s.exam_name or 'N/A'} | "
+                    f"得分: {s.score}/{s.full_score}"
+                )
+            parts.append("近期考试成绩（最新3条）:\n" + "\n".join(score_lines))
+
+        recent_metrics = metrics_crud.list_period_metrics(
+            db, c.student.id, subject_id=subject_id,
+        )[:3]
+        if recent_metrics:
+            metric_lines = []
+            for m in recent_metrics:
+                subj = m.subject.name if m.subject else "N/A"
+                metric_lines.append(
+                    f"  - {m.snapshot_date} | {subj} | 进度: {m.progress} | "
+                    f"作业完成率: {m.assignment_completion_rate} | 出勤率: {m.attendance_rate}"
+                )
+            parts.append("近期周期指标（最新3条）:\n" + "\n".join(metric_lines))
 
     return "\n".join(parts) if parts else None
 
@@ -399,23 +432,18 @@ def send_message(
         if m.role in (AiMessageRole.USER, AiMessageRole.ASSISTANT):
             history.append({"role": str(m.role), "content": m.content_markdown})
 
-    # 确定输出语言
-    _settings = db.query(UserSettings).filter(
-        UserSettings.user_id == current_user.id
-    ).first()
-    language = get_target_language(
-        _settings.language if _settings else None,
-        request.headers.get("accept-language"),
-    )
-
-    # 组装上下文信息
-    context_info = _build_context_info(db, conv)
-
-    # 获取用户 ai_chat_style
+    # 确定输出语言 & 获取用户偏好（合并为一次查询）
     user_settings = db.query(UserSettings).filter(
         UserSettings.user_id == current_user.id
     ).first()
+    language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
     ai_chat_style = user_settings.ai_chat_style if user_settings else None
+
+    # 组装上下文信息
+    context_info = _build_context_info(db, conv)
 
     # 调用 OpenAI
     try:

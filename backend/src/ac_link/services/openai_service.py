@@ -82,7 +82,7 @@ _REPORT_SYSTEM_PROMPT = """\
 你是一名经验丰富的教育专家和报告撰写助手。你的任务是根据提供的学生数据，生成一份专业、全面且有建设性的学生报告。
 
 报告撰写要求：
-1. 使用 English 撰写，语气专业但温暖，适合教育场景
+1. 使用 {language} 撰写，语气专业但温暖，适合教育场景
 2. 使用 Markdown 格式组织内容，包含清晰的标题层级
 3. 报告应包含以下方面（如有相关数据）：
    - 学习表现概况
@@ -109,6 +109,7 @@ def generate_ai_report(
     period_metrics_text: str,
     teacher_reports_text: str,
     extra_instruction: str | None = None,
+    language: str = "中文",
 ) -> str:
     """
     根据聚合的学生数据生成 AI 报告。
@@ -129,7 +130,8 @@ def generate_ai_report(
     context_parts.append(f"\n近期教师报告:\n{teacher_reports_text or '暂无数据'}")
 
     if extra_instruction:
-        context_parts.append(f"\n老师额外说明:\n{extra_instruction}")
+        safe_instruction = extra_instruction[:_EXTRA_INSTRUCTION_MAX_LEN]
+        context_parts.append(f"\n老师额外说明:\n{safe_instruction}")
 
     user_message = "\n".join(context_parts)
 
@@ -139,7 +141,7 @@ def generate_ai_report(
         temperature=settings.llm_temperature,
         max_completion_tokens=settings.llm_max_tokens,
         messages=[
-            {"role": "system", "content": _REPORT_SYSTEM_PROMPT},
+            {"role": "system", "content": _REPORT_SYSTEM_PROMPT.format(language=language)},
             {"role": "user", "content": f"请根据以下学生数据生成报告：\n\n{user_message}"},
         ],
     )
@@ -172,6 +174,9 @@ _CHAT_SYSTEM_PROMPT_TEACHER = """\
 6. 如果不确定某些信息，坦诚说明，不要编造
 7. 回答使用 {language} 语言
 """
+
+_AI_CHAT_STYLE_MAX_LEN = 200
+_EXTRA_INSTRUCTION_MAX_LEN = 500
 
 _PRESET_INSTRUCTIONS = {
     "default": "",
@@ -216,7 +221,8 @@ def ai_chat(
         system_prompt += f"\n\n风格要求：{preset_instruction}"
 
     if ai_chat_style:
-        system_prompt += f"\n\n用户偏好的对话风格：{ai_chat_style}"
+        safe_style = ai_chat_style[:_AI_CHAT_STYLE_MAX_LEN]
+        system_prompt += f"\n\n用户偏好的对话风格：{safe_style}"
 
     api_messages: list[dict[str, str]] = [
         {"role": "system", "content": system_prompt},

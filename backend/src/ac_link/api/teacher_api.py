@@ -1340,6 +1340,7 @@ def upsert_student_period_metric(
 def generate_ai_report(
     student_uuid: UUID,
     body: AiReportGenerateRequest,
+    request: Request,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> ApiResponse[TeacherReportDetail]:
@@ -1356,6 +1357,10 @@ def generate_ai_report(
     if student is None:
         raise Errors.not_found("学生不存在或无权访问")
 
+    # 校验 extra_instruction 长度
+    if body.extra_instruction and len(body.extra_instruction) > 500:
+        raise AppError(422, "validation_error", "extra_instruction 不能超过 500 个字符")
+
     # 解析 period_start / period_end
     from datetime import date as _date
     try:
@@ -1363,6 +1368,15 @@ def generate_ai_report(
         period_end = _date.fromisoformat(body.period_end)
     except ValueError:
         raise AppError(422, "validation_error", "period_start/period_end 格式应为 YYYY-MM-DD")
+
+    # 确定报告输出语言
+    user_settings = db.query(UserSettings).filter(
+        UserSettings.user_id == current_user.id
+    ).first()
+    report_language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
 
     # 解析 subject_uuid
     subject_id: int | None = None
@@ -1396,9 +1410,11 @@ def generate_ai_report(
     from ac_link.db.orm.content import Report as ReportORM
     from ac_link.db.orm.enums import ReportSourceType as RST
 
-    # exam_scores
+    # exam_scores（只取报告周期内的数据，最多 20 条）
     exam_scores, _ = score_crud.list_exam_scores(
-        db, student.id, subject_id=subject_id, page=1, page_size=20,
+        db, student.id, subject_id=subject_id,
+        date_from=period_start, date_to=period_end,
+        page=1, page_size=20,
     )
     if body.subject_uuid is None:
         exam_scores = [score for score in exam_scores if score.subject_id in assigned_subject_ids]
@@ -1414,8 +1430,11 @@ def generate_ai_report(
     else:
         exam_scores_text = ""
 
-    # period_metrics（最近3条）
-    metrics = metrics_crud.list_period_metrics(db, student.id, subject_id=subject_id)
+    # period_metrics（报告周期内最近3条）
+    metrics = metrics_crud.list_period_metrics(
+        db, student.id, subject_id=subject_id,
+        date_from=period_start, date_to=period_end,
+    )
     if body.subject_uuid is None:
         metrics = [metric for metric in metrics if metric.subject_id in assigned_subject_ids]
     recent_metrics = metrics[:3]
@@ -1472,6 +1491,7 @@ def generate_ai_report(
             period_metrics_text=period_metrics_text,
             teacher_reports_text=teacher_reports_text,
             extra_instruction=body.extra_instruction,
+            language=report_language,
         )
     except Exception:
         _logger.exception("AI 报告生成失败: student=%s", student_uuid)
