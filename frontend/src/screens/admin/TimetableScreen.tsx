@@ -181,7 +181,7 @@ export function AdminTimetableScreen() {
 
       <div>
         {weekdayEntries ? (
-          <WeeklyTimetable entries={weekdayEntries} />
+          <WeeklyTimetable entries={weekdayEntries} emptyText={t('adminTimetable.empty')} />
         ) : (
           <div className="card" style={{ fontSize: 13, color: 'var(--tx3)', textAlign: 'center', padding: '40px 0' }}>
             {t('adminTimetable.selectClassHint')}
