@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { getSubjectColor } from '@/lib/constants';
 import { parent as parentApi } from '@/lib/api';
-import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, SubjectSummary, ClassTimetableEntry } from '@/types/api';
+import type { DashboardResponse, Announcement, LeaveRequest, LeaveRequestType, IncidentType, ClassTimetableEntry } from '@/types/api';
 import { LineChart } from '@/components/charts/LineChart';
 
 function formatShortDate(dateStr: string): string {
@@ -103,8 +103,8 @@ export function DashboardScreen() {
   const { user } = useApp();
   const { t } = useTranslation(['dashboard', 'app']);
 
+  const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
-  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
   const [studentName, setStudentName] = useState('');
   const [studentBirthday, setStudentBirthday] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -122,24 +122,24 @@ export function DashboardScreen() {
 
   useEffect(() => {
     if (!sid) return;
-    parentApi.getDashboard(sid).then(res => {
-      setDashboard(res.data);
-      const s = res.data.student;
-      if (s) setStudentName(s.preferred_name ?? s.full_name);
-      if (res.data.student?.date_of_birth) setStudentBirthday(res.data.student.date_of_birth);
-    }).catch(() => {});
-    parentApi.getSubjects(sid).then(res => {
-      setSubjects(res.data);
-    }).catch(() => {});
-    parentApi.getAnnouncements(sid).then(res => {
-      setAnnouncements(res.data.slice(0, 4));
-    }).catch(() => {});
-    parentApi.getTimetable(sid).then(res => {
-      setTimetableEntries(res.data.entries.slice(0, 5));
-    }).catch(() => {});
-    parentApi.getLeaveRequests(sid).then(res => {
-      setLeaveRequests(res.data.slice(0, 3));
-    }).catch(() => {});
+    setLoading(true);
+    Promise.allSettled([
+      parentApi.getDashboard(sid).then(res => {
+        setDashboard(res.data);
+        const s = res.data.student;
+        if (s) setStudentName(s.preferred_name ?? s.full_name);
+        if (res.data.student?.date_of_birth) setStudentBirthday(res.data.student.date_of_birth);
+      }),
+      parentApi.getAnnouncements(sid).then(res => {
+        setAnnouncements(res.data.slice(0, 4));
+      }),
+      parentApi.getTimetable(sid).then(res => {
+        setTimetableEntries(res.data.entries.slice(0, 5));
+      }),
+      parentApi.getLeaveRequests(sid).then(res => {
+        setLeaveRequests(res.data.slice(0, 3));
+      }),
+    ]).then(() => setLoading(false));
   }, [sid]);
 
   async function submitIncident() {
@@ -242,16 +242,74 @@ export function DashboardScreen() {
     pending: txPending, approved: txApproved, rejected: txRejected,
   };
 
-  return (
-    <div>
-      {/* Loading skeleton */}
-      {!dashboard && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 0' }}>
-          {[100, 80, 60, 90].map((w, i) => (
-            <div key={i} style={{ height: 14, borderRadius: 6, background: 'var(--bg2)', width: `${w}%` }} />
+  if (loading) {
+    return (
+      <div>
+        <div style={{ marginBottom: 24 }}>
+          <div className="skel" style={{ height: 32, width: '55%', marginBottom: 8 }} />
+          <div className="skel" style={{ height: 13, width: '38%' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="stat-box">
+              <div className="skel" style={{ height: 10, width: '55%', marginBottom: 8 }} />
+              <div className="skel" style={{ height: 26, width: '38%' }} />
+            </div>
           ))}
         </div>
-      )}
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="skel" style={{ height: 13, width: '42%', marginBottom: 14 }} />
+          <div className="skel" style={{ height: 160 }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          {[0, 1].map(i => (
+            <div key={i} className="card">
+              <div className="skel" style={{ height: 13, width: '45%', marginBottom: 14 }} />
+              {[0, 1, 2].map(j => (
+                <div key={j} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                  <div className="skel" style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="skel" style={{ height: 12, width: '70%', marginBottom: 5 }} />
+                    <div className="skel" style={{ height: 10, width: '40%' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div className="skel" style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div className="skel" style={{ height: 10, width: '22%', marginBottom: 8 }} />
+              <div className="skel" style={{ height: 15, width: '58%', marginBottom: 8 }} />
+              <div className="skel" style={{ height: 12, width: '92%', marginBottom: 5 }} />
+              <div className="skel" style={{ height: 12, width: '76%' }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {[0, 1].map(i => (
+            <div key={i} className="card">
+              <div className="skel" style={{ height: 13, width: '45%', marginBottom: 14 }} />
+              {[0, 1, 2].map(j => (
+                <div key={j} style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center' }}>
+                  <div className="skel" style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="skel" style={{ height: 11, width: '62%', marginBottom: 5 }} />
+                    <div className="skel" style={{ height: 9, width: '42%' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
       {/* Greeting */}
       <div style={{ marginBottom: 24 }}>
         <div className="font-serif" style={{ fontSize: 28, color: 'var(--tx)', marginBottom: 4 }}>
@@ -581,16 +639,15 @@ export function DashboardScreen() {
             💡 {txSuggestTitle}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {subjects.slice(0, 3).map(sub => {
-              const tipKey = normalizeSubjectTipKey(sub.code);
+            {(dashboard?.subject_statistics ?? []).slice(0, 3).map(stat => {
+              const tipKey = normalizeSubjectTipKey(stat.subject_code);
               if (!tipKey) return null;
-              const stat = dashboard?.subject_statistics?.find(s => s.subject_uuid === sub.uuid);
-              const score = stat?.score ?? sub.score ?? 100;
-              const color = getSubjectColor(sub.code) || sub.color || 'var(--a1)';
+              const score = stat.score ?? 100;
+              const color = getSubjectColor(stat.subject_code) || 'var(--a1)';
               const isBelow = score < 70;
               const tip = t(`app:parentDashboard.subjectTips.${tipKey}.${isBelow ? 'below' : 'good'}`);
               return (
-                <div key={sub.uuid} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <div key={stat.subject_uuid} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{
                     width: 6, height: 6, borderRadius: '50%', background: color,
                     flexShrink: 0, marginTop: 5,
@@ -598,7 +655,7 @@ export function DashboardScreen() {
                   <div style={{ flex: 1 }}>
                     <button
                       type="button"
-                      onClick={() => navigate(`/parent/students/${sid}/subjects/${sub.uuid}`)}
+                      onClick={() => navigate(`/parent/students/${sid}/subjects/${stat.subject_uuid}`)}
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
@@ -612,7 +669,7 @@ export function DashboardScreen() {
                         textAlign: 'left',
                       }}
                     >
-                      {txForSubject.replace('{subject}', sub.name)}
+                      {txForSubject.replace('{subject}', stat.subject_name)}
                     </button>
                     <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6 }}>{tip}</div>
                   </div>
