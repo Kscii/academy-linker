@@ -601,6 +601,14 @@
   "parentGrades": {
     "title": "Academic Performance",
     "subtitle": "{{name}}'s grades and progress",
+    "overallPerformance": "Overall Performance",
+    "assignmentCompletion": "Assignment Completion",
+    "attendance": "Attendance",
+    "subjects": "Subjects",
+    "subjectScores": "Subject Scores",
+    "classAvg": "Class avg",
+    "overallTrend": "Overall Trend",
+    "allSubjects": "All subjects",
     "noTeacherAssigned": "No teacher assigned"
   },
   "timetable": {
