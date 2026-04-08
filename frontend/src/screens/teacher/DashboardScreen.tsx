@@ -49,7 +49,7 @@ export function TeacherDashboardScreen() {
         </div>
         <div
           className="stat-box"
-          onClick={() => navigate('/teacher/messages')}
+          onClick={() => navigate('/teacher/discussions')}
           style={{ cursor: 'pointer' }}
         >
           <div className="stat-label">{t('unreadMsgs')}</div>

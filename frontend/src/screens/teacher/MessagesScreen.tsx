@@ -34,6 +34,7 @@ export function TeacherMessagesScreen() {
   const [activeParentUuid, setActiveParentUuid] = useState('');
   const [messages, setMessages] = useState<ThreadPost[]>([]);
   const [threadUuid, setThreadUuid] = useState('');
+  const [threadTotalPages, setThreadTotalPages] = useState(1);
   const [draftTitle, setDraftTitle] = useState('');
   const [reply, setReply] = useState('');
   const [replyToPostUuid, setReplyToPostUuid] = useState('');
@@ -49,7 +50,7 @@ export function TeacherMessagesScreen() {
   const [threadSort, setThreadSort] = useState<'created_at_desc' | 'created_at_asc'>('created_at_desc');
   const [threadKeyword, setThreadKeyword] = useState('');
   const [threadTag, setThreadTag] = useState('');
-  const [threadPage] = useState(1);
+  const [threadPage, setThreadPage] = useState(1);
   const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string | null; loading: boolean; showOriginal: boolean }>>({});
 
   const txTranslate = t('actions.translate');
@@ -114,12 +115,17 @@ export function TeacherMessagesScreen() {
     setMessages(res.data.posts);
     setAvailableTags(res.data.available_tags);
     setThreadUuid(res.data.thread_uuid);
+    setThreadTotalPages(Math.max(res.data.meta.total_pages, 1));
     markThreadRead(studentUuid);
   }, [markThreadRead, threadKeyword, threadPage, threadSort, threadTag]);
 
   useEffect(() => {
     setMsgTranslations({});
   }, [language, activeStudentUuid, activeParentUuid]);
+
+  useEffect(() => {
+    setThreadPage(1);
+  }, [activeParentUuid, activeStudentUuid, threadKeyword, threadSort, threadTag]);
 
   useEffect(() => {
     setMsgTranslations(prev => {
@@ -396,6 +402,12 @@ export function TeacherMessagesScreen() {
                     <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
                       {post.author.display_name} · {timeAgo(post.created_at)}
                     </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                      <span className="badge" style={{ fontSize: 10 }}>{post.display_language}</span>
+                      {post.translated_language && <span className="badge" style={{ fontSize: 10 }}>{post.translated_language}</span>}
+                      {post.updated_at && <span className="badge" style={{ fontSize: 10 }}>{t('teacherMessages.edited')}</span>}
+                      {post.translated_at && <span className="badge" style={{ fontSize: 10 }}>{t('teacherMessages.translated')}</span>}
+                    </div>
                   </div>
                   {!post.is_deleted && (
                     <button className="chip" style={{ fontSize: 11, alignSelf: 'center' }} onClick={() => setReplyToPostUuid(post.uuid)}>
@@ -505,6 +517,17 @@ export function TeacherMessagesScreen() {
           </div>
 
           <div className="thread-input-area">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={threadPage <= 1} onClick={() => setThreadPage(prev => prev - 1)}>
+                {t('actions.previous')}
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--tx3)', alignSelf: 'center' }}>
+                {t('teacherMessages.pageStatus', { page: threadPage, totalPages: threadTotalPages })}
+              </div>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={threadPage >= threadTotalPages} onClick={() => setThreadPage(prev => prev + 1)}>
+                {t('actions.next')}
+              </button>
+            </div>
             {replyTarget && (
               <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--bg2)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <div>

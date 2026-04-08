@@ -97,6 +97,10 @@ function LegacyParentAnnouncementsRedirect() {
   return <Navigate to={`/parent/students/${sid}/announcements`} replace />;
 }
 
+function LegacyTeacherDiscussionsRedirect() {
+  return <Navigate to="/teacher/discussions" replace />;
+}
+
 // ── App layout (AppShell + AIPanel) ──────────────────────────
 // Syncs role from URL path so sidebar shows correct nav items.
 
@@ -166,7 +170,8 @@ function AppRoutes() {
 
           <Route element={<RoleRoute allowed={['teacher']} />}>
             <Route path="/teacher/dashboard"                      element={<TeacherDashboardScreen />} />
-            <Route path="/teacher/messages"                       element={<TeacherMessagesScreen />} />
+            <Route path="/teacher/discussions"                    element={<TeacherMessagesScreen />} />
+            <Route path="/teacher/messages"                       element={<LegacyTeacherDiscussionsRedirect />} />
             <Route path="/teacher/posts"                          element={<TeacherPostsScreen />} />
             <Route path="/teacher/tags"                           element={<TeacherTagsScreen />} />
             <Route path="/teacher/reports"                        element={<TeacherReportsScreen />} />

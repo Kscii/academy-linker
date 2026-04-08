@@ -290,12 +290,7 @@ export interface Report {
   translation: TranslationBlock;
 }
 
-export interface ReportDetail extends Omit<Report, 'translation'> {
-  author: {
-    uuid: string;
-    display_name: string;
-    role: 'teacher' | 'admin';
-  };
+export interface ParentReportDetail extends Omit<Report, 'translation'> {
   display_content_markdown: string;
   original_content_markdown: string;
   translated_content_markdown: string | null;
@@ -304,6 +299,14 @@ export interface ReportDetail extends Omit<Report, 'translation'> {
   translated_language: string | null;
   translation_status: TranslationStatus;
   translated_at: string | null;
+}
+
+export interface TeacherReportDetail extends ParentReportDetail {
+  author: {
+    uuid: string;
+    display_name: string;
+    role: 'teacher' | 'admin';
+  };
 }
 
 // ── Announcements ────────────────────────────────────────────

@@ -16,7 +16,8 @@ import type {
   DashboardResponse,
   SubjectDetailResponse,
   Report,
-  ReportDetail,
+  ParentReportDetail,
+  TeacherReportDetail,
   Announcement,
   AnnouncementDetail,
   ResourceCategory,
@@ -268,7 +269,7 @@ export const parent = {
   },
 
   getReport: (studentUuid: string, reportUuid: string) =>
-    apiFetch<ApiResponse<ReportDetail>>(
+    apiFetch<ApiResponse<ParentReportDetail>>(
       `/parents/me/students/${studentUuid}/reports/${reportUuid}`
     ),
 
@@ -514,13 +515,13 @@ export const teacher = {
     }),
 
   createReport: (studentUuid: string, body: CreateReportRequest) =>
-    apiFetch<ApiResponse<ReportDetail>>(
+    apiFetch<ApiResponse<TeacherReportDetail>>(
       `/teachers/me/students/${studentUuid}/reports`,
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
   updateReport: (reportUuid: string, body: UpdateReportRequest) =>
-    apiFetch<ApiResponse<ReportDetail>>(`/reports/${reportUuid}`, {
+    apiFetch<ApiResponse<TeacherReportDetail>>(`/reports/${reportUuid}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
@@ -538,7 +539,7 @@ export const teacher = {
     }),
 
   generateAiReport: (studentUuid: string, body: GenerateAiReportRequest) =>
-    apiFetch<ApiResponse<ReportDetail>>(
+    apiFetch<ApiResponse<TeacherReportDetail>>(
       `/teachers/me/students/${studentUuid}/ai-reports`,
       { method: 'POST', body: JSON.stringify(body) }
     ),

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { parent as parentApi, translations } from '@/lib/api';
-import type { PaginationMeta, Report, ReportDetail } from '@/types/api';
+import type { PaginationMeta, Report, ParentReportDetail } from '@/types/api';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-AU', {
@@ -104,7 +104,7 @@ export function ReportScreen() {
 
   const [reports, setReports]             = useState<Report[]>([]);
   const [selectedUuid, setSelectedUuid]   = useState('');
-  const [detail, setDetail]               = useState<ReportDetail | null>(null);
+  const [detail, setDetail]               = useState<ParentReportDetail | null>(null);
   const [readIds, setReadIds]             = useState<Set<string>>(new Set());
   const [emailSent, setEmailSent]         = useState(false);
   const [page, setPage]                   = useState(1);
@@ -114,6 +114,7 @@ export function ReportScreen() {
   const [meta, setMeta]                   = useState<PaginationMeta>({ page: 1, page_size: 20, total: 0, total_pages: 1 });
   const [showOriginal, setShowOriginal]   = useState(false);
   const [resolvingTranslation, setResolvingTranslation] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   // ── Fetch reports list ──────────────────────────────────────
   useEffect(() => {
@@ -137,7 +138,6 @@ export function ReportScreen() {
       if (found) {
         setDetail({
           ...found,
-          author: { uuid: '', display_name: 'Unknown', role: 'teacher' },
           display_content_markdown: '',
           original_content_markdown: '',
           translated_content_markdown: null,
@@ -244,6 +244,28 @@ export function ReportScreen() {
     }
   };
 
+  const toggleArchive = async () => {
+    if (!detail || archiving) return;
+    setArchiving(true);
+    try {
+      if (detail.is_archived) {
+        await parentApi.unarchiveReport(detail.uuid);
+      } else {
+        await parentApi.archiveReport(detail.uuid);
+      }
+      if (!sid) return;
+      const [reportsRes, detailRes] = await Promise.all([
+        parentApi.getReports(sid, { page, page_size: 20, status, read_state: readState, sort }),
+        parentApi.getReport(sid, detail.uuid),
+      ]);
+      setReports(reportsRes.data);
+      setMeta(reportsRes.meta);
+      setDetail(detailRes.data);
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -294,6 +316,11 @@ export function ReportScreen() {
                   </div>
                   </div>
                 </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                  {!report.is_read && <span className="badge" style={{ fontSize: 10 }}>{t('parentReports.unreadBadge')}</span>}
+                  {report.is_archived && <span className="badge" style={{ fontSize: 10 }}>{t('parentReports.archivedBadge')}</span>}
+                  {report.subject && <span className="badge" style={{ fontSize: 10 }}>{report.subject.name}</span>}
+                </div>
                 <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>{formatDate(report.created_at)}</div>
               </div>
             ))}
@@ -323,6 +350,16 @@ export function ReportScreen() {
                 {reports.find(r => r.uuid === selectedUuid)?.title ?? detail?.title ?? ''}
               </div>
               <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{detail ? formatDate(detail.created_at) : ''}</div>
+              {detail && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  <span className="badge" style={{ fontSize: 10 }}>{detail.report_type}</span>
+                  <span className="badge" style={{ fontSize: 10 }}>{detail.source_type}</span>
+                  <span className="badge" style={{ fontSize: 10 }}>{detail.is_read ? t('parentReports.readBadge') : t('parentReports.unreadBadge')}</span>
+                  {detail.is_archived && <span className="badge" style={{ fontSize: 10 }}>{t('parentReports.archivedBadge')}</span>}
+                  <span className="badge" style={{ fontSize: 10 }}>{detail.display_language}</span>
+                  {detail.translated_language && <span className="badge" style={{ fontSize: 10 }}>{detail.translated_language}</span>}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
               {detail?.original_language !== language && (
@@ -346,6 +383,11 @@ export function ReportScreen() {
               <button className="btn-secondary" onClick={handleEmail} style={{ color: emailSent ? 'var(--a2)' : undefined, fontSize: 12 }}>
                 {emailSent ? txSent : `✉ ${txEmail}`}
               </button>
+              {detail && (
+                <button className="btn-secondary" onClick={() => void toggleArchive()} disabled={archiving} style={{ fontSize: 12 }}>
+                  {archiving ? '…' : detail.is_archived ? t('actions.unarchive') : t('actions.archive')}
+                </button>
+              )}
             </div>
           </div>
 
@@ -353,8 +395,17 @@ export function ReportScreen() {
           {detail?.subject && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
               <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: 'var(--bg2)', color: 'var(--tx2)', fontWeight: 600 }}>
-                {detail.subject.name}
+                {detail.subject.name}{detail.subject.code ? ` · ${detail.subject.code}` : ''}
               </span>
+            </div>
+          )}
+
+          {detail && (
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16, fontSize: 12, color: 'var(--tx3)' }}>
+              {detail.published_at && <span>{t('parentReports.publishedAt', { date: formatDate(detail.published_at) })}</span>}
+              {detail.read_at && <span>{t('parentReports.readAt', { date: formatDate(detail.read_at) })}</span>}
+              {detail.archived_at && <span>{t('parentReports.archivedAt', { date: formatDate(detail.archived_at) })}</span>}
+              {detail.translated_at && <span>{t('parentReports.translatedAt', { date: formatDate(detail.translated_at) })}</span>}
             </div>
           )}
 
