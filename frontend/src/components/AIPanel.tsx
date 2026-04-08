@@ -206,22 +206,12 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
   const resetComposer = useCallback(() => {
     setConversationUuid(null);
     setCurrentArchived(false);
-    setMessages([{ id: genId(), role: 'assistant', text: defaultGreeting }]);
-  }, [defaultGreeting]);
+    setMessages([]);
+  }, []);
 
   useEffect(() => {
     resetComposer();
   }, [resetComposer, contextType, studentUuid, subjectUuid]);
-
-  useEffect(() => {
-    setMessages(prev => {
-      if (!prev.length) return [{ id: genId(), role: 'assistant', text: defaultGreeting }];
-      if (prev.length === 1 && prev[0]?.role === 'assistant' && !conversationUuid) {
-        return [{ ...prev[0], text: defaultGreeting }];
-      }
-      return prev;
-    });
-  }, [conversationUuid, defaultGreeting]);
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -253,9 +243,9 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
     if (!existsInCurrentFilter && currentArchived === showArchived) {
       setConversationUuid(null);
       setCurrentArchived(false);
-      setMessages([{ id: genId(), role: 'assistant', text: defaultGreeting }]);
+      setMessages([]);
     }
-  }, [conversationUuid, conversations, currentArchived, defaultGreeting, showArchived]);
+  }, [conversationUuid, conversations, currentArchived, showArchived]);
 
   useEffect(() => {
     if (!open || !messagesEndRef.current) return;
@@ -280,15 +270,13 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
       const res = await ai.getConversation(uuid);
       setConversationUuid(res.data.uuid);
       setCurrentArchived(res.data.is_archived);
-      setMessages(res.data.messages.length > 0 ? res.data.messages.map(toDisplayMessage) : [
-        { id: genId(), role: 'assistant', text: defaultGreeting },
-      ]);
+      setMessages(res.data.messages.map(toDisplayMessage));
     } catch {
       setMessages([{ id: genId(), role: 'assistant', text: t('aiPanel.serviceUnavailable') }]);
     } finally {
       setLoadingConversation(false);
     }
-  }, [defaultGreeting, t]);
+  }, [t]);
 
   const sendMessage = useCallback(async (rawText: string) => {
     const text = rawText.trim();
@@ -526,9 +514,11 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
                   <div className="ai-chat-title">
                     {activeConversation?.title?.trim() || t('aiPanel.title')}
                   </div>
-                  <div className="ai-chat-meta">
-                    {currentArchived ? t('aiPanel.archivedChats') : t('aiPanel.activeChats')}
-                  </div>
+                  {conversationUuid && (
+                    <div className="ai-chat-meta">
+                      {currentArchived ? t('aiPanel.archivedChats') : t('aiPanel.activeChats')}
+                    </div>
+                  )}
                 </div>
                 <div className="ai-chat-actions">
                   {conversationUuid && (
@@ -559,6 +549,25 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
               <div className="ai-messages">
                 {loadingConversation ? (
                   <div className="ai-history-empty">{t('common.loading')}</div>
+                ) : !conversationUuid && messages.length === 0 ? (
+                  <div className="ai-empty-state">
+                    <div className="ai-empty-badge">✦</div>
+                    <p className="ai-empty-greeting">{defaultGreeting}</p>
+                    <div className="ai-empty-chips">
+                      {quickChips.map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          className="chip"
+                          style={{ fontSize: 11 }}
+                          onClick={() => void sendMessage(chip)}
+                          disabled={thinking}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
                   <>
                     {messages.map((message) => (
@@ -575,23 +584,6 @@ export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
                   </>
                 )}
               </div>
-
-              {!conversationUuid && messages.length <= 1 && (
-                <div className="ai-preset-chips">
-                  {quickChips.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      className="chip"
-                      style={{ fontSize: 11 }}
-                      onClick={() => void sendMessage(chip)}
-                      disabled={thinking}
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {currentArchived && (
                 <div className="ai-readonly-banner">
