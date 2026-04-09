@@ -23,7 +23,6 @@
 <br /><br />
 
 <!-- ── Project Status ──────────────────────────────────────────── -->
-<img src="https://img.shields.io/github/license/Kscii/academy-linker?style=for-the-badge&color=0f172a&labelColor=1e1b4b" alt="License" />
 <img src="https://img.shields.io/github/last-commit/Kscii/academy-linker?style=for-the-badge&label=Last%20Commit&color=1e1b4b&labelColor=0f172a" alt="Last Commit" />
 <img src="https://img.shields.io/github/repo-size/Kscii/academy-linker?style=for-the-badge&color=312e81&labelColor=1e1b4b" alt="Repo Size" />
 <img src="https://img.shields.io/badge/Status-Active-22c55e?style=for-the-badge&labelColor=0f172a" alt="Status" />
