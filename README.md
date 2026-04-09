@@ -63,6 +63,25 @@ Academy Linker is an **AI-native school communication platform** built to close 
 
 ---
 
+## Live Demo
+
+> [!NOTE]
+> Run `uv run python -m ac_link.db.seed --scenario full-demo --reset --with-auth-tokens` to seed the database before logging in.
+
+<div align="center">
+
+| Role | Email | Password |
+|:---:|:---|:---:|
+| 🔑 **Admin** | `admin.demo@academy-link.dev` | `114514` |
+| 👩‍🏫 **Teacher** | `teacher.ada@academy-link.dev` | `114514` |
+| 👩‍🏫 **Teacher** | `teacher.lin@academy-link.dev` | `114514` |
+| 👨‍👩‍👧 **Parent** | `parent.chen@academy-link.dev` | `114514` |
+| 👨‍👩‍👧 **Parent** | `parent.wang@academy-link.dev` | `114514` |
+
+</div>
+
+---
+
 ## Screenshots & Previews
 
 > _Screenshots and GIF demos are coming. Placeholder positions are reserved below._
@@ -158,7 +177,7 @@ Academy Linker is an **AI-native school communication platform** built to close 
 
 **Tooling & Infra**
 
-<img src="https://skillicons.dev/icons?i=github,githubactions,linux,bash,eslint" />
+<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint" />
 
 </div>
 
@@ -732,6 +751,15 @@ cd backend && podman compose down
 
 <div align="center">
 
+<!-- ── Streak ──────────────────────────────────────────────────── -->
+<img
+  src="https://streak-stats.demolab.com/?user=Kscii&theme=tokyonight&hide_border=true&background=0f172a&ring=4f46e5&fire=f59e0b&currStreakLabel=818cf8&sideLabels=cbd5e1&dates=94a3b8&stroke=1e1b4b"
+  alt="GitHub Streak"
+/>
+
+<br /><br />
+
+<!-- ── Stats + Languages ──────────────────────────────────────── -->
 <a href="https://github.com/Kscii">
   <img
     height="170"
@@ -747,12 +775,40 @@ cd backend && podman compose down
 
 <br /><br />
 
+<!-- ── Repo Pin ────────────────────────────────────────────────── -->
 <a href="https://github.com/Kscii/academy-linker">
   <img
     src="https://github-readme-stats.vercel.app/api/pin/?username=Kscii&repo=academy-linker&hide_border=true&bg_color=0f172a&title_color=818cf8&icon_color=4f46e5&text_color=cbd5e1"
     alt="academy-linker repo card"
   />
 </a>
+
+<br /><br />
+
+<!-- ── Trophies ────────────────────────────────────────────────── -->
+<img
+  src="https://github-profile-trophy.vercel.app/?username=Kscii&theme=tokyonight&no-frame=true&no-bg=true&column=7&margin-w=6&title=Stars,Commits,PullRequest,Issues,Repositories,Followers,Reviews"
+  alt="GitHub Trophies"
+/>
+
+<br /><br />
+
+<!-- ── Activity Graph ──────────────────────────────────────────── -->
+<img
+  src="https://github-readme-activity-graph.vercel.app/graph?username=Kscii&theme=tokyo-night&hide_border=true&bg_color=0f172a&color=818cf8&line=4f46e5&point=f59e0b&area=true&area_color=1e1b4b"
+  alt="Activity Graph"
+  width="100%"
+/>
+
+<br /><br />
+
+<!-- ── Contribution Snake ──────────────────────────────────────── -->
+<!-- Generated daily by .github/workflows/generate-snake.yml       -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Kscii/academy-linker/output/github-contribution-grid-snake-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Kscii/academy-linker/output/github-contribution-grid-snake.svg" />
+  <img alt="Contribution Snake" src="https://raw.githubusercontent.com/Kscii/academy-linker/output/github-contribution-grid-snake-dark.svg" width="100%" />
+</picture>
 
 </div>
 
