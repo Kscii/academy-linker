@@ -70,16 +70,16 @@ jobs:
             cd backend
 
             # -v 会直接删除所有数据卷, 生产环境需要删除 -v 参数
-            podman compose down -v
+            podman compose down
             podman compose up -d --build
 
             # 等待容器中的数据库可用
-            podman wait --condition=healthy academy-linker-postgres
+            # podman wait --condition=healthy academy-linker-postgres
 
             # 等待 API 容器启动完成（entrypoint 初始化表后才能运行 seed）
-            podman wait --condition=running academy-linker-api
+            # podman wait --condition=running academy-linker-api
 
             # 用于初始化测试数据, 正式环境需要删除
             # 在容器内执行，使用内部网络连接 postgres，避免宿主机映射端口不稳定导致 AdminShutdown
-            podman exec academy-linker-api python -m ac_link.db.seed --scenario full-demo --reset --with-auth-tokens
+            # podman exec academy-linker-api python -m ac_link.db.seed --scenario full-demo --reset --with-auth-tokens
 
