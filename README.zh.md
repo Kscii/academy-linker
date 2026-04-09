@@ -177,7 +177,7 @@ Academy Linker 是一个 **AI 原生校园沟通平台**，旨在消除学校与
 
 **工具链与基础设施**
 
-<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint" />
+<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint,docker" />
 
 </div>
 
@@ -206,6 +206,9 @@ Academy Linker 是一个 **AI 原生校园沟通平台**，旨在消除学校与
 ---
 
 ## 系统架构
+
+<details>
+<summary>🏗️ 展开架构图</summary>
 
 ### 系统全景图
 
@@ -277,6 +280,8 @@ sequenceDiagram
     S-->>R: Pydantic DTO
     R-->>C: JSON 响应
 ```
+
+</details>
 
 ---
 
@@ -735,6 +740,9 @@ cd backend && podman compose down
 
 ## GitHub 统计
 
+<details>
+<summary>📊 展开 GitHub 统计</summary>
+
 <div align="center">
 
 <!-- ── 连续提交 ──────────────────────────────────────────────── -->
@@ -796,6 +804,8 @@ cd backend && podman compose down
 </picture>
 
 </div>
+
+</details>
 
 ---
 
