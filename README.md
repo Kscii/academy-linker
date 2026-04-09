@@ -187,7 +187,7 @@ Academy Linker is an **AI-native school communication platform** built to close 
 
 **Tooling & Infra**
 
-<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint,docker" />
+<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,docker" />
 
 </div>
 
