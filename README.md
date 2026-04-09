@@ -177,7 +177,7 @@ Academy Linker is an **AI-native school communication platform** built to close 
 
 **Tooling & Infra**
 
-<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint" />
+<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint,docker" />
 
 </div>
 
@@ -206,6 +206,9 @@ Academy Linker is an **AI-native school communication platform** built to close 
 ---
 
 ## Architecture
+
+<details>
+<summary>🏗️ Expand Architecture Diagrams</summary>
 
 ### System Overview
 
@@ -277,6 +280,8 @@ sequenceDiagram
     S-->>R: Pydantic DTO
     R-->>C: JSON Response
 ```
+
+</details>
 
 ---
 
@@ -749,6 +754,9 @@ cd backend && podman compose down
 
 ## GitHub Stats
 
+<details>
+<summary>📊 Expand GitHub Stats</summary>
+
 <div align="center">
 
 <!-- ── Streak ──────────────────────────────────────────────────── -->
@@ -811,6 +819,8 @@ cd backend && podman compose down
 </picture>
 
 </div>
+
+</details>
 
 ---
 
