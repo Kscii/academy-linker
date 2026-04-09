@@ -50,6 +50,16 @@
 
 ## About
 
+<p align="center">
+  <strong>Welcome to visit <a href="https://kscii.tech">kscii.tech</a></strong>
+</p>
+
+<p align="center">
+  <a href="https://stats.uptimerobot.com/T2VLHo9zT9">
+    <img src="https://img.shields.io/uptimerobot/status/m802790794-6a98a3bb4ede0d157dddb579?style=for-the-badge" alt="UptimeRobot Status" />
+  </a>
+</p>
+
 Academy Linker is an **AI-native school communication platform** built to close the gap between schools and families. Rather than presenting parents with a cold dashboard of disconnected numbers, it delivers actionable context, multilingual accessibility, and direct human + AI-assisted communication across all roles.
 
 **What makes it different:**
@@ -177,7 +187,7 @@ Academy Linker is an **AI-native school communication platform** built to close 
 
 **Tooling & Infra**
 
-<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint" />
+<img src="https://skillicons.dev/icons?i=github,githubactions,nginx,linux,bash,eslint,docker" />
 
 </div>
 
@@ -206,6 +216,9 @@ Academy Linker is an **AI-native school communication platform** built to close 
 ---
 
 ## Architecture
+
+<details>
+<summary>🏗️ Expand Architecture Diagrams</summary>
 
 ### System Overview
 
@@ -277,6 +290,8 @@ sequenceDiagram
     S-->>R: Pydantic DTO
     R-->>C: JSON Response
 ```
+
+</details>
 
 ---
 
@@ -749,6 +764,9 @@ cd backend && podman compose down
 
 ## GitHub Stats
 
+<details>
+<summary>📊 Expand GitHub Stats</summary>
+
 <div align="center">
 
 <!-- ── Streak ──────────────────────────────────────────────────── -->
@@ -811,6 +829,8 @@ cd backend && podman compose down
 </picture>
 
 </div>
+
+</details>
 
 ---
 
