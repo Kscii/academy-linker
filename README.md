@@ -873,6 +873,10 @@ cd backend && podman compose down
 
 ---
 
+![Stone Badge](https://stone.professorlee.work/api/stone/Kscii/academy-linker)
+
+---
+
 ## License
 
 [MIT](./LICENSE)
