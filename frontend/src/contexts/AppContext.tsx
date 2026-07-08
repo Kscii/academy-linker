@@ -1,6 +1,7 @@
 // ============================================================
 // Academy Linker — App Context
-// Global state: theme, role, user, navigation, language
+// Global state: theme, role, user, language, unread messages
+// Navigation is handled by react-router (useNavigate / useParams)
 // ============================================================
 
 import {
@@ -9,36 +10,48 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
+import i18n from '@/i18n';
 import type { UserSummary } from '@/types/api';
-import { auth } from '@/lib/api';
-import { mockParentUser, mockTeacherUser, mockDiscussionTeachers, mockTeacherStudents } from '@/lib/mock-data';
+import { auth, isAuthenticationError, parent as parentApi, settingsApi, setSessionExpiredHandler } from '@/lib/api';
 
-// Hardcoded demo credentials for fallback when backend is offline
-const DEMO_CREDENTIALS: Record<string, { password: string; role: 'parent' | 'teacher' }> = {
-  'li.wei@email.com':          { password: 'password123', role: 'parent' },
-  'thompson@westside.edu.au':  { password: 'password123', role: 'teacher' },
-};
+// ── Local session persistence ─────────────────────────────────
+const SESSION_KEY = 'academy_session';
+const PREFERRED_LANGUAGE_KEY = 'al_pending_language';
 
-// ── Screen names ─────────────────────────────────────────────
+interface StoredSession {
+  user: UserSummary;
+  firstStudentUuid: string;
+}
 
-export type ParentScreen =
-  | 'dashboard'
-  | 'subject-detail'
-  | 'reports'
-  | 'messages'
-  | 'resources'
-  | 'announcements';
+function saveSession(user: UserSummary, firstStudentUuid: string) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ user, firstStudentUuid } satisfies StoredSession));
+}
 
-export type TeacherScreen =
-  | 'dashboard'
-  | 'class-detail'
-  | 'student-detail'
-  | 'messages'
-  | 'find-student';
+function loadSession(): StoredSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as StoredSession) : null;
+  } catch { return null; }
+}
 
-export type AppScreen = ParentScreen | TeacherScreen;
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+function loadPendingLanguage(): string | null {
+  try {
+    return localStorage.getItem(PREFERRED_LANGUAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function savePendingLanguage(lang: string) {
+  localStorage.setItem(PREFERRED_LANGUAGE_KEY, lang);
+}
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -47,86 +60,213 @@ interface AppContextValue {
   theme: 'day' | 'night';
   toggleTheme: () => void;
 
-  /* Role */
-  role: 'parent' | 'teacher';
-  setRole: (r: 'parent' | 'teacher') => void;
+  /* Role — kept in context so sidebar can determine which nav to show.
+     Synced from URL by AppLayout (in App.tsx). */
+  role: 'parent' | 'teacher' | 'admin';
+  setRole: (r: 'parent' | 'teacher' | 'admin') => void;
 
   /* Auth */
   user: UserSummary | null;
   isLoggedIn: boolean;
-  login: (email: string, password: string, rememberMe: boolean, role: 'parent' | 'teacher') => Promise<void>;
+  authChecked: boolean;
+  firstStudentUuid: string;
+  login: (
+    email: string,
+    password: string,
+    rememberMe: boolean
+  ) => Promise<{ role: 'parent' | 'teacher' | 'admin'; firstStudentUuid: string }>;
   logout: () => void;
-
-  /* Navigation */
-  currentScreen: AppScreen;
-  navigate: (screen: AppScreen, params?: NavigationParams) => void;
-
-  /* Student context (parent view) */
-  currentStudentUuid: string | null;
-  setCurrentStudentUuid: (uuid: string | null) => void;
-
-  /* Subject context */
-  currentSubjectUuid: string | null;
-  setCurrentSubjectUuid: (uuid: string | null) => void;
-
-  /* Class / teacher context */
-  currentClassUuid: string | null;
-  setCurrentClassUuid: (uuid: string | null) => void;
-  currentStudentDetailUuid: string | null;
-  setCurrentStudentDetailUuid: (uuid: string | null) => void;
 
   /* Language */
   language: string;
   setLanguage: (lang: string) => void;
 
-  /* Navigation params stack */
-  navParams: NavigationParams;
-
-  /* Unread messages */
-  readThreadIds: Set<string>;
-  markThreadRead: (id: string) => void;
+  /* Unread messages — keyed by thread_uuid (parent) or student.uuid (teacher) */
+  threadUnreadCounts: Record<string, number>;
+  markThreadRead: (key: string) => void;
+  updateThreadUnreadCounts: (counts: Record<string, number>) => void;
   unreadMessageCount: number;
-}
 
-export interface NavigationParams {
-  subjectUuid?: string;
-  classUuid?: string;
-  studentUuid?: string;
-  [key: string]: string | undefined;
+  /* Unread announcements */
+  readAnnouncementIds: Set<string>;
+  markAnnouncementRead: (id: string) => void;
+  unreadNoticeCount: number;
+  setAnnouncementUuids: (ids: string[]) => void;
 }
 
 // ── Context ───────────────────────────────────────────────────
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<'day' | 'night'>('day');
-  const [role, setRoleState] = useState<'parent' | 'teacher'>('parent');
-  const [user, setUser] = useState<UserSummary | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
-  const [currentStudentUuid, setCurrentStudentUuid] = useState<string | null>('student-001');
-  const [currentSubjectUuid, setCurrentSubjectUuid] = useState<string | null>(null);
-  const [currentClassUuid, setCurrentClassUuid] = useState<string | null>(null);
-  const [currentStudentDetailUuid, setCurrentStudentDetailUuid] = useState<string | null>(null);
-  const [language, setLanguage] = useState('en');
-  const [navParams, setNavParams] = useState<NavigationParams>({});
-  const [readThreadIds, setReadThreadIds] = useState<Set<string>>(new Set());
+// ── localStorage persistence keys ────────────────────────────
+const LS_READ_ANN    = 'al_read_ann_v3';
+const LS_THREAD_CNTS = 'al_thread_counts_v3';
 
-  const markThreadRead = useCallback((id: string) => {
-    setReadThreadIds(prev => new Set([...prev, id]));
+function lsLoadSet(key: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch { /* ignore */ }
+  return new Set();
+}
+
+function lsLoadRecord(key: string, defaults: Record<string, number>): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as Record<string, number>;
+  } catch { /* ignore */ }
+  return defaults;
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<'day' | 'night'>(() => {
+    const saved = localStorage.getItem('al_theme');
+    if (saved === 'night' || saved === 'day') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day';
+  });
+  const [role, setRoleState] = useState<'parent' | 'teacher' | 'admin'>('parent');
+  const [user, setUser] = useState<UserSummary | null>(null);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [firstStudentUuid, setFirstStudentUuid] = useState('');
+  const [language, setLanguageState] = useState(loadPendingLanguage() || i18n.language?.slice(0, 2) || 'en');
+
+  // Thread unread counts — persisted so read state survives refresh
+  const [threadUnreadCounts, setThreadUnreadCounts] = useState<Record<string, number>>(() =>
+    lsLoadRecord(LS_THREAD_CNTS, {})
+  );
+  useEffect(() => {
+    localStorage.setItem(LS_THREAD_CNTS, JSON.stringify(threadUnreadCounts));
+  }, [threadUnreadCounts]);
+
+  // Tracks threads the user explicitly read — poll won't restore stale counts for 10s
+  const recentlyReadRef = useRef<Map<string, number>>(new Map());
+
+  const markThreadRead = useCallback((key: string) => {
+    setThreadUnreadCounts(prev => ({ ...prev, [key]: 0 }));
+    recentlyReadRef.current.set(key, Date.now());
   }, []);
 
-  // Total unread = sum of per-thread counts, minus those already read
-  const unreadMessageCount =
-    role === 'parent'
-      ? mockDiscussionTeachers
-          .filter(t => !readThreadIds.has(t.teacher.uuid) && t.unread_count > 0)
-          .reduce((sum, t) => sum + t.unread_count, 0)
-      : mockTeacherStudents
-          .filter(s => !readThreadIds.has(s.student.uuid) && s.unread_messages > 0)
-          .reduce((sum, s) => sum + s.unread_messages, 0);
+  const updateThreadUnreadCounts = useCallback((counts: Record<string, number>) => {
+    const now = Date.now();
+    setThreadUnreadCounts(prev => {
+      const next = { ...prev };
+      for (const [key, count] of Object.entries(counts)) {
+        const readAt = recentlyReadRef.current.get(key);
+        if (readAt !== undefined && now - readAt < 10_000) {
+          if (count === 0) recentlyReadRef.current.delete(key);
+          continue;
+        }
+        if (count > (prev[key] ?? 0)) next[key] = count;
+      }
+      return next;
+    });
+  }, []);
 
-  // Apply theme class to <html>
+  // Read announcement IDs — persisted
+  const [readAnnouncementIds, setReadAnnouncementIds] = useState<Set<string>>(() =>
+    lsLoadSet(LS_READ_ANN)
+  );
+  useEffect(() => {
+    localStorage.setItem(LS_READ_ANN, JSON.stringify([...readAnnouncementIds]));
+  }, [readAnnouncementIds]);
+
+  const markAnnouncementRead = useCallback((id: string) => {
+    setReadAnnouncementIds(prev => new Set([...prev, id]));
+  }, []);
+
+  // Track all known announcement UUIDs (fetched from API) so unread count is accurate
+  const [announcementUuids, setAnnouncementUuids] = useState<string[]>([]);
+  const unreadNoticeCount = announcementUuids.filter(id => !readAnnouncementIds.has(id)).length;
+
+  // Total unread messages = sum of all persisted counts (populated by MessagesScreen API call)
+  const unreadMessageCount = Object.values(threadUnreadCounts).reduce((sum, c) => sum + c, 0);
+
+  // Background poll every 5s — keeps nav unread badge in sync for parent
+  useEffect(() => {
+    if (!user) return;
+    const poll = () => {
+      if (user.role === 'parent' && firstStudentUuid) {
+        parentApi.getDiscussionTeachers(firstStudentUuid).then(res => {
+          updateThreadUnreadCounts(
+            Object.fromEntries(
+              res.data
+                .filter((t): t is typeof t & { thread_uuid: string } => t.thread_uuid != null)
+                .map(t => [t.thread_uuid, t.unread_post_count])
+            )
+          );
+        }).catch(() => {});
+      }
+    };
+    poll();
+    const id = setInterval(poll, 5_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uuid, firstStudentUuid]);
+
+  const applyLanguage = useCallback((lang: string) => {
+    setLanguageState(lang);
+    savePendingLanguage(lang);
+    i18n.changeLanguage(lang);
+  }, []);
+
+  const clearAuthState = useCallback(() => {
+    clearSession();
+    setUser(null);
+    setFirstStudentUuid('');
+    setRoleState('parent');
+    setInitialCheckDone(true);
+  }, []);
+
+  // Restore session on page load
+  useEffect(() => {
+    // 注册 refresh token 失效处理器：清除 localStorage 和 React state 中的过期 session
+    // 避免页面在 /login 重复跳转自身导致无限重定向循环
+    setSessionExpiredHandler(() => {
+      clearAuthState();
+    });
+
+    const stored = loadSession();
+    if (stored) {
+      setUser(stored.user);
+      setRoleState(stored.user.role as 'parent' | 'teacher' | 'admin');
+      setFirstStudentUuid(stored.firstStudentUuid);
+      setInitialCheckDone(true);
+    }
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 3000)
+    );
+    Promise.race([auth.getMe(), timeout]).then(async (res) => {
+      const u = res.data.user;
+      setUser(u);
+      setRoleState(u.role as 'parent' | 'teacher' | 'admin');
+      try {
+        const settingsRes = await settingsApi.get();
+        const preferredLanguage = settingsRes.data.language?.slice(0, 2);
+        if (preferredLanguage) {
+          applyLanguage(preferredLanguage);
+        }
+      } catch { /* ignore settings fetch failures */ }
+      let sid = stored?.firstStudentUuid ?? '';
+      if (u.role === 'parent') {
+        try {
+          const studentsRes = await parentApi.getStudents();
+          sid = studentsRes.data[0]?.uuid ?? sid;
+        } catch { /* keep stored sid */ }
+      }
+      setFirstStudentUuid(sid);
+      saveSession(u, sid);
+      setInitialCheckDone(true);
+    }).catch((error: unknown) => {
+      if (isAuthenticationError(error)) {
+        clearAuthState();
+        return;
+      }
+      if (!stored) setInitialCheckDone(true);
+    });
+  }, [applyLanguage, clearAuthState]);
+
+  // Apply theme class to <html> and persist
   useEffect(() => {
     const html = document.documentElement;
     if (theme === 'night') {
@@ -134,57 +274,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       html.classList.remove('night');
     }
+    localStorage.setItem('al_theme', theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'day' ? 'night' : 'day'));
   }, []);
 
-  const setRole = useCallback((r: 'parent' | 'teacher') => {
+  const setRole = useCallback((r: 'parent' | 'teacher' | 'admin') => {
     setRoleState(r);
-    setCurrentScreen('dashboard');
   }, []);
+
+  const setLanguage = useCallback((lang: string) => {
+    applyLanguage(lang);
+    if (user) {
+      void settingsApi.update({ language: lang }).catch(() => {});
+    }
+  }, [applyLanguage, user]);
 
   const login = useCallback(async (
     email: string,
     password: string,
     rememberMe: boolean,
-    loginRole: 'parent' | 'teacher'
-  ) => {
-    // Try real backend first
+  ): Promise<{ role: 'parent' | 'teacher' | 'admin'; firstStudentUuid: string }> => {
+    const res = await auth.login({ email, password, remember_me: rememberMe });
+    const userFromApi = res.data.user;
+    setUser(userFromApi);
+    const apiRole = userFromApi.role as 'parent' | 'teacher' | 'admin';
+    setRoleState(apiRole);
+    const pendingLanguage = loadPendingLanguage() || language;
+    if (pendingLanguage) {
+      try {
+        await settingsApi.update({ language: pendingLanguage });
+      } catch { /* ignore settings sync failures */ }
+    }
     try {
-      const res = await auth.login({ email, password, remember_me: rememberMe });
-      setUser(res.data.user);
-      setRoleState(res.data.user.role as 'parent' | 'teacher');
-      setCurrentScreen('dashboard');
-      return;
-    } catch {
-      // Backend offline — fall back to demo credential check
+      const settingsRes = await settingsApi.get();
+      const preferredLanguage = settingsRes.data.language?.slice(0, 2);
+      if (preferredLanguage) {
+        applyLanguage(preferredLanguage);
+      }
+    } catch { /* ignore settings fetch failures */ }
+    let sid = '';
+    if (apiRole === 'parent') {
+      const studentsRes = await parentApi.getStudents();
+      sid = studentsRes.data[0]?.uuid ?? '';
     }
-
-    // Offline fallback: validate against hardcoded demo credentials
-    const cred = DEMO_CREDENTIALS[email.toLowerCase()];
-    if (!cred || cred.password !== password) {
-      throw new Error('invalid_credentials');
-    }
-    const mockUser = loginRole === 'parent' ? mockParentUser : mockTeacherUser;
-    setUser(mockUser);
-    setRoleState(loginRole);
-    setCurrentScreen('dashboard');
-  }, []);
+    setFirstStudentUuid(sid);
+    saveSession(userFromApi, sid);
+    return { role: apiRole, firstStudentUuid: sid };
+  }, [applyLanguage, language]);
 
   const logout = useCallback(() => {
-    setUser(null);
-    setCurrentScreen('dashboard');
-  }, []);
-
-  const navigate = useCallback((screen: AppScreen, params: NavigationParams = {}) => {
-    setCurrentScreen(screen);
-    setNavParams(params);
-    if (params.subjectUuid) setCurrentSubjectUuid(params.subjectUuid);
-    if (params.classUuid) setCurrentClassUuid(params.classUuid);
-    if (params.studentUuid) setCurrentStudentDetailUuid(params.studentUuid);
-  }, []);
+    clearAuthState();
+  }, [clearAuthState]);
 
   const value: AppContextValue = {
     theme,
@@ -193,24 +336,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRole,
     user,
     isLoggedIn: user !== null,
+    authChecked: initialCheckDone || user !== null,
+    firstStudentUuid,
     login,
     logout,
-    currentScreen,
-    navigate,
-    currentStudentUuid,
-    setCurrentStudentUuid,
-    currentSubjectUuid,
-    setCurrentSubjectUuid,
-    currentClassUuid,
-    setCurrentClassUuid,
-    currentStudentDetailUuid,
-    setCurrentStudentDetailUuid,
     language,
     setLanguage,
-    navParams,
-    readThreadIds,
+    threadUnreadCounts,
     markThreadRead,
+    updateThreadUnreadCounts,
     unreadMessageCount,
+    readAnnouncementIds,
+    markAnnouncementRead,
+    unreadNoticeCount,
+    setAnnouncementUuids,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

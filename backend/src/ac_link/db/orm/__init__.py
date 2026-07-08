@@ -1,0 +1,82 @@
+from ac_link.db.orm.academic import Class, LearningPathwayItem, ParentStudentBinding, Student, StudentExamScore, StudentPeriodMetric, Subject, TeachingAssignment
+from ac_link.db.orm.ai import AiConversation, AiMessage
+from ac_link.db.orm.base import Base
+from ac_link.db.orm.communication import ThreadUserState, DiscussionThread, Post, PostTag, Tag
+from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState, Resource
+from ac_link.db.orm.enums import (
+    AiConversationContextType,
+    AiMessageRole,
+    AnnouncementCategory,
+    IncidentStatus,
+    IncidentType,
+    LeaveRequestStatus,
+    LeaveRequestType,
+    LearningPathwayItemStatus,
+    ReportSourceType,
+    ReportType,
+    ResourceAudienceRole,
+    TagScope,
+    Theme,
+    TimeRange,
+    TranslationResourceType,
+    TranslationStatus,
+    TtsProvider,
+    TtsResourceType,
+    UserRole,
+)
+from ac_link.db.orm.timetable import ClassTimetableEntry
+from ac_link.db.orm.tts import TtsAudioCache
+from ac_link.db.orm.translation import ResourceTranslation
+from ac_link.db.orm.user import User, UserSession, UserSettings
+from ac_link.db.orm.welfare import StudentIncidentReport, StudentLeaveRequest
+
+__all__ = [
+    'Base',
+    'UserRole',
+    'TranslationStatus',
+    'TranslationResourceType',
+    'TtsProvider',
+    'TtsResourceType',
+    'ReportType',
+    'ReportSourceType',
+    'ResourceAudienceRole',
+    'AnnouncementCategory',
+    'TagScope',
+    'Theme',
+    'TimeRange',
+    'AiConversationContextType',
+    'AiMessageRole',
+    'LeaveRequestType',
+    'LeaveRequestStatus',
+    'IncidentType',
+    'IncidentStatus',
+    'LearningPathwayItemStatus',
+    'User',
+    'UserSettings',
+    'UserSession',
+    'Class',
+    'Student',
+    'ParentStudentBinding',
+    'Subject',
+    'TeachingAssignment',
+    'StudentExamScore',
+    'StudentPeriodMetric',
+    'LearningPathwayItem',
+    'DiscussionThread',
+    'ThreadUserState',
+    'Post',
+    'Tag',
+    'PostTag',
+    'Report',
+    'ReportUserState',
+    'Announcement',
+    'AnnouncementUserState',
+    'ClassTimetableEntry',
+    'TtsAudioCache',
+    'Resource',
+    'ResourceTranslation',
+    'AiConversation',
+    'AiMessage',
+    'StudentLeaveRequest',
+    'StudentIncidentReport',
+]

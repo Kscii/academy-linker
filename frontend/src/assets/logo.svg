@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <radialGradient id="og" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#F5C97A"/>
+      <stop offset="100%" stop-color="#E07B3A"/>
+    </radialGradient>
+  </defs>
+  <!-- Dark blue rounded background -->
+  <rect width="48" height="48" rx="10" fill="#3D4A6B"/>
+  <!-- Orange gradient circle -->
+  <circle cx="30" cy="24" r="13" fill="url(#og)"/>
+  <!-- White dot inside orange circle -->
+  <circle cx="30" cy="24" r="3.5" fill="white"/>
+  <!-- Small white dot on left -->
+  <circle cx="12" cy="24" r="4" fill="white" opacity="0.9"/>
+</svg>

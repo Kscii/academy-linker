@@ -1,0 +1,20 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "School communication platform",
+  "emailLabel": "Email address",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "Password",
+  "passwordPlaceholder": "Enter your password",
+  "showPassword": "Show",
+  "hidePassword": "Hide",
+  "rememberMe": "Remember me",
+  "signIn": "Sign In",
+  "signingIn": "Signing in…",
+  "sessionExpired": "Your session has expired. Please sign in again.",
+  "invalidCredentials": "Invalid email or password",
+  "selectRole": "Select your role",
+  "parentRole": "Parent",
+  "teacherRole": "Teacher",
+  "parentDesc": "View your child's progress",
+  "teacherDesc": "Manage your classes"
+}

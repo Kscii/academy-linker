@@ -1,0 +1,21 @@
+{
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "close": "Fermer",
+  "back": "Retour",
+  "send": "Envoyer",
+  "delete": "Supprimer",
+  "edit": "Modifier",
+  "loading": "Chargement…",
+  "error": "Une erreur s'est produite",
+  "signOut": "Se déconnecter",
+  "signedInAs": "Connecté en tant que",
+  "dayMode": "Mode jour",
+  "nightMode": "Mode nuit",
+  "parent": "Parent",
+  "teacher": "Enseignant",
+  "settings": "Paramètres",
+  "viewAll": "Voir tout →",
+  "search": "Rechercher…",
+  "noResults": "Aucun résultat"
+}

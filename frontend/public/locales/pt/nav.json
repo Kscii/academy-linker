@@ -1,0 +1,16 @@
+{
+  "dashboard": "Painel",
+  "messages": "Mensagens",
+  "reports": "Relatórios",
+  "notices": "Avisos",
+  "resources": "Recursos",
+  "findStudent": "Encontrar aluno",
+  "settings": "Configurações",
+  "parentConversations": "Conversas com responsáveis",
+  "language": "Idioma",
+  "posts": "Publicações"
+,
+  "teachers": "Professores", "classes": "Turmas", "students": "Alunos", "parents": "Pais"
+,
+  "grades": "Notas"
+}

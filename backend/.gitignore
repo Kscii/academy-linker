@@ -1,0 +1,9 @@
+.env
+.venv
+**/__pycache__/
+**/backend.egg-info/
+.vscode/
+.pytest_cache/
+.tts-cache/
+*.wav
+

@@ -1,366 +1,470 @@
 // ============================================================
-// SubjectDetailScreen — Score stats, line chart, learning timeline,
-// post board with reply functionality (1 reply per post per parent)
+// SubjectDetailScreen — subject context page aligned with API:
+// subject header, latest published summary, recent teacher posts
 // ============================================================
 
-import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
-import { mockSubjectDetails } from '@/lib/mock-data';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router-dom';
+
+import { parent as parentApi } from '@/lib/api';
 import { LineChart } from '@/components/charts/LineChart';
-import type { ThreadPost } from '@/types/api';
+import { getSubjectIcon } from '@/lib/constants';
+import type { ChartDataPoint, ExamScore, PeriodMetric, SubjectDetailResponse, ThreadPost } from '@/types/api';
 
-// ── Post board ────────────────────────────────────────────────
-
-interface ReplyState {
-  [postUuid: string]: {
-    text: string;
-    submitted: boolean;
-    submittedText?: string;
-    submittedAt?: string;
-  };
+function formatPostTime(dateStr: string, t: (key: string, options?: Record<string, unknown>) => string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400_000);
+  if (days === 0) return t('parentSubject.today');
+  if (days === 1) return t('parentSubject.yesterday');
+  return t('parentSubject.daysAgo', { count: days });
 }
 
-function PostBoard({ posts, subjectColor }: { posts: ThreadPost[]; subjectColor: string }) {
-  const [replyStates, setReplyStates] = useState<ReplyState>({});
+function initials(name: string): string {
+  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+}
 
-  const getReply = (uuid: string) => replyStates[uuid] ?? { text: '', submitted: false };
-
-  const setReplyText = (uuid: string, text: string) => {
-    setReplyStates(prev => ({
-      ...prev,
-      [uuid]: { ...getReply(uuid), text: text.slice(0, 200) },
-    }));
-  };
-
-  const submitReply = (uuid: string) => {
-    const r = getReply(uuid);
-    if (!r.text.trim()) return;
-    setReplyStates(prev => ({
-      ...prev,
-      [uuid]: { text: '', submitted: true, submittedText: r.text, submittedAt: new Date().toISOString() },
-    }));
-  };
-
-  function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const days = Math.floor(diff / 86400_000);
-    if (days === 0) return 'today';
-    if (days === 1) return 'yesterday';
-    return `${days}d ago`;
-  }
-
-  const initials = (name: string) =>
-    name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+function PostBoard({
+  posts,
+  subjectColor,
+  onOpenPost,
+}: {
+  posts: ThreadPost[];
+  subjectColor: string;
+  onOpenPost: (post: ThreadPost) => void;
+}) {
+  const { t } = useTranslation('app');
 
   return (
-    <div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
-        Teacher Posts ({posts.length})
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>
+            {t('parentSubject.recentTeacherUpdates')}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 3 }}>
+            {t('parentSubject.teacherPosts', { count: posts.length })}
+          </div>
+        </div>
       </div>
 
-      {posts.map(post => {
-        const reply = getReply(post.uuid);
-        const charCount = reply.text.length;
-
-        return (
-          <div key={post.uuid} className="post-card">
-            {/* Post header */}
-            <div className="post-card-header">
-              <div
-                className="avatar"
-                style={{ background: subjectColor + '22', color: subjectColor, fontWeight: 700 }}
-              >
-                {initials(post.author.display_name)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>
-                  {post.author.display_name}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{timeAgo(post.created_at)}</div>
-              </div>
-              {post.subject_name && (
-                <span
-                  className="subject-chip"
-                  style={{ background: subjectColor + '18', color: subjectColor }}
+      {posts.length === 0 ? (
+        <div style={{ fontSize: 13, color: 'var(--tx3)' }}>
+          {t('parentSubject.noTeacherPosts')}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {posts.map((post) => (
+            <button
+              key={post.uuid}
+              type="button"
+              onClick={() => onOpenPost(post)}
+              className="post-card"
+              style={{ textAlign: 'left', padding: 0, cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px' }}>
+                <div
+                  className="avatar"
+                  style={{ background: `${subjectColor}22`, color: subjectColor, fontWeight: 700, flexShrink: 0 }}
                 >
-                  {post.subject_name}
-                </span>
-              )}
-            </div>
-
-            {/* Post title */}
-            {post.title && (
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 6 }}>
-                {post.title}
-              </div>
-            )}
-
-            {/* Post body */}
-            <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 12 }}>
-              {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1')}
-            </div>
-
-            {/* Submitted reply */}
-            {reply.submitted && reply.submittedText && (
-              <div style={{
-                background: 'rgba(61,182,168,0.08)', border: '1px solid rgba(61,182,168,0.2)',
-                borderRadius: 8, padding: '10px 12px', marginBottom: 10,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div
-                    className="avatar"
-                    style={{ width: 24, height: 24, fontSize: 10, background: 'var(--a2)', color: '#fff' }}
-                  >
-                    You
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--a2)' }}>Your reply</div>
-                  <span
-                    className="badge badge-ok"
-                    style={{ marginLeft: 'auto', fontSize: 10 }}
-                  >
-                    ✓ Sent
-                  </span>
+                  {initials(post.author.display_name)}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--tx)' }}>{reply.submittedText}</div>
-              </div>
-            )}
-
-            {/* Reply area */}
-            {!reply.submitted && (
-              <div>
-                <textarea
-                  className="input-field"
-                  placeholder="Write a reply to this post… (max 200 characters)"
-                  value={reply.text}
-                  onChange={e => setReplyText(post.uuid, e.target.value)}
-                  rows={3}
-                  style={{ resize: 'vertical', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 72 }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                  <div style={{ fontSize: 11, color: charCount >= 180 ? 'var(--warn)' : 'var(--tx3)' }}>
-                    {charCount}/200 · 1 reply per post
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {post.title?.trim() || t('common.untitled')}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)', flexShrink: 0 }}>
+                      {formatPostTime(post.created_at, t)}
+                    </div>
                   </div>
-                  <button
-                    className="btn-primary"
-                    onClick={() => submitReply(post.uuid)}
-                    disabled={!reply.text.trim()}
-                    style={{
-                      width: 'auto', padding: '7px 16px', fontSize: 12,
-                      opacity: reply.text.trim() ? 1 : 0.5,
-                    }}
-                  >
-                    Reply
-                  </button>
+                  <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 6 }}>
+                    {post.author.display_name}
+                  </div>
+                  <div style={{
+                    fontSize: 12,
+                    color: 'var(--tx2)',
+                    lineHeight: 1.6,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}>
+                    {post.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1')}
+                  </div>
+                  {post.tags.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                      {post.tags.map((tag) => (
+                        <span
+                          key={tag.uuid}
+                          className="subject-chip"
+                          style={{ background: `${subjectColor}18`, color: subjectColor, fontSize: 10 }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-
-            {/* Replied badge */}
-            {reply.submitted && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <span className="badge badge-ok" style={{ fontSize: 11 }}>✓ Replied</span>
-              </div>
-            )}
-          </div>
-        );
-      })}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Subject Detail Screen ─────────────────────────────────────
+function RecentExamScores({
+  scores,
+  subjectColor,
+}: {
+  scores: ExamScore[];
+  subjectColor: string;
+}) {
+  const { t } = useTranslation('app');
+
+  return (
+    <div className="card">
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
+        {t('parentSubject.recentExamScores')}
+      </div>
+
+      {scores.length === 0 ? (
+        <div style={{ fontSize: 13, color: 'var(--tx3)' }}>
+          {t('parentSubject.noRecentExamScores')}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {scores.map((score) => (
+            <div key={score.uuid} className="card-sm" style={{ padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>
+                  {score.exam_name ?? t('parentExamScores.untitledExam')}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
+                  {score.exam_date.slice(0, 10)}
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>
+                {score.author.display_name}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: subjectColor }}>
+                {score.score}/{score.full_score}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecentExamTrend({
+  scores,
+  subjectColor,
+}: {
+  scores: ExamScore[];
+  subjectColor: string;
+}) {
+  const { t } = useTranslation('app');
+
+  const chartData = useMemo<ChartDataPoint[]>(() => (
+    [...scores]
+      .sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime())
+      .map((score) => ({
+        label: score.exam_date.slice(5, 10),
+        value: score.full_score > 0 ? Math.round((score.score / score.full_score) * 100) : 0,
+      }))
+  ), [scores]);
+
+  return (
+    <div className="card">
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 6 }}>
+        {t('parentSubject.recentExamTrend')}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 14 }}>
+        {t('parentSubject.recentExamTrendHelp')}
+      </div>
+
+      {chartData.length >= 3 ? (
+        <LineChart
+          data={chartData}
+          color={subjectColor}
+          height={180}
+        />
+      ) : chartData.length > 0 ? (
+        <div style={{ padding: '6px 0' }}>
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>
+            {t('parentSubject.notEnoughTrendData')}
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: subjectColor }}>
+            {chartData[chartData.length - 1].value}%
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 4 }}>
+            {t('parentSubject.singleExamPoint', { count: chartData.length })}
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 13, color: 'var(--tx3)' }}>
+          {t('parentSubject.noRecentExamScores')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LatestMetricSnapshot({
+  metric,
+}: {
+  metric: PeriodMetric | null;
+}) {
+  const { t } = useTranslation('app');
+
+  return (
+    <div className="card">
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 14 }}>
+        {t('parentSubject.latestMetricSnapshot')}
+      </div>
+
+      {!metric ? (
+        <div style={{ fontSize: 13, color: 'var(--tx3)' }}>
+          {t('parentSubject.noMetricSnapshot')}
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 12 }}>
+            {metric.snapshot_date.slice(0, 10)}
+            {metric.term ? ` · ${metric.term}` : ''}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            <div className="stat-box">
+              <div className="stat-label">{t('parentPeriodMetrics.progress')}</div>
+              <div className="stat-value" style={{ color: 'var(--a1)' }}>{Math.round(metric.progress * 100)}%</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">{t('parentPeriodMetrics.completion')}</div>
+              <div className="stat-value" style={{ color: 'var(--a2)' }}>{Math.round(metric.assignment_completion_rate * 100)}%</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">{t('parentPeriodMetrics.attendance')}</div>
+              <div className="stat-value" style={{ color: 'var(--a3)' }}>{Math.round(metric.attendance_rate * 100)}%</div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function SubjectDetailScreen() {
-  const { currentSubjectUuid, navigate } = useApp();
-  const [showAvg, setShowAvg] = useState(false);
-  const [period, setPeriod] = useState<'term' | 'year'>('term');
+  const { t } = useTranslation('app');
+  const navigate = useNavigate();
+  const { sid, subjectId } = useParams<{ sid: string; subjectId: string }>();
+  const [detail, setDetail] = useState<SubjectDetailResponse | null>(null);
+  const [recentScores, setRecentScores] = useState<ExamScore[]>([]);
+  const [latestMetric, setLatestMetric] = useState<PeriodMetric | null>(null);
 
-  // Fall back to math if no subject selected
-  const subjectUuid = currentSubjectUuid ?? 'sub-math';
-  const detail = mockSubjectDetails[subjectUuid] ?? mockSubjectDetails['sub-math'];
+  const subjectUuid = subjectId ?? '';
+
+  useEffect(() => {
+    if (!sid || !subjectUuid) return;
+    parentApi.getSubjectDetail(sid, subjectUuid)
+      .then((res) => setDetail(res.data))
+      .catch(() => {});
+  }, [sid, subjectUuid]);
+
+  useEffect(() => {
+    if (!sid || !subjectUuid) return;
+    parentApi.getExamScores(sid, {
+      page: 1,
+      page_size: 10,
+      subject_uuid: subjectUuid,
+    }).then((res) => {
+      setRecentScores(res.data);
+    }).catch(() => setRecentScores([]));
+  }, [sid, subjectUuid]);
+
+  useEffect(() => {
+    if (!sid || !subjectUuid) return;
+    parentApi.getPeriodMetrics(sid, {
+      subject_uuid: subjectUuid,
+    }).then((res) => {
+      setLatestMetric(res.data[0] ?? null);
+    }).catch(() => setLatestMetric(null));
+  }, [sid, subjectUuid]);
+
+  const summaryDate = useMemo(() => {
+    if (!detail?.summary?.translated_at) return null;
+    try {
+      return new Date(detail.summary.translated_at).toLocaleDateString('en-AU');
+    } catch {
+      return detail.summary.translated_at;
+    }
+  }, [detail?.summary?.translated_at]);
+
+  const recentScoreCards = useMemo(() => recentScores.slice(0, 3), [recentScores]);
+
+  if (!detail) {
+    return (
+      <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 14 }}>
+        {t('common.loading')}
+      </div>
+    );
+  }
+
   const subject = detail.subject;
-
   const subjectColor = subject.color ?? 'var(--a1)';
+  const leadTeacher = subject.teachers?.[0]?.display_name ?? t('parentGrades.noTeacherAssigned');
+
+  const openSummaryReport = () => {
+    if (!sid || !detail.summary?.report_uuid) return;
+    navigate(`/parent/students/${sid}/reports?report=${detail.summary.report_uuid}`);
+  };
+
+  const openPost = (post: ThreadPost) => {
+    if (!sid) return;
+    const teacherUuid = post.author.role === 'teacher' && subject.teachers?.some((teacher) => teacher.uuid === post.author.uuid)
+      ? post.author.uuid
+      : (subject.teachers?.[0]?.uuid ?? '');
+    if (!teacherUuid) return;
+    navigate(`/parent/students/${sid}/discussions/${teacherUuid}?post=${post.uuid}`);
+  };
 
   return (
     <div>
-      {/* Back button */}
-      <button
-        onClick={() => navigate('dashboard')}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 13, color: 'var(--tx2)', fontWeight: 700,
-          fontFamily: 'var(--font-body)',
-        }}
-      >
-        ← Back to Dashboard
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (!sid) return;
+            navigate(`/parent/students/${sid}/grades`);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'var(--tx3)',
+            fontSize: 20,
+            lineHeight: 1,
+            padding: '0 4px',
+            fontFamily: 'var(--font-body)',
+          }}
+          aria-label={t('parentSubject.backToGrades')}
+          title={t('parentSubject.backToGrades')}
+        >
+          ←
+        </button>
 
-      {/* Subject header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
         <div style={{
-          width: 44, height: 44, borderRadius: 12,
-          background: subjectColor + '18',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20,
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          background: `${subjectColor}18`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 22,
+          flexShrink: 0,
         }}>
-          {subject.code === 'math' ? '📐' : subject.code === 'english' ? '📖' :
-           subject.code === 'science' ? '🔬' : subject.code === 'hass' ? '🌍' :
-           subject.code === 'pe' ? '⚽' : '🎨'}
+          {getSubjectIcon(subject.code)}
         </div>
-        <div>
-          <div className="font-serif" style={{ fontSize: 22, color: 'var(--tx)' }}>{subject.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--tx2)' }}>{subject.teacher?.display_name}</div>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <div
-            className="badge-score"
-            style={{ background: subjectColor, fontSize: 20, padding: '6px 16px' }}
-          >
-            {detail.overview.current_score}%
+
+        <div style={{ minWidth: 0 }}>
+          <div className="font-serif" style={{ fontSize: 24, color: 'var(--tx)' }}>
+            {subject.name}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--tx2)', marginTop: 4 }}>
+            {leadTeacher}
+            {subject.code ? ` · ${subject.code}` : ''}
           </div>
         </div>
       </div>
 
-      {/* 4 stat boxes */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-        {[
-          { label: 'Current Score', value: detail.overview.current_score, color: subjectColor },
-          { label: 'Term Average',  value: detail.overview.term_avg,      color: 'var(--a2)' },
-          { label: 'Highest',       value: detail.overview.highest,        color: 'var(--a3)' },
-          { label: 'Lowest',        value: detail.overview.lowest,         color: 'var(--tx2)' },
-        ].map((s, i) => (
-          <div key={i} className="stat-box">
-            <div className="stat-label">{s.label}</div>
-            <div className="stat-value" style={{ color: s.color }}>{s.value}%</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Line chart with toggles */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>Score Trend</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Period toggle */}
-            <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 8, padding: 2 }}>
-              {(['term', 'year'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  style={{
-                    padding: '4px 12px', borderRadius: 6, border: 'none',
-                    background: period === p ? subjectColor : 'transparent',
-                    color: period === p ? '#fff' : 'var(--tx2)',
-                    fontWeight: 700, fontSize: 11, cursor: 'pointer',
-                    fontFamily: 'var(--font-body)', textTransform: 'capitalize',
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gap: 16, alignItems: 'start', marginBottom: 16 }}>
+        <button
+          type="button"
+          className="card"
+          onClick={openSummaryReport}
+          disabled={!detail.summary?.report_uuid}
+          style={{ textAlign: 'left', cursor: detail.summary?.report_uuid ? 'pointer' : 'default' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>
+                {t('parentSubject.latestSummary')}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 3 }}>
+                {t('parentSubject.latestSummaryHelp')}
+              </div>
             </div>
-            {/* Avg toggle */}
-            <button
-              onClick={() => setShowAvg(s => !s)}
-              style={{
-                padding: '4px 12px', borderRadius: 6, border: '1px solid var(--bd)',
-                background: showAvg ? 'var(--a2)' : 'transparent',
-                color: showAvg ? '#fff' : 'var(--tx2)',
-                fontWeight: 700, fontSize: 11, cursor: 'pointer',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              Class avg
-            </button>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {detail.summary && (
+                <>
+                  <span className="badge" style={{ fontSize: 10 }}>{detail.summary.display_language}</span>
+                  {detail.summary.translated_language && (
+                    <span className="badge" style={{ fontSize: 10 }}>{detail.summary.translated_language}</span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-        <LineChart
-          data={detail.trend_data}
-          avgData={detail.class_avg_data}
-          color={subjectColor}
-          showAvg={showAvg}
-          height={200}
-        />
-        {showAvg && (
-          <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: 'var(--tx3)' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 16, height: 2, background: subjectColor, display: 'inline-block', borderRadius: 1 }} />
-              Emily
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 16, height: 2, background: 'var(--a2)', display: 'inline-block', borderRadius: 1, opacity: 0.7 }} />
-              Class average
-            </span>
-          </div>
-        )}
-      </div>
 
-      {/* Two columns: timeline + post board */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 16 }}>
-        {/* Learning Pathway */}
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 16 }}>
-            Learning Pathway
-          </div>
-          <div className="timeline">
-            {detail.timeline.map(node => (
-              <div key={node.uuid} className="timeline-node">
-                <div className={`timeline-dot ${node.status}`} />
-                <div>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: node.status === 'future' ? 'var(--tx3)' : 'var(--tx)',
-                  }}>
-                    {node.title}
-                  </div>
-                  {node.week && (
-                    <div style={{ fontSize: 11, color: 'var(--tx3)' }}>Week {node.week}</div>
-                  )}
-                  {node.status === 'current' && (
-                    <span className="badge" style={{ background: subjectColor + '18', color: subjectColor, marginTop: 4, fontSize: 10 }}>
-                      In progress
-                    </span>
-                  )}
-                  {node.status === 'done' && (
-                    <span style={{ fontSize: 11, color: 'var(--a2)' }}>✓ Completed</span>
-                  )}
+          {detail.summary ? (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 8 }}>
+                {detail.summary.report_title}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                {detail.summary.display_text}
+              </div>
+              {summaryDate && (
+                <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 12 }}>
+                  {t('parentSubject.summaryTranslatedAt', { date: summaryDate })}
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* AI Summary if available */}
-          {detail.ai_summary && (
-            <div style={{
-              marginTop: 20, padding: '14px', borderRadius: 10,
-              background: 'linear-gradient(135deg, rgba(232,97,78,0.06), rgba(74,144,217,0.06))',
-              border: '1px solid var(--bd)',
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>✦</span> AI Insight
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--tx2)', lineHeight: 1.6, marginBottom: 10 }}>
-                {detail.ai_summary.summary}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {detail.ai_summary.suggestions.map((s, i) => (
-                  <div key={i} style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 6 }}>
-                    <span style={{ color: subjectColor }}>→</span>
-                    {s}
-                  </div>
-                ))}
-              </div>
+              )}
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--tx3)' }}>
+              {t('parentSubject.noSummary')}
             </div>
           )}
-        </div>
+        </button>
 
-        {/* Post board */}
-        <div className="card" style={{ overflowY: 'auto', maxHeight: 600 }}>
-          <PostBoard posts={detail.posts} subjectColor={subjectColor} />
+        <div className="card" style={{
+          background: 'linear-gradient(135deg, rgba(232,97,78,0.06), rgba(74,144,217,0.06))',
+          borderColor: `${subjectColor}25`,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', marginBottom: 8 }}>
+            {t('parentSubject.askAiTitle')}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7, marginBottom: 14 }}>
+            {t('parentSubject.askAiBody', { subject: subject.name })}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span className="chip" style={{ fontSize: 11 }}>
+              {t('parentSubject.aiPromptSummary', { subject: subject.name })}
+            </span>
+            <span className="chip" style={{ fontSize: 11 }}>
+              {t('parentSubject.aiPromptSupport')}
+            </span>
+            <span className="chip" style={{ fontSize: 11 }}>
+              {t('parentSubject.aiPromptQuestions')}
+            </span>
+          </div>
         </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, alignItems: 'start', marginBottom: 16 }}>
+        <RecentExamTrend scores={recentScores} subjectColor={subjectColor} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 16, alignItems: 'start', marginBottom: 16 }}>
+        <RecentExamScores scores={recentScoreCards} subjectColor={subjectColor} />
+        <LatestMetricSnapshot metric={latestMetric} />
+      </div>
+
+      <PostBoard posts={detail.posts} subjectColor={subjectColor} onOpenPost={openPost} />
     </div>
   );
 }

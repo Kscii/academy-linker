@@ -1,170 +1,728 @@
-// ============================================================
-// AIPanel — Floating AI assistant (bottom-right FAB)
-// Chat interface with preset chips and simulated responses
-// ============================================================
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Archive, ArchiveRestore, Expand, Minimize2, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Trash2, X } from 'lucide-react';
 
-import { useState, useRef, useEffect } from 'react';
+import { ai } from '@/lib/api';
+import { useEscapeKey } from '@/lib/keyboard';
+import type { AiConversation, AiContextType, AiMessage } from '@/types/api';
 
-interface Message {
-  id: string;
-  role: 'user' | 'bot';
-  text: string;
+interface AIPanelProps {
+  studentUuid?: string;
+  subjectUuid?: string;
 }
 
-const PRESET_CHIPS = [
-  'Summarise Emily\'s week',
-  'Which subject needs focus?',
-  'Tips to improve Maths',
-  'How is attendance?',
-];
-
-const AI_RESPONSES: Record<string, string> = {
-  'Summarise Emily\'s week':
-    'Emily had a great week! She scored 82% in Maths and 88% in Science. Her athletics performance was outstanding — 2nd place in the 800m. Main focus area: Maths word problems ahead of the Chapter 4 test.',
-  'Which subject needs focus?':
-    'Based on current trends, **Humanities & Social Sciences** (70%) and **English** (75%) are the areas where Emily could most improve. I\'d recommend focusing on analytical writing and comprehension practice.',
-  'Tips to improve Maths':
-    'Here are 3 tips: (1) 20 min daily on Khan Academy linear equations, (2) Practice 5 word problems per night, (3) Attend Mr. Roberts\' optional help session on Thursdays. Emily is close to an 85%+ average!',
-  'How is attendance?':
-    'Emily\'s attendance is excellent at 96% this term — only 2 absences. Both were notified and she has caught up on missed work. Keep it up!',
-};
-
-const BOT_DELAY = 800;
+interface DisplayMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+}
 
 let msgIdCounter = 0;
 const genId = () => `msg-${++msgIdCounter}`;
 
-export function AIPanel() {
+const PLACEHOLDER_UUID = '__new__';
+const FLOATING_PANEL_MARGIN = 24;
+
+function resolveContextType(studentUuid?: string, subjectUuid?: string): AiContextType {
+  if (studentUuid && subjectUuid) return 'subject';
+  if (studentUuid) return 'student';
+  return 'global';
+}
+
+function toDisplayMessage(message: AiMessage): DisplayMessage {
+  return {
+    id: message.uuid || genId(),
+    role: message.role,
+    text: message.content_markdown,
+  };
+}
+
+function buildOptimisticConversation(
+  uuid: string,
+  contextType: AiContextType,
+  text: string,
+  studentUuid?: string,
+  subjectUuid?: string,
+): AiConversation {
+  const now = new Date().toISOString();
+  const title = text.trim().slice(0, 60) || null;
+  return {
+    uuid,
+    title,
+    context_type: contextType,
+    student_uuid: studentUuid || null,
+    subject_uuid: subjectUuid || null,
+    is_archived: false,
+    last_message_at: now,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function parseInline(text: string, keyPrefix: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+
+    if (match[2] && match[3]) {
+      nodes.push(
+        <a
+          key={`${keyPrefix}-link-${match.index}`}
+          href={match[3]}
+          target="_blank"
+          rel="noreferrer"
+          className="ai-markdown-link"
+        >
+          {match[2]}
+        </a>,
+      );
+    } else if (match[4]) {
+      nodes.push(
+        <code key={`${keyPrefix}-code-${match.index}`} className="ai-inline-code">
+          {match[4]}
+        </code>,
+      );
+    } else if (match[5]) {
+      nodes.push(<strong key={`${keyPrefix}-strong-${match.index}`}>{match[5]}</strong>);
+    } else if (match[6]) {
+      nodes.push(<em key={`${keyPrefix}-em-${match.index}`}>{match[6]}</em>);
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes;
+}
+
+function MarkdownMessage({ text }: { text: string }) {
+  const lines = text.split('\n');
+  const nodes: ReactNode[] = [];
+  let i = 0;
+  let inCodeBlock = false;
+  let codeLines: string[] = [];
+
+  const flushCodeBlock = (key: number) => {
+    if (!inCodeBlock) return;
+    nodes.push(
+      <pre key={`code-${key}`} className="ai-code-block">
+        <code>{codeLines.join('\n')}</code>
+      </pre>,
+    );
+    inCodeBlock = false;
+    codeLines = [];
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.startsWith('```')) {
+      if (inCodeBlock) {
+        flushCodeBlock(i);
+      } else {
+        inCodeBlock = true;
+        codeLines = [];
+      }
+      i += 1;
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(line);
+      i += 1;
+      continue;
+    }
+
+    if (!line.trim()) {
+      nodes.push(<div key={`space-${i}`} className="ai-markdown-space" />);
+      i += 1;
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
+      nodes.push(<h4 key={`h4-${i}`}>{parseInline(line.slice(4), `h4-${i}`)}</h4>);
+      i += 1;
+      continue;
+    }
+
+    if (line.startsWith('## ')) {
+      nodes.push(<h3 key={`h3-${i}`}>{parseInline(line.slice(3), `h3-${i}`)}</h3>);
+      i += 1;
+      continue;
+    }
+
+    if (line.startsWith('# ')) {
+      nodes.push(<h2 key={`h2-${i}`}>{parseInline(line.slice(2), `h2-${i}`)}</h2>);
+      i += 1;
+      continue;
+    }
+
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      const items: ReactNode[] = [];
+      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
+        items.push(<li key={`li-${i}`}>{parseInline(lines[i].slice(2), `li-${i}`)}</li>);
+        i += 1;
+      }
+      nodes.push(<ul key={`ul-${i}`}>{items}</ul>);
+      continue;
+    }
+
+    if (/^\d+\.\s/.test(line)) {
+      const items: ReactNode[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(<li key={`ol-li-${i}`}>{parseInline(lines[i].replace(/^\d+\.\s*/, ''), `ol-li-${i}`)}</li>);
+        i += 1;
+      }
+      nodes.push(<ol key={`ol-${i}`}>{items}</ol>);
+      continue;
+    }
+
+    nodes.push(<p key={`p-${i}`}>{parseInline(line, `p-${i}`)}</p>);
+    i += 1;
+  }
+
+  flushCodeBlock(i);
+  return <div className="ai-markdown">{nodes}</div>;
+}
+
+function HistorySkeleton() {
+  return (
+    <>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="ai-skeleton-item">
+          <div className="ai-skeleton-line long" />
+          <div className="ai-skeleton-line short" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Spinner({ size = 20 }: { size?: number }) {
+  return <div className="ai-spinner" style={{ width: size, height: size }} />;
+}
+
+function formatConversationTime(dateString: string | null, locale: string): string {
+  if (!dateString) return '';
+  try {
+    return new Date(dateString).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-AU', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateString;
+  }
+}
+
+export function AIPanel({ studentUuid, subjectUuid }: AIPanelProps) {
+  const { t, i18n } = useTranslation('app');
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: genId(), role: 'bot', text: 'Hi! I\'m your AI assistant. Ask me anything about Emily\'s progress, or tap a suggestion below.' },
-  ]);
+  const [expanded, setExpanded] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [conversations, setConversations] = useState<AiConversation[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [conversationUuid, setConversationUuid] = useState<string | null>(null);
+  const [currentArchived, setCurrentArchived] = useState(false);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const panelRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasMoved = useRef(false);
+  const isDragging = useRef(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const clampToViewport = useCallback((x: number, y: number, width: number, height: number) => ({
+    x: Math.max(FLOATING_PANEL_MARGIN, Math.min(window.innerWidth - width - FLOATING_PANEL_MARGIN, x)),
+    y: Math.max(FLOATING_PANEL_MARGIN, Math.min(window.innerHeight - height - FLOATING_PANEL_MARGIN, y)),
+  }), []);
+
+  const contextType = useMemo(() => resolveContextType(studentUuid, subjectUuid), [studentUuid, subjectUuid]);
+  const defaultGreeting = useMemo(
+    () => (studentUuid ? t('aiPanel.greetingStudent') : t('aiPanel.greetingGlobal')),
+    [studentUuid, t],
+  );
+
+  const resetComposer = useCallback(() => {
+    setConversationUuid(PLACEHOLDER_UUID);
+    setCurrentArchived(false);
+    setMessages([]);
+  }, []);
 
   useEffect(() => {
-    if (open && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, open]);
+    resetComposer();
+  }, [resetComposer, contextType, studentUuid, subjectUuid]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim() || thinking) return;
-    const userMsg: Message = { id: genId(), role: 'user', text: text.trim() };
-    setMessages(prev => [...prev, userMsg]);
+  const loadHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await ai.listConversations({
+        page: 1,
+        archived: showArchived,
+        context_type: contextType,
+        student_uuid: studentUuid,
+        subject_uuid: subjectUuid,
+        sort: 'updated_at_desc',
+      });
+      setConversations(res.data);
+    } catch {
+      setConversations([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [contextType, showArchived, studentUuid, subjectUuid]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadHistory();
+  }, [loadHistory, open]);
+
+  useEffect(() => {
+    if (!conversationUuid || conversationUuid === PLACEHOLDER_UUID) return;
+    const existsInCurrentFilter = conversations.some((conversation) => conversation.uuid === conversationUuid);
+    if (thinking || messages.length > 0) return;
+    if (!existsInCurrentFilter && currentArchived === showArchived) {
+      setConversationUuid(PLACEHOLDER_UUID);
+      setCurrentArchived(false);
+      setMessages([]);
+    }
+  }, [conversationUuid, conversations, currentArchived, messages.length, showArchived, thinking]);
+
+  useEffect(() => {
+    if (!open || !messagesEndRef.current) return;
+    messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, open, thinking]);
+
+  useEscapeKey({
+    enabled: open,
+    allowInInput: true,
+    onEscape: () => setOpen(false),
+  });
+
+  const ensureConversation = useCallback(async () => {
+    if (conversationUuid && conversationUuid !== PLACEHOLDER_UUID) return conversationUuid;
+    const res = await ai.createConversation({
+      context_type: contextType,
+      student_uuid: studentUuid || null,
+      subject_uuid: subjectUuid || null,
+    });
+    setConversationUuid(res.data.uuid);
+    setCurrentArchived(false);
+    return res.data.uuid;
+  }, [contextType, conversationUuid, studentUuid, subjectUuid]);
+
+  const openConversation = useCallback(async (uuid: string) => {
+    setLoadingConversation(true);
+    try {
+      const res = await ai.getConversation(uuid);
+      setConversationUuid(res.data.uuid);
+      setCurrentArchived(res.data.is_archived);
+      setMessages(res.data.messages.map(toDisplayMessage));
+    } catch {
+      setMessages([{ id: genId(), role: 'assistant', text: t('aiPanel.serviceUnavailable') }]);
+    } finally {
+      setLoadingConversation(false);
+    }
+  }, [t]);
+
+  const sendMessage = useCallback(async (rawText: string) => {
+    const text = rawText.trim();
+    if (!text || thinking || currentArchived) return;
+
+    const userMessage: DisplayMessage = { id: genId(), role: 'user', text };
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
     setThinking(true);
 
-    setTimeout(() => {
-      const response =
-        AI_RESPONSES[text.trim()] ??
-        'That\'s a great question! Based on Emily\'s current performance data, I can see she\'s making steady progress across all subjects. For more specific insights, please check the individual subject pages.';
-      setMessages(prev => [...prev, { id: genId(), role: 'bot', text: response }]);
+    try {
+      const uuid = await ensureConversation();
+      setConversations(prev => {
+        if (prev.some((conversation) => conversation.uuid === uuid)) return prev;
+        return [buildOptimisticConversation(uuid, contextType, text, studentUuid, subjectUuid), ...prev];
+      });
+      void loadHistory();
+      const res = await ai.sendMessage(uuid, { message: text, preset: 'default' });
+      setConversationUuid(res.data.conversation_uuid);
+      setMessages(prev => [...prev, toDisplayMessage(res.data.assistant_message)]);
+      void loadHistory();
+    } catch {
+      setMessages(prev => [...prev, { id: genId(), role: 'assistant', text: t('aiPanel.serviceUnavailable') }]);
+    } finally {
       setThinking(false);
-    }, BOT_DELAY);
+    }
+  }, [contextType, currentArchived, ensureConversation, loadHistory, studentUuid, subjectUuid, t, thinking]);
+
+  const handleArchiveToggle = useCallback(async () => {
+    if (!conversationUuid) return;
+    try {
+      if (currentArchived) {
+        await ai.unarchiveConversation(conversationUuid);
+        setCurrentArchived(false);
+        setShowArchived(false);
+      } else {
+        await ai.archiveConversation(conversationUuid);
+        setCurrentArchived(true);
+        setShowArchived(true);
+      }
+      await loadHistory();
+    } catch {
+      // ignore transient failure and keep current UI state
+    }
+  }, [conversationUuid, currentArchived, loadHistory]);
+
+  const handleDeleteConversation = useCallback(async () => {
+    if (!conversationUuid) return;
+    if (!window.confirm(t('aiPanel.deleteConfirm'))) return;
+
+    try {
+      await ai.deleteConversation(conversationUuid);
+      resetComposer();
+      await loadHistory();
+    } catch {
+      // ignore transient failure and keep current UI state
+    }
+  }, [conversationUuid, loadHistory, resetComposer, t]);
+
+  const quickChips = studentUuid
+    ? [t('aiPanel.quickPerformance'), t('aiPanel.quickFocus'), t('aiPanel.quickTips')]
+    : [t('aiPanel.quickHelp'), t('aiPanel.quickSummary'), t('aiPanel.quickReport')];
+
+  const startDrag = (event: React.MouseEvent | React.TouchEvent) => {
+    if ('button' in event && event.button !== 0) return;
+    event.stopPropagation();
+    event.preventDefault();
+
+    const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+    const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    isDragging.current = true;
+    hasMoved.current = false;
+
+    const onMove = (moveEvent: MouseEvent | TouchEvent) => {
+      if (!isDragging.current) return;
+      const cx = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const cy = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      const dx = cx - clientX;
+      const dy = cy - clientY;
+
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasMoved.current = true;
+      if (!hasMoved.current) return;
+
+      const panel = panelRef.current;
+      const panelWidth = panel?.offsetWidth ?? 52;
+      const panelHeight = panel?.offsetHeight ?? 52;
+      setPos(clampToViewport(rect.left + dx, rect.top + dy, panelWidth, panelHeight));
+    };
+
+    const onUp = () => {
+      isDragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchend', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchend', onUp);
   };
 
+  const handleFabClick = () => {
+    if (hasMoved.current) return;
+    setOpen(prev => !prev);
+  };
+
+  const handleExpandedToggle = () => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPos(clampToViewport(rect.left, rect.top, rect.width, rect.height));
+    }
+    setExpanded(prev => !prev);
+  };
+
+  useEffect(() => {
+    const onResize = () => {
+      const panel = panelRef.current;
+      if (!panel || !pos) return;
+      const rect = panel.getBoundingClientRect();
+      setPos((current) => {
+        if (!current) return current;
+        return clampToViewport(current.x, current.y, rect.width, rect.height);
+      });
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampToViewport, pos]);
+
+  useEffect(() => {
+    if (!open || !pos || !panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    const clamped = clampToViewport(pos.x, pos.y, rect.width, rect.height);
+    if (clamped.x !== pos.x || clamped.y !== pos.y) {
+      setPos(clamped);
+    }
+  }, [clampToViewport, expanded, historyOpen, open, pos]);
+
+  const panelStyle: CSSProperties = pos
+    ? { position: 'fixed', left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', zIndex: 200 }
+    : { position: 'fixed', right: FLOATING_PANEL_MARGIN, bottom: FLOATING_PANEL_MARGIN, zIndex: 200 };
+
+  const activeConversation = conversations.find((conversation) => conversation.uuid === conversationUuid) ?? null;
+
   return (
-    <div className="ai-panel">
-      {/* Chat window */}
+    <div ref={panelRef} className={`ai-panel ${expanded ? 'expanded' : ''}`} style={panelStyle}>
       {open && (
-        <div className="ai-window">
-          {/* Header */}
-          <div style={{
-            padding: '14px 16px',
-            borderBottom: '1px solid var(--bd)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'var(--card)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--a1), var(--a4))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14,
-              }}>
-                ✦
-              </div>
+        <div className={`ai-window ${expanded ? 'expanded' : ''}`}>
+          <div
+            className="ai-window-header"
+            onMouseDown={startDrag}
+            onTouchStart={startDrag}
+          >
+            <div className="ai-window-title">
+              <div className="ai-window-badge">✦</div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>AI Assistant</div>
-                <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Academy Linker</div>
+                <div className="ai-window-heading">{t('aiPanel.title')}</div>
+                <div className="ai-window-subtitle">{t('aiPanel.poweredByAi')}</div>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx3)', fontSize: 18, lineHeight: 1 }}
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Messages */}
-          <div className="ai-messages">
-            {messages.map(msg => (
-              <div
-                key={msg.id}
-                className={msg.role === 'user' ? 'ai-msg-user' : 'ai-msg-bot'}
-              >
-                {msg.text}
-              </div>
-            ))}
-            {thinking && (
-              <div className="ai-msg-bot" style={{ opacity: 0.6 }}>
-                <span style={{ letterSpacing: 2 }}>···</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Preset chips */}
-          <div className="ai-preset-chips">
-            {PRESET_CHIPS.map(chip => (
+            <div className="ai-window-actions">
               <button
-                key={chip}
-                className="chip"
-                style={{ fontSize: 11 }}
-                onClick={() => sendMessage(chip)}
-                disabled={thinking}
+                type="button"
+                className="ai-icon-button"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={() => setHistoryOpen(prev => !prev)}
+                aria-label={historyOpen ? t('aiPanel.hideHistory') : t('aiPanel.openHistory')}
+                title={historyOpen ? t('aiPanel.hideHistory') : t('aiPanel.openHistory')}
               >
-                {chip}
+                {historyOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
               </button>
-            ))}
+              <button
+                type="button"
+                className="ai-icon-button"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={handleExpandedToggle}
+                aria-label={expanded ? t('aiPanel.collapse') : t('aiPanel.expand')}
+                title={expanded ? t('aiPanel.collapse') : t('aiPanel.expand')}
+              >
+                {expanded ? <Minimize2 size={16} /> : <Expand size={16} />}
+              </button>
+              <button
+                type="button"
+                className="ai-icon-button"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={() => setOpen(false)}
+                aria-label={t('actions.cancel')}
+                title={t('actions.cancel')}
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
-          {/* Input */}
-          <div style={{
-            padding: '10px 12px',
-            borderTop: '1px solid var(--bd)',
-            display: 'flex',
-            gap: 8,
-          }}>
-            <input
-              className="input-field"
-              style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-              placeholder="Ask anything…"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') sendMessage(input); }}
-              disabled={thinking}
-            />
-            <button
-              className="btn-primary"
-              style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}
-              onClick={() => sendMessage(input)}
-              disabled={thinking || !input.trim()}
-            >
-              Send
-            </button>
+          <div className={`ai-window-body ${historyOpen ? '' : 'history-hidden'}`}>
+            {historyOpen && (
+              <aside className="ai-history">
+                <div className="ai-history-toolbar">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '10px 14px', fontSize: 12 }}
+                    onClick={() => {
+                      resetComposer();
+                      setShowArchived(false);
+                    }}
+                  >
+                    <MessageSquarePlus size={14} />
+                    <span>{t('aiPanel.newChat')}</span>
+                  </button>
+
+                  <div className="ai-history-tabs">
+                    <button
+                      type="button"
+                      className={`chip ${!showArchived ? 'active' : ''}`}
+                      onClick={() => setShowArchived(false)}
+                    >
+                      {t('aiPanel.activeChats')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`chip ${showArchived ? 'active' : ''}`}
+                      onClick={() => setShowArchived(true)}
+                    >
+                      {t('aiPanel.archivedChats')}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="ai-history-list">
+                  {loadingHistory ? (
+                    <HistorySkeleton />
+                  ) : conversations.length === 0 && conversationUuid !== PLACEHOLDER_UUID ? (
+                    <div className="ai-history-empty">{t('aiPanel.noHistory')}</div>
+                  ) : (
+                    <>
+                      {conversationUuid === PLACEHOLDER_UUID && (
+                        <div className="ai-history-item selected">
+                          <div className="ai-history-item-title">{t('aiPanel.newChat')}</div>
+                        </div>
+                      )}
+                      {conversations.map((conversation) => {
+                        const selected = conversation.uuid === conversationUuid;
+                        return (
+                          <button
+                            key={conversation.uuid}
+                            type="button"
+                            className={`ai-history-item ${selected ? 'selected' : ''}`}
+                            onClick={() => void openConversation(conversation.uuid)}
+                          >
+                            <div className="ai-history-item-title">
+                              {conversation.title?.trim() || t('common.untitled')}
+                            </div>
+                            <div className="ai-history-item-meta">
+                              {formatConversationTime(conversation.last_message_at || conversation.updated_at, i18n.resolvedLanguage ?? i18n.language)}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              </aside>
+            )}
+
+            <section className="ai-chat">
+              <div className="ai-chat-toolbar">
+                <div>
+                  <div className="ai-chat-title">
+                    {activeConversation?.title?.trim() || t('aiPanel.title')}
+                  </div>
+                  {conversationUuid && conversationUuid !== PLACEHOLDER_UUID && (
+                    <div className="ai-chat-meta">
+                      {currentArchived ? t('aiPanel.archivedChats') : t('aiPanel.activeChats')}
+                    </div>
+                  )}
+                </div>
+                <div className="ai-chat-actions">
+                  {conversationUuid && conversationUuid !== PLACEHOLDER_UUID && (
+                    <>
+                      <button
+                        type="button"
+                        className="ai-icon-button"
+                        onClick={() => void handleArchiveToggle()}
+                        aria-label={currentArchived ? t('actions.unarchive') : t('actions.archive')}
+                        title={currentArchived ? t('actions.unarchive') : t('actions.archive')}
+                      >
+                        {currentArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                      </button>
+                      <button
+                        type="button"
+                        className="ai-icon-button warn"
+                        onClick={() => void handleDeleteConversation()}
+                        aria-label={t('actions.delete')}
+                        title={t('actions.delete')}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="ai-messages">
+                {loadingConversation ? (
+                  <div className="ai-loading-center"><Spinner /></div>
+                ) : (!conversationUuid || conversationUuid === PLACEHOLDER_UUID) && messages.length === 0 ? (
+                  <div className="ai-empty-state">
+                    <div className="ai-empty-badge">✦</div>
+                    <p className="ai-empty-greeting">{defaultGreeting}</p>
+                    <div className="ai-empty-chips">
+                      {quickChips.map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          className="chip"
+                          style={{ fontSize: 11 }}
+                          onClick={() => void sendMessage(chip)}
+                          disabled={thinking}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((message) => (
+                      <div key={message.id} className={message.role === 'user' ? 'ai-msg-user' : 'ai-msg-bot'}>
+                        <MarkdownMessage text={message.text} />
+                      </div>
+                    ))}
+                    {thinking && (
+                      <div className="ai-msg-bot thinking">
+                        <Spinner size={16} />
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </div>
+
+              {currentArchived && (
+                <div className="ai-readonly-banner">
+                  {t('aiPanel.archivedReadonly')}
+                </div>
+              )}
+
+              <div className="ai-input-row">
+                <input
+                  className="input-field"
+                  style={{ flex: 1, padding: '10px 12px', fontSize: 13 }}
+                  placeholder={t('aiPanel.placeholder')}
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
+                      void sendMessage(input);
+                    }
+                  }}
+                  disabled={thinking || currentArchived}
+                />
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ width: 'auto', padding: '10px 14px', fontSize: 13 }}
+                  onClick={() => void sendMessage(input)}
+                  disabled={thinking || currentArchived || !input.trim()}
+                >
+                  {t('actions.send')}
+                </button>
+              </div>
+            </section>
           </div>
         </div>
       )}
 
-      {/* FAB */}
-      <button className="ai-fab" onClick={() => setOpen(o => !o)} title="AI Assistant">
-        <span style={{ fontSize: 20 }}>✦</span>
+      <button
+        type="button"
+        className="ai-fab"
+        onMouseDown={startDrag}
+        onTouchStart={startDrag}
+        onClick={handleFabClick}
+        aria-label={t('aiPanel.ariaLabel')}
+      >
+        ✦
       </button>
     </div>
   );

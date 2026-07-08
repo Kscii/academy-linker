@@ -1,0 +1,21 @@
+{
+  "save": "Simpan",
+  "cancel": "Batal",
+  "close": "Tutup",
+  "back": "Kembali",
+  "send": "Hantar",
+  "delete": "Padam",
+  "edit": "Edit",
+  "loading": "Memuatkan…",
+  "error": "Ralat berlaku",
+  "signOut": "Log Keluar",
+  "signedInAs": "Log masuk sebagai",
+  "dayMode": "Mod Siang",
+  "nightMode": "Mod Malam",
+  "parent": "Ibu Bapa",
+  "teacher": "Guru",
+  "settings": "Tetapan",
+  "viewAll": "Lihat semua →",
+  "search": "Cari…",
+  "noResults": "Tiada keputusan"
+}

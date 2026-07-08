@@ -1,235 +1,440 @@
 // ============================================================
-// Teacher MessagesScreen — split layout: conversation list + thread
-// Reply input with AI draft chip, avatar modal with chart
+// Teacher MessagesScreen — student and parent discussion workspace
 // ============================================================
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
+import { PostComposerDrawer } from '@/components/PostComposerDrawer';
+import { TtsButton } from '@/components/TtsButton';
 import { useApp } from '@/contexts/AppContext';
-import { mockTeacherStudents, mockTeacherThread, SUBJECT_COLORS } from '@/lib/mock-data';
-import { LineChart } from '@/components/charts/LineChart';
-import type { ThreadPost } from '@/types/api';
+import { teacher as teacherApi, posts as postsApi, translations } from '@/lib/api';
+import type { DiscussionParentItem, PostTag, TeacherStudentListItem, ThreadPost } from '@/types/api';
 
-const AI_DRAFTS = [
-  "Thank you for reaching out. Emily is making great progress this term.",
-  "I'd be happy to schedule a meeting to discuss this further.",
-  "I recommend focusing on the recommended resources in the class portal.",
-  "This is a common challenge at this stage. Here are my suggestions:",
-];
+const POLL_INTERVAL = 5_000;
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const hours = Math.floor(diff / 3600_000);
-  const days = Math.floor(diff / 86400_000);
-  if (hours < 1) return 'Just now';
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+interface StudentConvoSummary {
+  preview: string | null;
+  unread: number;
+  parentName: string | null;
+  lastPostAt: string | null;
 }
 
 function initials(name: string): string {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-}
-
-// Modal showing student mini chart
-function StudentChartModal({
-  student,
-  onClose,
-}: {
-  student: typeof mockTeacherStudents[0];
-  onClose: () => void;
-}) {
-  const mathDetail = { trend_data: [
-    { label: 'Wk1', value: 65 }, { label: 'Wk2', value: 68 }, { label: 'Wk3', value: 64 },
-    { label: 'Wk4', value: 70 }, { label: 'Wk5', value: 69 }, { label: 'Wk6', value: 72 },
-    { label: 'Wk7', value: 71 }, { label: 'Wk8', value: student.overall_score },
-  ]};
-
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 100,
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="card"
-        style={{ width: 360, padding: 24 }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)' }}>
-            {student.student.display_name} — Overview
-          </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--tx3)' }}
-          >
-            ×
-          </button>
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: 16 }}>
-          Overall score: <strong style={{ color: 'var(--a1)' }}>{student.overall_score}%</strong>
-          {student.at_risk && (
-            <span className="badge badge-warn" style={{ marginLeft: 8, fontSize: 10 }}>At Risk</span>
-          )}
-        </div>
-        <LineChart
-          data={mathDetail.trend_data}
-          color={SUBJECT_COLORS.math}
-          height={140}
-          label="Score trend (Maths)"
-        />
-      </div>
-    </div>
-  );
+  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
 }
 
 export function TeacherMessagesScreen() {
-  const { markThreadRead, readThreadIds } = useApp();
-  const [activeStudentUuid, setActiveStudentUuid] = useState(mockTeacherStudents[0].student.uuid);
-  const [messages, setMessages] = useState<ThreadPost[]>(mockTeacherThread);
-  const [reply, setReply] = useState('');
-  const [showAiChips, setShowAiChips] = useState(false);
-  const [modalStudent, setModalStudent] = useState<typeof mockTeacherStudents[0] | null>(null);
+  const { t } = useTranslation('app');
+  const { markThreadRead, threadUnreadCounts, language } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedStudentUuid = searchParams.get('student') ?? '';
 
-  const activeStudent = mockTeacherStudents.find(s => s.student.uuid === activeStudentUuid) ?? mockTeacherStudents[0];
+  const [students, setStudents] = useState<TeacherStudentListItem[]>([]);
+  const [activeStudentUuid, setActiveStudentUuid] = useState(requestedStudentUuid);
+  const [parentLists, setParentLists] = useState<Record<string, DiscussionParentItem[]>>({});
+  const [activeParentUuid, setActiveParentUuid] = useState('');
+  const [messages, setMessages] = useState<ThreadPost[]>([]);
+  const [threadUuid, setThreadUuid] = useState('');
+  const [threadTotalPages, setThreadTotalPages] = useState(1);
+  const [composerBusy, setComposerBusy] = useState(false);
+  const [availableTags, setAvailableTags] = useState<PostTag[]>([]);
+  const [threadSort, setThreadSort] = useState<'created_at_desc' | 'created_at_asc'>('created_at_desc');
+  const [threadKeyword, setThreadKeyword] = useState('');
+  const [threadTag, setThreadTag] = useState('');
+  const [threadPage, setThreadPage] = useState(1);
+  const [msgTranslations, setMsgTranslations] = useState<Record<string, { text: string | null; loading: boolean; showOriginal: boolean }>>({});
+  const [composerState, setComposerState] = useState<{
+    mode: 'create' | 'reply' | 'edit';
+    post?: ThreadPost;
+  } | null>(null);
 
-  const sendReply = (text: string) => {
-    if (!text.trim()) return;
-    const newPost: ThreadPost = {
-      uuid: `msg-${Date.now()}`,
-      author: {
-        uuid: 'teacher-001',
-        role: 'teacher',
-        display_name: 'Ms. Thompson',
-        email: 'thompson@westside.edu.au',
-      },
-      content_markdown: text,
-      created_at: new Date().toISOString(),
-    };
-    setMessages(m => [...m, newPost]);
-    setReply('');
-    setShowAiChips(false);
+  const txTranslate = t('actions.translate');
+  const aiDrafts = [
+    t('teacherMessages.aiDrafts.reviewingProgress'),
+    t('teacherMessages.aiDrafts.scheduleMeeting'),
+    t('teacherMessages.aiDrafts.focusActivities'),
+    t('teacherMessages.aiDrafts.commonChallenge'),
+  ];
+  const timeAgo = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const h = Math.floor(diff / 3600_000);
+    const d = Math.floor(diff / 86400_000);
+    if (h < 1) return t('teacherMessages.justNow');
+    if (h < 24) return t('teacherMessages.hoursAgo', { count: h });
+    return t('teacherMessages.daysAgo', { count: d });
+  };
+
+  const activeStudent = students.find(student => student.uuid === activeStudentUuid) ?? null;
+  const parentsForActiveStudent = parentLists[activeStudentUuid] ?? [];
+  const activeParent = parentsForActiveStudent.find(parent => parent.uuid === activeParentUuid) ?? parentsForActiveStudent[0] ?? null;
+  const replyTarget = composerState?.mode === 'reply' ? composerState.post ?? null : null;
+  const composerResetKey = composerState
+    ? composerState.mode === 'create'
+      ? 'create'
+      : `${composerState.mode}:${composerState.post?.uuid ?? ''}`
+    : 'closed';
+
+  const studentSummaries = useMemo<Record<string, StudentConvoSummary>>(() => {
+    const summaries: Record<string, StudentConvoSummary> = {};
+    Object.entries(parentLists).forEach(([studentUuid, parents]) => {
+      const previewParent = [...parents].sort((a, b) => {
+        const aTime = a.last_post_at ? new Date(a.last_post_at).getTime() : 0;
+        const bTime = b.last_post_at ? new Date(b.last_post_at).getTime() : 0;
+        return bTime - aTime;
+      })[0];
+      summaries[studentUuid] = {
+        preview: previewParent ? t('teacherMessages.parentPreview', { name: previewParent.display_name }) : null,
+        unread: parents.reduce((sum, parent) => sum + parent.unread_post_count, 0),
+        parentName: previewParent?.display_name ?? null,
+        lastPostAt: previewParent?.last_post_at ?? null,
+      };
+    });
+    return summaries;
+  }, [parentLists, t]);
+
+  const loadParents = useCallback(async (studentUuid: string) => {
+    if (!studentUuid) return [];
+    const res = await teacherApi.getDiscussionParents(studentUuid, { sort: 'last_post_at_desc' });
+    setParentLists(prev => ({ ...prev, [studentUuid]: res.data }));
+    return res.data;
+  }, []);
+
+  const loadThread = useCallback(async (studentUuid: string, parentUuid: string) => {
+    if (!studentUuid || !parentUuid) return;
+    const res = await teacherApi.getDiscussionThread(studentUuid, parentUuid, {
+      page: threadPage,
+      page_size: 20,
+      sort: threadSort,
+      tag: threadTag || undefined,
+      keyword: threadKeyword.trim() || undefined,
+    });
+    setMessages(res.data.posts);
+    setAvailableTags(res.data.available_tags);
+    setThreadUuid(res.data.thread_uuid);
+    setThreadTotalPages(Math.max(res.data.meta.total_pages, 1));
+    markThreadRead(studentUuid);
+  }, [markThreadRead, threadKeyword, threadPage, threadSort, threadTag]);
+
+  useEffect(() => {
+    setMsgTranslations({});
+  }, [language, activeStudentUuid, activeParentUuid]);
+
+  useEffect(() => {
+    setComposerState(null);
+  }, [activeParentUuid, activeStudentUuid]);
+
+  useEffect(() => {
+    setThreadPage(1);
+  }, [activeParentUuid, activeStudentUuid, threadKeyword, threadSort, threadTag]);
+
+  useEffect(() => {
+    setMsgTranslations(prev => {
+      const validIds = new Set(messages.filter(message => !message.is_deleted).map(message => message.uuid));
+      return Object.fromEntries(Object.entries(prev).filter(([key]) => validIds.has(key)));
+    });
+  }, [messages]);
+
+  useEffect(() => {
+    Promise.all([
+      teacherApi.getStudents({ page: 1, page_size: 100, sort: 'last_activity_at_desc' }),
+      teacherApi.getTags('all'),
+    ]).then(([studentsRes, tagsRes]) => {
+      setStudents(studentsRes.data);
+      setAvailableTags(tagsRes.data);
+      const firstStudentUuid = requestedStudentUuid || studentsRes.data[0]?.uuid || '';
+      setActiveStudentUuid(firstStudentUuid);
+    }).catch(() => {});
+  }, [requestedStudentUuid]);
+
+  useEffect(() => {
+    if (!activeStudentUuid) return;
+    const next = new URLSearchParams();
+    next.set('student', activeStudentUuid);
+    setSearchParams(next, { replace: true });
+    loadParents(activeStudentUuid).then(parents => {
+      setActiveParentUuid(prev => (parents.some(parent => parent.uuid === prev) ? prev : parents[0]?.uuid ?? ''));
+    }).catch(() => {});
+  }, [activeStudentUuid, loadParents, setSearchParams]);
+
+  useEffect(() => {
+    if (!activeStudentUuid || !activeParentUuid) {
+      setMessages([]);
+      setThreadUuid('');
+      return;
+    }
+    void loadThread(activeStudentUuid, activeParentUuid);
+  }, [activeParentUuid, activeStudentUuid, loadThread]);
+
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (!activeStudentUuid) return;
+      await loadParents(activeStudentUuid);
+      if (activeParentUuid) {
+        await loadThread(activeStudentUuid, activeParentUuid);
+      }
+    }, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [activeParentUuid, activeStudentUuid, loadParents, loadThread]);
+
+  const handleTranslate = useCallback(async (post: ThreadPost) => {
+    if (post.is_deleted) return;
+    const id = post.uuid;
+    const existing = msgTranslations[id];
+    if (existing) {
+      setMsgTranslations(prev => ({ ...prev, [id]: { ...prev[id], showOriginal: !prev[id].showOriginal } }));
+      return;
+    }
+    if (post.translated_content_markdown) {
+      setMsgTranslations(prev => ({
+        ...prev,
+        [id]: {
+          text: post.translated_content_markdown,
+          loading: false,
+          showOriginal: post.display_language !== post.original_language,
+        },
+      }));
+      return;
+    }
+    setMsgTranslations(prev => ({ ...prev, [id]: { text: '', loading: true, showOriginal: false } }));
+    try {
+      const res = await translations.resolve({ resource_type: 'post', resource_uuid: post.uuid });
+      const translated = res.data.translated_content_markdown ?? res.data.display_content_markdown;
+      setMsgTranslations(prev => ({ ...prev, [id]: { text: translated, loading: false, showOriginal: false } }));
+      if (activeStudentUuid && activeParentUuid) {
+        await loadThread(activeStudentUuid, activeParentUuid);
+      }
+    } catch {
+      setMsgTranslations(prev => ({ ...prev, [id]: { text: post.content_markdown, loading: false, showOriginal: false } }));
+    }
+  }, [activeParentUuid, activeStudentUuid, loadThread, msgTranslations]);
+
+  const submitComposer = async (payload: { title: string | null; content: string; tagUuids: string[] }) => {
+    if (!threadUuid || !composerState || composerBusy) return;
+    setComposerBusy(true);
+    try {
+      if (composerState.mode === 'edit' && composerState.post) {
+        await postsApi.update(composerState.post.uuid, {
+          title: payload.title,
+          content_markdown: payload.content,
+          original_language: language,
+          tag_uuids: payload.tagUuids,
+        });
+      } else {
+        await postsApi.create(threadUuid, {
+          title: payload.title,
+          content_markdown: payload.content,
+          original_language: language,
+          tag_uuids: payload.tagUuids.length > 0 ? payload.tagUuids : undefined,
+          reply_to_post_uuid: composerState.mode === 'reply' ? composerState.post?.uuid ?? null : null,
+        });
+      }
+      setComposerState(null);
+      if (activeStudentUuid && activeParentUuid) {
+        await loadThread(activeStudentUuid, activeParentUuid);
+        await loadParents(activeStudentUuid);
+      }
+    } finally {
+      setComposerBusy(false);
+    }
+  };
+
+  const deletePost = async (postUuid: string) => {
+    if (!window.confirm(t('teacherMessages.deleteConfirm'))) return;
+    await postsApi.delete(postUuid);
+    if (composerState?.post?.uuid === postUuid) setComposerState(null);
+    setMsgTranslations(prev => {
+      const next = { ...prev };
+      delete next[postUuid];
+      return next;
+    });
+    if (activeStudentUuid && activeParentUuid) {
+      await loadThread(activeStudentUuid, activeParentUuid);
+      await loadParents(activeStudentUuid);
+    }
   };
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>Messages</div>
+        <div className="font-serif" style={{ fontSize: 26, color: 'var(--tx)' }}>{t('teacherMessages.title')}</div>
       </div>
 
       <div className="messages-split">
-        {/* Conversation list */}
         <div className="conversation-list">
           <div style={{ padding: '14px 16px', fontSize: 12, fontWeight: 700, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--bd)' }}>
-            Parent conversations
+            {t('teacherMessages.parentConversations')}
           </div>
-          {mockTeacherStudents.map(item => (
-            <div
-              key={item.student.uuid}
-              className={`convo-item ${activeStudentUuid === item.student.uuid ? 'active' : ''}`}
-              onClick={() => { setActiveStudentUuid(item.student.uuid); markThreadRead(item.student.uuid); }}
-            >
-              {/* Clickable avatar → opens modal */}
+          {students.map(student => {
+            const summary = studentSummaries[student.uuid];
+            const unreadCount = threadUnreadCounts[student.uuid] ?? summary?.unread ?? 0;
+            return (
               <div
-                className="avatar"
-                style={{
-                  background: SUBJECT_COLORS.math + '18',
-                  color: SUBJECT_COLORS.math,
-                  flexShrink: 0, cursor: 'pointer',
-                }}
-                onClick={e => {
-                  e.stopPropagation();
-                  setModalStudent(item);
-                }}
-                title="View student chart"
+                key={student.uuid}
+                className={`convo-item ${activeStudentUuid === student.uuid ? 'active' : ''}`}
+                onClick={() => setActiveStudentUuid(student.uuid)}
               >
-                {initials(item.student.display_name)}
+                <div className="avatar" style={{ background: 'var(--a1)18', color: 'var(--a1)', flexShrink: 0 }}>
+                  {initials(student.full_name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{student.full_name}</div>
+                    {summary?.lastPostAt && (
+                      <div style={{ fontSize: 10, color: 'var(--tx3)', flexShrink: 0 }}>
+                        {timeAgo(summary.lastPostAt)}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--tx3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {summary?.preview ?? student.class_name ?? t('teacherMessages.noParentLinked')}
+                  </div>
+                </div>
+                {unreadCount > 0 && (
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--a1)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                    {unreadCount}
+                  </div>
+                )}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>
-                  {item.student.display_name}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Parent: Li Wei
-                </div>
-              </div>
-              {item.unread_messages > 0 && !readThreadIds.has(item.student.uuid) && (
-                <div style={{
-                  width: 18, height: 18, borderRadius: '50%', background: 'var(--a1)',
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700, flexShrink: 0,
-                }}>
-                  {item.unread_messages}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Message thread */}
         <div className="message-thread">
-          {/* Thread header */}
-          <div style={{
-            padding: '14px 20px', borderBottom: '1px solid var(--bd)',
-            display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)',
-          }}>
-            <div
-              className="avatar"
-              style={{ background: 'var(--a1)', color: '#fff', cursor: 'pointer' }}
-              onClick={() => setModalStudent(activeStudent)}
-            >
-              {initials(activeStudent.student.display_name)}
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
-                {activeStudent.student.display_name}
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--bd)', background: 'var(--card)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div className="avatar" style={{ background: 'var(--a1)', color: '#fff' }}>
+                {activeStudent ? initials(activeStudent.full_name) : '?'}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                Parent: Li Wei · {activeStudent.student.class_name}
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{activeStudent?.full_name ?? '—'}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
+                  {activeStudent?.sid ?? t('common.noSid')} · {activeStudent?.class_name ?? t('common.notAvailable')}
+                </div>
               </div>
             </div>
-            {activeStudent.at_risk && (
-              <span className="badge badge-warn" style={{ marginLeft: 'auto', fontSize: 11 }}>⚠ At Risk</span>
-            )}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {parentsForActiveStudent.map(parent => (
+                <button
+                  key={parent.uuid}
+                  className="chip"
+                  style={{ background: activeParentUuid === parent.uuid ? 'var(--a4)' : undefined, color: activeParentUuid === parent.uuid ? '#fff' : undefined }}
+                  onClick={() => setActiveParentUuid(parent.uuid)}
+                >
+                  {parent.display_name} {parent.unread_post_count > 0 ? `(${parent.unread_post_count})` : ''}
+                </button>
+              ))}
+              {parentsForActiveStudent.length === 0 && (
+                <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{t('teacherMessages.noParentLinked')}</span>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px', gap: 8 }}>
+              <input className="input-field" placeholder={t('teacherMessages.searchPlaceholder')} value={threadKeyword} onChange={e => setThreadKeyword(e.target.value)} />
+              <select className="input-field" value={threadTag} onChange={e => setThreadTag(e.target.value)}>
+                <option value="">{t('teacherMessages.allTags')}</option>
+                {availableTags.map(tag => <option key={tag.uuid} value={tag.name}>{tag.name}</option>)}
+              </select>
+              <select className="input-field" value={threadSort} onChange={e => setThreadSort(e.target.value as typeof threadSort)}>
+                <option value="created_at_desc">{t('teacherMessages.sortNewest')}</option>
+                <option value="created_at_asc">{t('teacherMessages.sortOldest')}</option>
+              </select>
+            </div>
           </div>
 
-          {/* Messages */}
           <div className="thread-messages">
-            {messages.map(msg => {
-              const isTeacher = msg.author.role === 'teacher';
+            {messages.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--tx3)', fontSize: 13, padding: '40px 0' }}>
+                {activeParent ? t('teacherMessages.noMessagesYet') : t('teacherMessages.noParentLinkedStudent')}
+              </div>
+            )}
+            {messages.map(post => {
+              const isTeacher = post.author.role === 'teacher';
+              const tx = msgTranslations[post.uuid];
+              const canTranslate = !post.is_deleted && post.original_language !== language;
+              const isShowingOriginal = tx?.showOriginal ?? false;
+              const bubbleText = isShowingOriginal
+                ? post.original_content_markdown
+                : (tx?.text ?? post.content_markdown);
+              const replyPreview = post.reply_to_post_uuid ? messages.find(item => item.uuid === post.reply_to_post_uuid) : null;
               return (
-                <div
-                  key={msg.uuid}
-                  style={{
-                    display: 'flex', gap: 10,
-                    flexDirection: isTeacher ? 'row-reverse' : 'row',
-                  }}
-                >
-                  <div
-                    className="avatar"
-                    style={{
-                      flexShrink: 0,
-                      background: isTeacher ? 'var(--a4)' : 'var(--bg2)',
-                      color: isTeacher ? '#fff' : 'var(--tx2)',
-                      fontSize: 11,
-                    }}
-                  >
-                    {initials(msg.author.display_name)}
+                <div key={post.uuid} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--bd)', background: isTeacher ? 'var(--a4)10' : 'var(--bg2)' }}>
+                  <div className="avatar" style={{ flexShrink: 0, background: isTeacher ? 'var(--a4)' : 'var(--bg2)', color: isTeacher ? '#fff' : 'var(--tx2)', fontSize: 11 }}>
+                    {initials(post.author.display_name)}
                   </div>
-                  <div style={{ maxWidth: '70%' }}>
-                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 4, textAlign: isTeacher ? 'right' : 'left' }}>
-                      {msg.author.display_name} · {timeAgo(msg.created_at)}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{post.title?.trim() || t('common.untitled')}</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
+                      {post.author.display_name} · {timeAgo(post.created_at)}
                     </div>
-                    <div style={{
-                      background: isTeacher ? 'var(--a4)' : 'var(--card)',
-                      color: isTeacher ? '#fff' : 'var(--tx)',
-                      border: isTeacher ? 'none' : '1px solid var(--bd)',
-                      borderRadius: isTeacher ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                      padding: '10px 14px', fontSize: 13, lineHeight: 1.6,
-                    }}>
-                      {msg.content_markdown.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                      <span className="badge" style={{ fontSize: 10 }}>{post.display_language}</span>
+                      {post.translated_language && <span className="badge" style={{ fontSize: 10 }}>{post.translated_language}</span>}
+                      {post.updated_at && <span className="badge" style={{ fontSize: 10 }}>{t('teacherMessages.edited')}</span>}
+                      {post.translated_at && <span className="badge" style={{ fontSize: 10 }}>{t('teacherMessages.translated')}</span>}
+                    </div>
+                  </div>
+                  {!post.is_deleted && (
+                    <button className="chip" style={{ fontSize: 11, alignSelf: 'center' }} onClick={() => setComposerState({ mode: 'reply', post })}>
+                      {t('teacherMessages.reply')}
+                    </button>
+                  )}
+                  </div>
+                  <div style={{ padding: '12px 14px' }}>
+                    {replyPreview && (
+                      <div style={{ marginBottom: 10, padding: '8px 10px', borderLeft: '3px solid var(--a4)', background: 'var(--bg2)', borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', marginBottom: 2 }}>
+                          {replyPreview.title?.trim() || t('common.untitled')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
+                          {replyPreview.original_content_markdown.slice(0, 120)}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ color: 'var(--tx)', fontSize: 13, lineHeight: 1.6 }}>
+                      {bubbleText}
+                    </div>
+                    {post.tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, justifyContent: isTeacher ? 'flex-end' : 'flex-start' }}>
+                        {post.tags.map(tag => (
+                          <span key={tag.uuid} className="badge" style={{ fontSize: 10 }}>
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: isTeacher ? 'flex-end' : 'flex-start', marginTop: 3 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        {canTranslate && (
+                          <button
+                            onClick={() => void handleTranslate(post)}
+                            disabled={tx?.loading}
+                            style={{ background: 'none', border: 'none', cursor: tx?.loading ? 'default' : 'pointer', color: 'var(--a1)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)', opacity: tx?.loading ? 0.5 : 1 }}
+                          >
+                            {tx?.loading ? '···' : isShowingOriginal ? t('actions.showTranslation') : ((post.translated_content_markdown || tx?.text || post.display_language !== post.original_language) ? t('actions.showOriginal') : txTranslate)}
+                          </button>
+                        )}
+                        {!post.is_deleted && <TtsButton resourceType="post" resourceUuid={post.uuid} />}
+                        {isTeacher && (
+                          <>
+                            <button
+                              onClick={() => setComposerState({ mode: 'edit', post })}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--a2)', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}
+                            >
+                              {t('actions.edit')}
+                            </button>
+                            <button
+                              onClick={() => void deletePost(post.uuid)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c43c3c', fontSize: 10, padding: 0, fontFamily: 'var(--font-body)' }}
+                            >
+                              {t('actions.delete')}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -237,69 +442,46 @@ export function TeacherMessagesScreen() {
             })}
           </div>
 
-          {/* Input area */}
           <div className="thread-input-area">
-            {/* AI draft chips */}
-            {showAiChips && (
-              <div style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {AI_DRAFTS.map(draft => (
-                  <button
-                    key={draft}
-                    className="chip"
-                    style={{ fontSize: 11 }}
-                    onClick={() => {
-                      setReply(draft);
-                      setShowAiChips(false);
-                    }}
-                  >
-                    {draft.slice(0, 40)}…
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-              {/* AI draft button */}
-              <button
-                className="chip"
-                style={{ flexShrink: 0, fontSize: 12, background: showAiChips ? 'var(--a4)' : undefined, color: showAiChips ? '#fff' : undefined }}
-                onClick={() => setShowAiChips(s => !s)}
-                title="AI draft suggestions"
-              >
-                ✦ AI Draft
-              </button>
-
-              <textarea
-                className="input-field"
-                style={{ flex: 1, resize: 'none', fontFamily: 'var(--font-body)', fontSize: 13, minHeight: 42 }}
-                placeholder="Write a reply…"
-                value={reply}
-                rows={2}
-                onChange={e => setReply(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendReply(reply);
-                  }
-                }}
-              />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <button
                 className="btn-primary"
-                style={{ width: 'auto', padding: '8px 18px', flexShrink: 0, alignSelf: 'flex-end' }}
-                onClick={() => sendReply(reply)}
-                disabled={!reply.trim()}
+                style={{ width: 'auto', padding: '10px 18px', fontSize: 13 }}
+                disabled={!activeParent || !threadUuid}
+                onClick={() => setComposerState({ mode: 'create' })}
               >
-                Send
+                {t('teacherMessages.newPost')}
               </button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={threadPage <= 1} onClick={() => setThreadPage(prev => prev - 1)}>
+                {t('actions.previous')}
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--tx3)', alignSelf: 'center' }}>
+                {t('teacherMessages.pageStatus', { page: threadPage, totalPages: threadTotalPages })}
+              </div>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }} disabled={threadPage >= threadTotalPages} onClick={() => setThreadPage(prev => prev + 1)}>
+                {t('actions.next')}
+              </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Student chart modal */}
-      {modalStudent && (
-        <StudentChartModal student={modalStudent} onClose={() => setModalStudent(null)} />
-      )}
+      <PostComposerDrawer
+        open={composerState !== null}
+        resetKey={composerResetKey}
+        mode={composerState?.mode ?? 'create'}
+        role="teacher"
+        availableTags={availableTags}
+        replyTarget={replyTarget}
+        initialTitle={composerState?.mode === 'edit' ? (composerState.post?.title ?? '') : ''}
+        initialContent={composerState?.mode === 'edit' ? (composerState.post?.original_content_markdown ?? '') : ''}
+        initialTagUuids={composerState?.mode === 'edit' ? (composerState.post?.tags.map(tag => tag.uuid) ?? []) : []}
+        busy={composerBusy}
+        aiDrafts={aiDrafts}
+        onClose={() => setComposerState(null)}
+        onSubmit={submitComposer}
+      />
     </div>
   );
 }

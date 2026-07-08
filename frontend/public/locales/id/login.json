@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "Platform komunikasi sekolah",
+  "emailLabel": "Alamat email",
+  "emailPlaceholder": "anda@email.com",
+  "passwordLabel": "Kata sandi",
+  "passwordPlaceholder": "Masukkan kata sandi",
+  "rememberMe": "Ingat saya",
+  "signIn": "Masuk",
+  "signingIn": "Sedang masuk…",
+  "invalidCredentials": "Email atau kata sandi salah",
+  "selectRole": "Pilih peran Anda",
+  "parentRole": "Orang Tua",
+  "teacherRole": "Guru",
+  "parentDesc": "Pantau perkembangan anak",
+  "teacherDesc": "Kelola kelas Anda"
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "منصة التواصل المدرسي",
+  "emailLabel": "البريد الإلكتروني",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "كلمة المرور",
+  "passwordPlaceholder": "أدخل كلمة المرور",
+  "rememberMe": "تذكّرني",
+  "signIn": "تسجيل الدخول",
+  "signingIn": "جارٍ الدخول…",
+  "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+  "selectRole": "اختر دورك",
+  "parentRole": "ولي الأمر",
+  "teacherRole": "المعلم",
+  "parentDesc": "اطّلع على تقدّم طفلك",
+  "teacherDesc": "إدارة فصولك الدراسية"
+}

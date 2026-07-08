@@ -1,0 +1,1202 @@
+"""
+家长端接口：/api/parents/me/*
+
+包含：
+  GET  /api/parents/me/students                                                              §9.1
+  GET  /api/parents/me/students/{student_uuid}/dashboard                                     §9.2
+  GET  /api/parents/me/students/{student_uuid}/subjects                                      §9.3
+  GET  /api/parents/me/students/{student_uuid}/subjects/{subject_uuid}                       §9.4
+  GET  /api/parents/me/students/{student_uuid}/reports                                       §9.5
+  GET  /api/parents/me/students/{student_uuid}/reports/{report_uuid}                         §9.6
+  GET  /api/parents/me/students/{student_uuid}/announcements                                 §9.10
+  GET  /api/parents/me/students/{student_uuid}/discussions/teachers                          §9.13
+  GET  /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid}           §9.14
+  GET  /api/parents/me/students/{student_uuid}/leave                                         §9.20
+  POST /api/parents/me/students/{student_uuid}/leave                                         §9.21
+  GET  /api/parents/me/students/{student_uuid}/incidents                                     §9.22
+  POST /api/parents/me/students/{student_uuid}/incidents                                     §9.23
+"""
+
+from __future__ import annotations
+
+import math
+from collections import defaultdict
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Request, Response
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
+
+from ac_link.common.deps import require_parent
+from ac_link.common.exceptions import AppError, Errors
+from ac_link.crud import discussion as discussion_crud
+from ac_link.crud import metrics as metrics_crud
+from ac_link.crud import parent as parent_crud
+from ac_link.crud import score as score_crud
+from ac_link.crud import timetable as timetable_crud
+from ac_link.crud import translation as translation_crud
+from ac_link.crud import welfare as welfare_crud
+from ac_link.db.db import get_db
+from ac_link.db.orm.academic import StudentExamScore, StudentPeriodMetric
+from ac_link.db.orm.enums import TranslationResourceType
+from ac_link.db.orm.content import Announcement, AnnouncementUserState, Report, ReportUserState
+from ac_link.db.orm.user import User, UserSettings
+from ac_link.dto.auth import ApiResponse
+from ac_link.dto.admin import PaginatedResponse, PaginationMeta
+from ac_link.dto.discussion import (
+    DiscussionTeacherInfo,
+    DiscussionTeacherListItem,
+    ParentDiscussionPageData,
+    TagBrief,
+    build_post_item,
+)
+from ac_link.dto.parent import (
+    AnnouncementDetail,
+    AnnouncementListItem,
+    ChartPoint,
+    Charts,
+    ClassAvgPoint,
+    DashboardContext,
+    DashboardData,
+    ImportantPostBanner,
+    IncidentReportCreate,
+    IncidentReportCreateResponse,
+    IncidentReportItem,
+    LeaveRequestCreate,
+    LeaveRequestItem,
+    LearningPathwayItemBrief,
+    LearningProgressPoint,
+    ParentExamScoreItem,
+    ParentPeriodMetricItem,
+    ReportDetail,
+    ReportListItem,
+    StudentBrief,
+    StudentOut,
+    SubjectBrief,
+    SubjectDetailData,
+    SubjectListItem,
+    SubjectListResponse,
+    SubjectOverview,
+    SubjectPostAuthor,
+    SubjectPostItem,
+    SubjectStat,
+    SubjectWithTeachers,
+    SummaryCards,
+    TeacherBrief,
+    TeacherDetail,
+    TranslationBlock,
+    TrendDataPoint,
+    ReportSummary,
+)
+from ac_link.dto.options import SelectOption
+from ac_link.dto.timetable import ClassTimetableData, TimetableClassInfo, TimetableEntryItem, TimetableSubjectInfo, TimetableTeacherInfo
+from ac_link.services.translation_helpers import get_target_language
+
+router = APIRouter(prefix="/api/parents/me", tags=["parents"])
+
+
+def _build_timetable_response(*, class_obj: object, selected_date: object, entries: list[object]) -> ClassTimetableData:
+    first = entries[0] if entries else None
+    return ClassTimetableData(
+        class_info=TimetableClassInfo(
+            uuid=class_obj.uuid,  # type: ignore[attr-defined]
+            name=class_obj.name,  # type: ignore[attr-defined]
+            grade_level=getattr(class_obj, "grade_level", None),
+            academic_year=getattr(class_obj, "academic_year", None),
+        ),
+        selected_date=selected_date,  # type: ignore[arg-type]
+        effective_from=getattr(first, "effective_from", None),
+        effective_to=getattr(first, "effective_to", None),
+        entries=[
+            TimetableEntryItem(
+                uuid=item.uuid,  # type: ignore[attr-defined]
+                weekday=item.weekday,  # type: ignore[attr-defined]
+                period_index=item.period_index,  # type: ignore[attr-defined]
+                room_label=item.room_label,  # type: ignore[attr-defined]
+                start_time=item.start_time,  # type: ignore[attr-defined]
+                end_time=item.end_time,  # type: ignore[attr-defined]
+                effective_from=item.effective_from,  # type: ignore[attr-defined]
+                effective_to=item.effective_to,  # type: ignore[attr-defined]
+                is_active=item.is_active,  # type: ignore[attr-defined]
+                subject=TimetableSubjectInfo(
+                    uuid=item.subject.uuid,  # type: ignore[attr-defined]
+                    name=item.subject.name,  # type: ignore[attr-defined]
+                    code=item.subject.code,  # type: ignore[attr-defined]
+                ),
+                teacher=TimetableTeacherInfo(
+                    uuid=item.teacher_user.uuid,  # type: ignore[attr-defined]
+                    display_name=item.teacher_user.display_name,  # type: ignore[attr-defined]
+                ),
+            )
+            for item in entries
+        ],
+    )
+
+
+# ── GET /api/parents/me/students ─────────────────────────────────────────────
+
+@router.get("/students", response_model=PaginatedResponse[StudentOut])
+def list_my_students(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[StudentOut]:
+    """获取当前家长通过 active binding 绑定的所有 active 学生，按姓名升序分页。"""
+    page_size = min(page_size, 100)
+    students, total = parent_crud.list_parent_students(
+        db, current_user.id, page=page, page_size=page_size
+    )
+    return PaginatedResponse(
+        data=[StudentOut.from_student(s) for s in students],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+@router.get(
+    "/students/{student_uuid}/options/subjects",
+    response_model=ApiResponse[list[SelectOption]],
+)
+def list_student_subject_options(
+    student_uuid: UUID,
+    keyword: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+    pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
+    return ApiResponse(data=[
+        SelectOption(
+            value=str(subject.uuid),
+            label=subject.name,
+            meta={"code": subject.code},
+        )
+        for subject, _ in pairs
+        if not keyword or keyword.lower() in subject.name.lower()
+    ])
+
+
+@router.get(
+    "/students/{student_uuid}/options/terms",
+    response_model=ApiResponse[list[SelectOption]],
+)
+def list_student_term_options(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[SelectOption]]:
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+    query = db.query(StudentPeriodMetric.term).filter(
+        StudentPeriodMetric.student_id == student.id,
+        StudentPeriodMetric.term.isnot(None),
+    )
+    if subject_uuid is not None:
+        result = parent_crud.get_subject_for_student(db, student.id, subject_uuid)
+        if result is None:
+            raise Errors.not_found("学科不存在或该学生未分配此学科")
+        subject, _ = result
+        query = query.filter(StudentPeriodMetric.subject_id == subject.id)
+    rows = query.distinct().order_by(StudentPeriodMetric.term.desc()).all()
+    return ApiResponse(data=[SelectOption(value=value, label=value) for (value,) in rows if value])
+
+@router.get(
+    "/students/{student_uuid}/timetable",
+    response_model=ApiResponse[ClassTimetableData],
+)
+def get_student_timetable(
+    student_uuid: UUID,
+    date: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ClassTimetableData]:
+    """获取指定学生当前班级在某天生效的周课表。"""
+    from datetime import date as _date
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+    if student.class_obj is None:
+        raise Errors.not_found("学生当前未分配班级")
+
+    try:
+        selected_date = _date.fromisoformat(date) if date else _date.today()
+    except ValueError:
+        raise AppError(422, "validation_error", "date 格式应为 YYYY-MM-DD")
+
+    entries = timetable_crud.list_entries_for_class_on_date(
+        db,
+        class_id=student.class_obj.id,
+        on_date=selected_date,
+    )
+    return ApiResponse(data=_build_timetable_response(
+        class_obj=student.class_obj,
+        selected_date=selected_date,
+        entries=entries,
+    ))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/subjects ─────────────────────
+
+@router.get("/students/{student_uuid}/subjects", response_model=SubjectListResponse)
+def list_student_subjects(
+    student_uuid: UUID,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> SubjectListResponse:
+    """获取指定学生的所有 active 学科列表，每个学科携带当前负责老师列表。"""
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
+    data = [
+        SubjectListItem(
+            uuid=subject.uuid,
+            name=subject.name,
+            code=subject.code,
+            teachers=[TeacherBrief(uuid=t.uuid, display_name=t.display_name) for t in teachers],
+        )
+        for subject, teachers in pairs
+    ]
+    return SubjectListResponse(data=data)
+
+
+# ── GET /api/parents/me/students/{student_uuid}/subjects/{subject_uuid} ──────
+
+@router.get(
+    "/students/{student_uuid}/subjects/{subject_uuid}",
+    response_model=ApiResponse[SubjectDetailData],
+)
+def get_subject_detail(
+    student_uuid: UUID,
+    subject_uuid: UUID,
+    range: str = "all_time",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[SubjectDetailData]:
+    """
+    获取指定学生指定学科的聚合详情。
+    overview / timeline 暂时为 null，待 student_metrics 表建好后填充。
+    summary 取该学生该学科最近一条已发布 report。
+    """
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    result = parent_crud.get_subject_for_student(db, student.id, subject_uuid)
+    if not result:
+        raise Errors.not_found("学科不存在或该学生未分配此学科")
+    subject, teachers = result
+
+    latest_report = parent_crud.get_latest_report_for_student(db, student.id, subject_id=subject.id)
+
+    pathway_items = parent_crud.list_learning_pathway_items(db, student.id, subject.id)
+    recent_posts = parent_crud.list_recent_subject_posts(
+        db, student.id, subject.id, parent_user_id=current_user.id
+    )
+
+    return ApiResponse(data=SubjectDetailData(
+        student=StudentBrief.model_validate(student),
+        subject=SubjectWithTeachers(
+            uuid=subject.uuid,
+            name=subject.name,
+            code=subject.code,
+            teachers=[TeacherDetail(uuid=t.uuid, display_name=t.display_name, email=t.email) for t in teachers],
+        ),
+        overview=SubjectOverview(),
+        trend_data=[],
+        class_avg_data=[],
+        learning_pathway=[
+            LearningPathwayItemBrief(
+                uuid=item.uuid,
+                title=item.title,
+                description=item.description,
+                status=str(item.status),
+                week=item.week,
+            )
+            for item in pathway_items
+        ],
+        posts=[
+            SubjectPostItem(
+                uuid=post.uuid,
+                title=post.title,
+                content_markdown=post.content_markdown,
+                created_at=post.created_at,
+                author=SubjectPostAuthor(
+                    uuid=post.author_user.uuid,
+                    display_name=post.author_user.display_name,
+                    role=str(post.author_user.role),
+                ),
+                tags=[],
+            )
+            for post in recent_posts
+        ],
+        summary=_build_report_summary(latest_report),
+    ))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/dashboard ────────────────────
+
+@router.get(
+    "/students/{student_uuid}/dashboard",
+    response_model=ApiResponse[DashboardData],
+)
+def get_student_dashboard(
+    student_uuid: UUID,
+    response: Response,
+    range: str = "all_time",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[DashboardData]:
+    """
+    获取学生 Dashboard 聚合数据。
+    优先基于 exam_scores / period_metrics 聚合核心指标与图表；
+    summary 取该学生最近一条已发布 report（不限学科）。
+    """
+    response.headers["Cache-Control"] = "private, max-age=60, stale-while-revalidate=30"
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    unread_posts = parent_crud.get_unread_post_count(db, student.id, current_user.id)
+    unread_announcements = parent_crud.get_unread_announcement_count(db, student.id, current_user.id)
+
+    latest_report = parent_crud.get_latest_report_for_student(db, student.id)
+
+    subject_pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
+
+    exam_scores = (
+        db.query(StudentExamScore)
+        .options(joinedload(StudentExamScore.subject))
+        .filter(StudentExamScore.student_id == student.id)
+        .order_by(StudentExamScore.exam_date.asc(), StudentExamScore.id.asc())
+        .all()
+    )
+    period_metrics = (
+        db.query(StudentPeriodMetric)
+        .options(joinedload(StudentPeriodMetric.subject))
+        .filter(StudentPeriodMetric.student_id == student.id)
+        .order_by(StudentPeriodMetric.snapshot_date.asc(), StudentPeriodMetric.id.asc())
+        .all()
+    )
+
+    score_percentages: dict[int, list[float]] = defaultdict(list)
+    for item in exam_scores:
+        if item.full_score and item.full_score > 0:
+            score_percentages[item.subject_id].append(round((item.score / item.full_score) * 100, 1))
+
+    latest_metric_by_subject: dict[int, StudentPeriodMetric] = {}
+    for metric in period_metrics:
+        current = latest_metric_by_subject.get(metric.subject_id)
+        if current is None or metric.snapshot_date >= current.snapshot_date:
+            latest_metric_by_subject[metric.subject_id] = metric
+
+    subject_stats: list[SubjectStat] = []
+    score_chart: list[ChartPoint] = []
+    completion_chart: list[ChartPoint] = []
+    score_values_for_summary: list[float] = []
+    completion_values_for_summary: list[float] = []
+    attendance_values_for_summary: list[float] = []
+
+    for subject, _teachers in subject_pairs:
+        subject_scores = score_percentages.get(subject.id, [])
+        latest_metric = latest_metric_by_subject.get(subject.id)
+        score_value = round(sum(subject_scores) / len(subject_scores), 1) if subject_scores else None
+        progress_value = _normalize_ratio_percent(latest_metric.progress) if latest_metric and latest_metric.progress is not None else None
+        completion_ratio = latest_metric.assignment_completion_rate if latest_metric else None
+        completion_percent = _normalize_ratio_percent(completion_ratio) if completion_ratio is not None else None
+        attendance_ratio = latest_metric.attendance_rate if latest_metric else None
+
+        if score_value is not None:
+            score_values_for_summary.append(score_value)
+        if completion_ratio is not None:
+            completion_values_for_summary.append(completion_ratio)
+        if attendance_ratio is not None:
+            attendance_values_for_summary.append(attendance_ratio)
+
+        subject_stats.append(
+            SubjectStat(
+                subject_uuid=subject.uuid,
+                subject_name=subject.name,
+                subject_code=subject.code,
+                score=score_value,
+                progress=progress_value,
+                assignment_completion_rate=completion_ratio,
+            )
+        )
+        score_chart.append(
+            ChartPoint(
+                subject_uuid=subject.uuid,
+                subject_name=subject.name,
+                value=score_value,
+            )
+        )
+        completion_chart.append(
+            ChartPoint(
+                subject_uuid=subject.uuid,
+                subject_name=subject.name,
+                value=completion_percent,
+            )
+        )
+
+    learning_progress_chart = _build_learning_progress_chart(exam_scores, period_metrics)
+    overall_performance = round(sum(score_values_for_summary) / len(score_values_for_summary), 1) if score_values_for_summary else None
+    assignment_completion_rate = round(sum(completion_values_for_summary) / len(completion_values_for_summary), 4) if completion_values_for_summary else None
+    attendance_rate = round(sum(attendance_values_for_summary) / len(attendance_values_for_summary), 4) if attendance_values_for_summary else None
+
+    charts = Charts(
+        subject_score_bar_chart=score_chart,
+        subject_completion_bar_chart=completion_chart,
+        learning_progress_chart=learning_progress_chart,
+    )
+
+    banner_posts = parent_crud.get_important_post_banners(db, student.id, current_user.id)
+    banners = [
+        ImportantPostBanner(
+            post_uuid=post.uuid,
+            teacher_uuid=post.author_user.uuid,
+            teacher_display_name=post.author_user.display_name,
+            title=post.title,
+            preview_text=post.content_markdown[:200],
+            created_at=post.created_at,
+        )
+        for post in banner_posts
+    ]
+
+    return ApiResponse(data=DashboardData(
+        student=StudentOut.from_student(student),
+        dashboard_context=DashboardContext(
+            selected_range=range,
+            unread_post_count=unread_posts,
+            unread_announcement_count=unread_announcements,
+        ),
+        summary_cards=SummaryCards(
+            overall_performance_index=overall_performance,
+            assignment_completion_rate=assignment_completion_rate,
+            attendance_rate=attendance_rate,
+            summary=_build_report_summary(latest_report),
+        ),
+        subject_statistics=subject_stats,
+        charts=charts,
+        important_post_banners=banners,
+    ))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/reports ──────────────────────
+
+_VALID_REPORT_STATUSES = frozenset({"active", "archived", "all"})
+_VALID_READ_STATES = frozenset({"unread", "read", "all"})
+_VALID_REPORT_SORTS = frozenset({"created_at_desc", "created_at_asc"})
+
+
+@router.get(
+    "/students/{student_uuid}/reports",
+    response_model=PaginatedResponse[ReportListItem],
+)
+def list_student_reports(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    status: str = "active",
+    read_state: str = "all",
+    sort: str = "created_at_desc",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ReportListItem]:
+    """获取指定学生的报告列表（仅元信息，不含正文内容）。"""
+    if status not in _VALID_REPORT_STATUSES:
+        raise AppError(400, "invalid_filter", f"status 参数非法，可选值：{_VALID_REPORT_STATUSES}")
+    if read_state not in _VALID_READ_STATES:
+        raise AppError(400, "invalid_filter", f"read_state 参数非法，可选值：{_VALID_READ_STATES}")
+    if sort not in _VALID_REPORT_SORTS:
+        raise AppError(400, "invalid_sort", f"sort 参数非法，可选值：{_VALID_REPORT_SORTS}")
+
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    rows, total = parent_crud.list_reports_for_student(
+        db, student.id, current_user.id,
+        page=page, page_size=page_size,
+        status=status, read_state=read_state, sort=sort,
+    )
+    return PaginatedResponse(
+        data=[_build_report_list_item(report, state) for report, state in rows],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/reports/{report_uuid} ────────
+
+@router.get(
+    "/students/{student_uuid}/reports/{report_uuid}",
+    response_model=ApiResponse[ReportDetail],
+)
+def get_student_report(
+    student_uuid: UUID,
+    report_uuid: UUID,
+    request: Request,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ReportDetail]:
+    """获取指定报告的正文详情。"""
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    result = parent_crud.get_report_for_student(db, student.id, current_user.id, report_uuid)
+    if not result:
+        raise Errors.not_found("报告不存在或无权访问")
+
+    report, _ = result
+    user_settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    target_language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
+    translation = translation_crud.get_translation(
+        db,
+        TranslationResourceType.REPORT,
+        report.id,
+        target_language,
+    )
+    return ApiResponse(data=_build_report_detail(report, _, translation))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/announcements ─────────────────
+
+_VALID_ANNOUNCEMENT_SORTS = frozenset({"published_at_desc", "published_at_asc", "due_at_asc"})
+_VALID_ANNOUNCEMENT_CATEGORIES = frozenset({"announcement", "task", "all"})
+
+
+@router.get(
+    "/students/{student_uuid}/announcements",
+    response_model=PaginatedResponse[AnnouncementListItem],
+)
+def list_student_announcements(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    category: str = "all",
+    active_only: bool = True,
+    sort: str = "published_at_desc",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[AnnouncementListItem]:
+    """
+    获取指定学生的公告/任务列表。
+    active_only=True 时过滤掉 due_at 已过期的条目（due_at IS NULL 或 due_at > now）。
+    """
+    if category not in _VALID_ANNOUNCEMENT_CATEGORIES:
+        raise AppError(400, "invalid_filter", f"category 参数非法，可选值：{_VALID_ANNOUNCEMENT_CATEGORIES}")
+    if sort not in _VALID_ANNOUNCEMENT_SORTS:
+        raise AppError(400, "invalid_sort", f"sort 参数非法，可选值：{_VALID_ANNOUNCEMENT_SORTS}")
+
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    rows, total = parent_crud.list_announcements_for_student(
+        db, student.id, current_user.id,
+        page=page, page_size=page_size,
+        category=category, active_only=active_only, sort=sort,
+    )
+    return PaginatedResponse(
+        data=[_build_announcement_list_item(ann, state) for ann, state in rows],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/discussions/teachers ─────────
+
+@router.get(
+    "/students/{student_uuid}/discussions/teachers",
+    response_model=ApiResponse[list[DiscussionTeacherListItem]],
+)
+def list_discussion_teachers(
+    student_uuid: UUID,
+    sort: str = "last_post_at_desc",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[DiscussionTeacherListItem]]:
+    """列出与指定学生相关的所有教师，附带 thread 信息和当前家长的未读数（§9.13）。"""
+    if sort not in ("last_post_at_desc", "display_name_asc"):
+        raise AppError(400, "invalid_sort", "sort 参数非法，可选：last_post_at_desc, display_name_asc")
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    rows = discussion_crud.list_teachers_for_parent_student(
+        db, current_user.id, student.id, sort=sort
+    )
+
+    data = [
+        DiscussionTeacherListItem(
+            uuid=row["teacher_user"].uuid,
+            display_name=row["teacher_user"].display_name,
+            avatar_url=row["teacher_user"].avatar_url,
+            subjects=[
+                SubjectBrief(uuid=s.uuid, name=s.name, code=s.code)
+                for s in row["subjects"]
+            ],
+            thread_uuid=row["thread"].uuid if row["thread"] else None,
+            last_post_at=row["thread"].last_post_at if row["thread"] else None,
+            unread_post_count=row["unread_count"],
+            latest_message_preview=row.get("latest_message_preview"),
+        )
+        for row in rows
+    ]
+    return ApiResponse(data=data)
+
+
+# ── GET /api/parents/me/students/{student_uuid}/discussions/teachers/{teacher_uuid} ──
+
+@router.get(
+    "/students/{student_uuid}/discussions/teachers/{teacher_uuid}",
+    response_model=ApiResponse[ParentDiscussionPageData],
+)
+def get_discussion_with_teacher(
+    student_uuid: UUID,
+    teacher_uuid: UUID,
+    request: Request,
+    page: int = 1,
+    page_size: int = 20,
+    sort: str = "created_at_desc",
+    tag: str | None = None,
+    keyword: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[ParentDiscussionPageData]:
+    """
+    家长视角：获取与某教师讨论页聚合数据（§9.14）。
+    - 懒创建 thread
+    - 顺带将当前家长的 unread_post_count 归零
+    """
+    if sort not in ("created_at_desc", "created_at_asc"):
+        raise AppError(400, "invalid_sort", "sort 参数非法，可选：created_at_desc, created_at_asc")
+
+    page_size = min(page_size, 100)
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if student is None:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    teacher_user = discussion_crud.get_teacher_for_student(db, student.id, teacher_uuid)
+    if teacher_user is None:
+        raise Errors.not_found("教师不存在或未教该学生")
+
+    thread = discussion_crud.get_or_create_thread(
+        db, student.id, current_user.id, teacher_user.id
+    )
+
+    # 顺带标记已读
+    discussion_crud.mark_thread_read(db, thread.id, current_user.id)
+    db.commit()
+
+    # 帖子列表
+    posts, total = discussion_crud.list_posts_in_thread(
+        db, thread.id,
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        tag_name=tag,
+        keyword=keyword,
+    )
+
+    # 教师教的学科列表
+    subject_pairs = parent_crud.list_student_subjects_with_teachers(db, student.id)
+    teacher_subjects = [
+        SubjectBrief(uuid=subj.uuid, name=subj.name, code=subj.code)
+        for subj, teachers in subject_pairs
+        if any(t.id == teacher_user.id for t in teachers)
+    ]
+
+    user_settings = db.query(UserSettings).filter(
+        UserSettings.user_id == current_user.id
+    ).first()
+    target_language = get_target_language(
+        user_settings.language if user_settings else None,
+        request.headers.get("accept-language"),
+    )
+    post_translations = translation_crud.get_translations_batch(
+        db,
+        TranslationResourceType.POST,
+        [post.id for post in posts],
+        target_language,
+    )
+
+    data = ParentDiscussionPageData(
+        thread_uuid=thread.uuid,
+        student=StudentBrief(
+            uuid=student.uuid,
+            sid=student.sid,
+            full_name=student.full_name,
+        ),
+        teacher=DiscussionTeacherInfo(
+            uuid=teacher_user.uuid,
+            display_name=teacher_user.display_name,
+            avatar_url=teacher_user.avatar_url,
+            subjects=teacher_subjects,
+        ),
+        available_tags=[
+            TagBrief(uuid=tag_item.uuid, name=tag_item.name, scope=str(tag_item.scope))
+            for tag_item in discussion_crud.list_tags_for_parent_thread(db, teacher_user_id=teacher_user.id)
+        ],
+        posts=[build_post_item(p, post_translations.get(p.id)) for p in posts],
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+    return ApiResponse(data=data)
+
+
+# ── 内部辅助 ──────────────────────────────────────────────────────────────────
+
+def _build_report_summary(report: Report | None) -> ReportSummary | None:
+    if report is None:
+        return None
+    return ReportSummary(
+        report_uuid=report.uuid,
+        report_title=report.title,
+        display_text=report.original_content_markdown,
+        original_text=report.original_content_markdown,
+        display_language=report.original_language,
+        original_language=report.original_language,
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/exam-scores ──────────────────────
+
+@router.get(
+    "/students/{student_uuid}/exam-scores",
+    response_model=PaginatedResponse[ParentExamScoreItem],
+)
+def list_student_exam_scores(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    exam_date_from: str | None = None,
+    exam_date_to: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[ParentExamScoreItem]:
+    """获取学生考试成绩列表（§9.18）。"""
+    from datetime import date as _date
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        from ac_link.db.orm.academic import Subject
+        subj = db.query(Subject).filter(
+            Subject.uuid == subject_uuid, Subject.is_active == True  # noqa: E712
+        ).first()
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    date_from: _date | None = None
+    date_to: _date | None = None
+    try:
+        if exam_date_from:
+            date_from = _date.fromisoformat(exam_date_from)
+        if exam_date_to:
+            date_to = _date.fromisoformat(exam_date_to)
+    except ValueError:
+        raise AppError(400, "invalid_filter", "exam_date 格式应为 YYYY-MM-DD")
+
+    page_size = min(page_size, 100)
+    items, total = score_crud.list_exam_scores(
+        db, student.id,
+        subject_id=subject_id,
+        date_from=date_from, date_to=date_to,
+        page=page, page_size=page_size,
+    )
+    for s in items:
+        _ = s.subject
+        _ = s.author_user
+    return PaginatedResponse(
+        data=[ParentExamScoreItem.from_orm_obj(s) for s in items],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── GET /api/parents/me/students/{student_uuid}/period-metrics ───────────────────
+
+@router.get(
+    "/students/{student_uuid}/period-metrics",
+    response_model=ApiResponse[list[ParentPeriodMetricItem]],
+)
+def list_student_period_metrics(
+    student_uuid: UUID,
+    subject_uuid: UUID | None = None,
+    term: str | None = None,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[list[ParentPeriodMetricItem]]:
+    """获取学生周期指标列表（§9.19）。"""
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    subject_id: int | None = None
+    if subject_uuid is not None:
+        from ac_link.db.orm.academic import Subject
+        subj = db.query(Subject).filter(
+            Subject.uuid == subject_uuid, Subject.is_active == True  # noqa: E712
+        ).first()
+        if subj is None:
+            raise Errors.not_found("学科不存在")
+        subject_id = subj.id
+
+    items = metrics_crud.list_period_metrics(
+        db, student.id, subject_id=subject_id, term=term
+    )
+    for m in items:
+        _ = m.subject
+        _ = m.author_user
+    return ApiResponse(data=[ParentPeriodMetricItem.from_orm_obj(m) for m in items])
+
+
+# ── GET /api/parents/me/students/{student_uuid}/leave ────────────────────────
+
+_VALID_LEAVE_STATUSES = frozenset({"pending", "approved", "rejected", "all"})
+
+
+@router.get(
+    "/students/{student_uuid}/leave",
+    response_model=PaginatedResponse[LeaveRequestItem],
+)
+def list_student_leave_requests(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    status: str = "all",
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[LeaveRequestItem]:
+    """获取学生请假申请列表（§9.20）。"""
+    if status not in _VALID_LEAVE_STATUSES:
+        raise AppError(400, "invalid_filter", f"status 参数非法，可选值：{_VALID_LEAVE_STATUSES}")
+
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    items, total = welfare_crud.list_leave_requests(
+        db, student.id, current_user.id,
+        page=page, page_size=page_size, status=status,
+    )
+    return PaginatedResponse(
+        data=[
+            LeaveRequestItem(
+                uuid=item.uuid,
+                student_uuid=student.uuid,
+                type=str(item.type),
+                start_date=item.start_date,
+                end_date=item.end_date,
+                reason=item.reason,
+                status=str(item.status),
+                school_note=item.school_note,
+                submitted_at=item.created_at,
+            )
+            for item in items
+        ],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── POST /api/parents/me/students/{student_uuid}/leave ───────────────────────
+
+_VALID_LEAVE_TYPES = frozenset({"sick", "personal", "family", "other"})
+
+
+@router.post(
+    "/students/{student_uuid}/leave",
+    response_model=ApiResponse[LeaveRequestItem],
+    status_code=201,
+)
+def create_student_leave_request(
+    student_uuid: UUID,
+    body: LeaveRequestCreate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[LeaveRequestItem]:
+    """提交请假申请（§9.21）。"""
+    from ac_link.db.orm.enums import LeaveRequestType
+
+    if body.type not in _VALID_LEAVE_TYPES:
+        raise AppError(400, "invalid_filter", f"type 参数非法，可选值：{_VALID_LEAVE_TYPES}")
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    leave_type = LeaveRequestType(body.type)
+    item = welfare_crud.create_leave_request(
+        db,
+        student_id=student.id,
+        submitter_user_id=current_user.id,
+        leave_type=leave_type,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        reason=body.reason,
+    )
+    db.commit()
+    db.refresh(item)
+
+    return ApiResponse(data=LeaveRequestItem(
+        uuid=item.uuid,
+        student_uuid=student.uuid,
+        type=str(item.type),
+        start_date=item.start_date,
+        end_date=item.end_date,
+        reason=item.reason,
+        status=str(item.status),
+        school_note=item.school_note,
+        submitted_at=item.created_at,
+    ))
+
+
+# ── GET /api/parents/me/students/{student_uuid}/incidents ────────────────────
+
+@router.get(
+    "/students/{student_uuid}/incidents",
+    response_model=PaginatedResponse[IncidentReportItem],
+)
+def list_student_incident_reports(
+    student_uuid: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[IncidentReportItem]:
+    """获取学生事件举报列表（仅当前家长非匿名提交的，§9.22）。"""
+    page_size = min(page_size, 100)
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    items, total = welfare_crud.list_incident_reports(
+        db, current_user.id, student.id,
+        page=page, page_size=page_size,
+    )
+    return PaginatedResponse(
+        data=[
+            IncidentReportItem(
+                uuid=item.uuid,
+                student_uuid=student.uuid,
+                incident_type=str(item.incident_type),
+                description=item.description,
+                is_anonymous=item.is_anonymous,
+                status=str(item.status),
+                submitted_at=item.created_at,
+            )
+            for item in items
+        ],
+        meta=PaginationMeta(
+            page=page, page_size=page_size, total=total,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
+        ),
+    )
+
+
+# ── POST /api/parents/me/students/{student_uuid}/incidents ───────────────────
+
+_VALID_INCIDENT_TYPES = frozenset({"bullying", "drugs", "misconduct", "other"})
+
+
+@router.post(
+    "/students/{student_uuid}/incidents",
+    response_model=ApiResponse[IncidentReportCreateResponse],
+    status_code=201,
+)
+def create_student_incident_report(
+    student_uuid: UUID,
+    body: IncidentReportCreate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+) -> ApiResponse[IncidentReportCreateResponse]:
+    """提交事件举报（§9.23）。"""
+    from ac_link.db.orm.enums import IncidentType
+
+    if body.incident_type not in _VALID_INCIDENT_TYPES:
+        raise AppError(400, "invalid_filter", f"incident_type 参数非法，可选值：{_VALID_INCIDENT_TYPES}")
+
+    student = parent_crud.get_student_for_parent(db, current_user.id, student_uuid)
+    if not student:
+        raise Errors.not_found("学生不存在或无权访问")
+
+    incident_type = IncidentType(body.incident_type)
+    # 匿名时不写入 reporter_user_id
+    reporter_id = None if body.is_anonymous else current_user.id
+
+    item = welfare_crud.create_incident_report(
+        db,
+        student_id=student.id,
+        reporter_user_id=reporter_id,
+        incident_type=incident_type,
+        description=body.description,
+        is_anonymous=body.is_anonymous,
+    )
+    db.commit()
+
+    return ApiResponse(data=IncidentReportCreateResponse(
+        uuid=item.uuid,
+        status=str(item.status),
+    ))
+
+
+def _translation_block(obj: Report | Announcement, translation: object | None = None) -> TranslationBlock:
+    from ac_link.services.translation_helpers import resolve_translation_block
+    fields = resolve_translation_block(obj.original_language, translation)
+    return TranslationBlock(
+        display_language=fields['display_language'],
+        original_language=fields['original_language'],
+        translated_language=fields['translated_language'],
+        translation_status=fields['translation_status'],
+        translated_at=fields['translated_at'],
+    )
+
+
+def _build_report_list_item(
+    report: Report, state: ReportUserState | None
+) -> ReportListItem:
+    return ReportListItem(
+        uuid=report.uuid,
+        title=report.title,
+        report_type=str(report.report_type),
+        source_type=str(report.source_type),
+        period_start=report.period_start,
+        period_end=report.period_end,
+        subject=SubjectBrief.model_validate(report.subject) if report.subject else None,
+        is_read=state.is_read if state else False,
+        read_at=state.read_at if state else None,
+        is_archived=state.is_archived if state else False,
+        archived_at=state.archived_at if state else None,
+        created_at=report.created_at,
+        published_at=report.published_at,
+        translation=_translation_block(report),
+    )
+
+
+def _build_report_detail(
+    report: Report,
+    state: ReportUserState | None,
+    translation: object | None = None,
+) -> ReportDetail:
+    from ac_link.services.translation_helpers import resolve_translation_fields
+    tf = resolve_translation_fields(report.original_content_markdown, report.original_language, translation)
+    return ReportDetail(
+        uuid=report.uuid,
+        title=report.title,
+        report_type=str(report.report_type),
+        source_type=str(report.source_type),
+        period_start=report.period_start,
+        period_end=report.period_end,
+        subject=SubjectBrief.model_validate(report.subject) if report.subject else None,
+        is_read=state.is_read if state else False,
+        read_at=state.read_at if state else None,
+        is_archived=state.is_archived if state else False,
+        archived_at=state.archived_at if state else None,
+        created_at=report.created_at,
+        published_at=report.published_at,
+        display_content_markdown=tf['display_content_markdown'],
+        original_content_markdown=tf['original_content_markdown'],
+        translated_content_markdown=tf['translated_content_markdown'],
+        display_language=tf['display_language'],
+        original_language=tf['original_language'],
+        translated_language=tf['translated_language'],
+        translation_status=tf['translation_status'],
+        translated_at=tf['translated_at'],
+    )
+
+
+def _normalize_ratio_percent(value: float | None) -> float | None:
+    if value is None:
+        return None
+    if 0 <= value <= 1:
+        return round(value * 100, 1)
+    return round(value, 1)
+
+
+def _build_learning_progress_chart(
+    exam_scores: list[StudentExamScore],
+    period_metrics: list[StudentPeriodMetric],
+) -> list[LearningProgressPoint]:
+    grouped: dict[str, list[float]] = defaultdict(list)
+
+    for metric in period_metrics:
+        if metric.progress is not None:
+            grouped[metric.snapshot_date.isoformat()].append(_normalize_ratio_percent(metric.progress) or 0)
+
+    if grouped:
+        return [
+            LearningProgressPoint(label=label, value=round(sum(values) / len(values), 1))
+            for label, values in sorted(grouped.items())
+        ]
+
+    for score in exam_scores:
+        if score.full_score and score.full_score > 0:
+            grouped[score.exam_date.isoformat()].append(round((score.score / score.full_score) * 100, 1))
+
+    return [
+        LearningProgressPoint(label=label, value=round(sum(values) / len(values), 1))
+        for label, values in sorted(grouped.items())
+    ]
+
+
+def _build_announcement_list_item(
+    ann: Announcement, state: AnnouncementUserState | None
+) -> AnnouncementListItem:
+    return AnnouncementListItem(
+        uuid=ann.uuid,
+        category=str(ann.category),
+        title=ann.title,
+        subject=SubjectBrief.model_validate(ann.subject) if ann.subject else None,
+        is_important=ann.is_important,
+        is_read=state.is_read if state else False,
+        read_at=state.read_at if state else None,
+        published_at=ann.published_at,
+        due_at=ann.due_at,
+        body_preview=ann.content_markdown[:150] if ann.content_markdown else None,
+        translation=_translation_block(ann),
+    )

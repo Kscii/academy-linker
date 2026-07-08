@@ -1,0 +1,17 @@
+{
+  "title": "Academy Linker",
+  "subtitle": "学校コミュニケーションプラットフォーム",
+  "emailLabel": "メールアドレス",
+  "emailPlaceholder": "your@email.com",
+  "passwordLabel": "パスワード",
+  "passwordPlaceholder": "パスワードを入力",
+  "rememberMe": "ログイン状態を保持",
+  "signIn": "サインイン",
+  "signingIn": "サインイン中…",
+  "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
+  "selectRole": "役割を選択",
+  "parentRole": "保護者",
+  "teacherRole": "教師",
+  "parentDesc": "お子様の学習状況を確認",
+  "teacherDesc": "クラスを管理する"
+}
